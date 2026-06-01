@@ -60,7 +60,9 @@ Los códigos de esta clase están disponibles para descargar:
 
 ## **¿Por qué GPUs?**
 
-![w:55%](images/use_of_gpu.png)
+![w:630px](images/use_of_gpu.png)
+
+El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
 <p class="credit">Fuente: nvidia.com</p>
 
@@ -68,9 +70,8 @@ Los códigos de esta clase están disponibles para descargar:
 
 ## **Programación heterogénea**
 
-![](images/hetero_arch.png)
 
-El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
+![](images/hetero_arch.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -78,7 +79,7 @@ El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
 ## **GPU Hardware**
 
-![w:60%](images/modern_gpu_performance.png)
+![w:680px](images/modern_gpu_performance.png)
 
 <p class="credit">Fuente: NVIDIA Developer Blog</p>
 
@@ -86,7 +87,7 @@ El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
 ## **CPU vs GPU**
 
-![w:60%](images/cpu_vs_gpu.png)
+![w:680px](images/cpu_vs_gpu.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -113,7 +114,7 @@ El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
 ## **El compilador NVCC**
 
-![w:55%](images/nvcc_compiler.png)
+![w:630px](images/nvcc_compiler.png)
 
 - Código del **host**: corre en el CPU.
 - Código del **device**: corre en el GPU.
@@ -146,22 +147,7 @@ lspci | grep NVIDIA
 
 Ejemplo 1: [hola_mundo.cu](../code/intro/hola_mundo.cu)
 
-```cpp
-#include <stdio.h>
-#include <stdlib.h>
-
-__global__ void imprimir_desde_el_gpu() {
-  printf("Hola Mundo! desde el thread [%d,%d] del device\n",
-         threadIdx.x, blockIdx.x);
-}
-
-int main() {
-  printf("Hola Mundo desde el host!\n");
-  imprimir_desde_el_gpu<<<1, 10>>>();
-  cudaDeviceSynchronize();
-  return 0;
-}
-```
+@include[cuda]{static/code/intro/hola_mundo.cu}
 
 Compilar con `nvcc -arch=sm_50 hola_mundo.cu -o hola_mundo.x` (el valor de `-arch` depende del GPU).
 
@@ -173,7 +159,7 @@ Compilar con `nvcc -arch=sm_50 hola_mundo.cu -o hola_mundo.x` (el valor de `-arc
 
 ## **Suma de vectores**
 
-![w:60%](images/vector_addition.png)
+![w:440px](images/vector_addition.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -183,14 +169,7 @@ Compilar con `nvcc -arch=sm_50 hola_mundo.cu -o hola_mundo.x` (el valor de `-arc
 
 Ejemplo 2a: [suma_vectores_host.c](../code/intro/suma_vectores_host.c)
 
-```c
-#define N 512
-
-void suma_host(int *a, int *b, int *c) {
-  for (int idx = 0; idx < N; idx++)
-    c[idx] = a[idx] + b[idx];
-}
-```
+@include[c]{static/code/intro/suma_vectores_host.c:5-10}
 
 Compilar con `gcc suma_vectores_host.c -o suma_vectores_host.x`.
 
@@ -200,12 +179,7 @@ Compilar con `gcc suma_vectores_host.c -o suma_vectores_host.x`.
 
 Ejemplo 2b: [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
 
-```cpp
-__global__ void suma_device(int *a, int *b, int *c) {
-  int idx = threadIdx.x + blockIdx.x * blockDim.x;
-  c[idx] = a[idx] + b[idx];
-}
-```
+@include[cuda]{static/code/intro/suma_vectores_gpu.cu:12-15}
 
 - No hay ciclo `for`: las coordenadas de los *threads* reemplazan el índice del ciclo.
 - `N` queda definida implícitamente al lanzar el *kernel* con `N` *threads*.
@@ -216,7 +190,7 @@ Compilar con `nvcc -arch=sm_50 suma_vectores_gpu.cu -o suma_vectores_gpu.x`.
 
 ## **Suma de vectores: manejo de memoria**
 
-```cpp
+```cuda
 cudaMalloc((void **)&d_a, size);            // asignar memoria en el device
 cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice);  // host -> device
 suma_device<<<2, N / 2>>>(d_a, d_b, d_c);   // invocar kernel
@@ -239,7 +213,7 @@ Más funciones en la documentación del **CUDA Runtime API**.
 - Para realizar un trabajo en el GPU hay que invocar un **kernel**.
 - Un *kernel* es una función que corre en el GPU, con ciertas restricciones.
 
-```cpp
+```cuda
 __global__ void nombre_kernel(...) {
   // cuerpo de la función
 }
@@ -247,7 +221,7 @@ __global__ void nombre_kernel(...) {
 
 Para invocarlo:
 
-```cpp
+```cuda
 nombre_kernel<<< N, M >>>(...);
 ```
 
@@ -268,7 +242,7 @@ Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
 
 ## **Organización de los threads**
 
-![w:55%](images/cuda_indexing.png)
+![w:630px](images/cuda_indexing.png)
 
 - Todos los *threads* de un *kernel* forman un **grid** y comparten la memoria **global** del GPU.
 - Un *grid* se compone de **bloques** de *threads*; cada bloque tiene su memoria **compartida**.
@@ -294,7 +268,7 @@ Dimensiones del *grid* y los bloques:
 
 En el *host* las dimensiones se especifican con el tipo `dim3`:
 
-```cpp
+```cuda
 dim3 bloques(bx, by, bz);
 dim3 grid(gx, gy, gz);
 nombre_kernel<<< grid, bloques >>>(...);
@@ -302,7 +276,7 @@ nombre_kernel<<< grid, bloques >>>(...);
 
 Para una distribución 2D, basta con dar dos valores (o poner $1$ en $z$):
 
-```cpp
+```cuda
 dim3 bloques(bx, by);
 dim3 grid(gx, gy);
 ```
@@ -323,7 +297,7 @@ dim3 grid(gx, gy);
 
 Ejemplo 3: [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 
-```cpp
+```cuda
 __global__ void mostrarIndices(void) {
   printf("threadIdx: (%d,%d,%d)  blockIdx: (%d,%d,%d)  "
          "blockDim: (%d,%d,%d)  gridDim: (%d,%d,%d)\n",
@@ -382,7 +356,7 @@ Una función se puede compilar para *host* y *device* combinando `__host__` y `_
 - Siempre hay errores en un programa... y en CUDA son un poco difíciles de detectar.
 - Todas las funciones del API de CUDA devuelven un `enum` (`cudaError_t`) con el tipo de error.
 
-```cpp
+```cuda
 cudaError_t err = cudaMemcpy(...);
 cudaGetErrorString(err);
 ```
@@ -393,7 +367,7 @@ cudaGetErrorString(err);
 
 Una forma mejor es usar un *macro*:
 
-```cpp
+```cuda
 #define CHECK(call)                                                   \
 {                                                                     \
   const cudaError_t err = call;                                       \
@@ -412,7 +386,7 @@ Una forma mejor es usar un *macro*:
 - ¡La invocación de un *kernel* **no devuelve nada**! Si falla, no aparece ningún mensaje de error.
 - Ejemplo: invocar con demasiados *threads*.
 
-```cpp
+```cuda
 suma_device<<<1, 2048>>>(d_a, d_b, d_c);
 cudaError_t err = cudaGetLastError();
 if (err != cudaSuccess)
@@ -439,7 +413,7 @@ Los *profilers* dan información sobre la ejecución (tiempo por función, uso d
 
 ## **nvprof**
 
-![w:60%](images/nvprof_example.png)
+![w:680px](images/nvprof_example.png)
 
 - Opciones: `nvprof --help`.
 - Para el uso de recursos se usan **métricas**: `nvprof --query-metrics`.
@@ -448,7 +422,7 @@ Los *profilers* dan información sobre la ejecución (tiempo por función, uso d
 
 ## **Profilers visuales: NVVP**
 
-![w:55%](images/nvvp.png)
+![w:630px](images/nvvp.png)
 
 ```sh
 nvprof --export-profile profile.nvvp --analysis-metrics ./programa
@@ -460,7 +434,7 @@ El archivo `profile.nvvp` se abre con NVVP (NVIDIA Visual Profiler).
 
 ## **Profilers visuales: NSight Compute**
 
-![w:55%](images/ncu_example.png)
+![w:630px](images/ncu_example.png)
 
 ```sh
 ncu -o informacion ./programa.x      # guarda informacion.ncu-rep
@@ -473,7 +447,7 @@ Se abre el `.ncu-rep` con NSight Compute (`ncu-ui`). Métricas: `ncu --query-met
 
 ## **Profilers visuales: NSight Systems**
 
-![w:55%](images/nsys_example.png)
+![w:630px](images/nsys_example.png)
 
 ```sh
 nsys profile ./programa.x              # guarda report.qdrep
@@ -498,7 +472,7 @@ En el próximo capítulo veremos cómo mejorar el uso de la memoria...
 
 Con el API de CUDA: `cudaGetDeviceProperties` — Ejemplo 4: [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
-```cpp
+```cuda
 cudaDeviceProp deviceProp;
 cudaGetDeviceProperties(&deviceProp, dev);
 printf("Device %d: \"%s\"\n", dev, deviceProp.name);

@@ -5,6 +5,9 @@ resources/
 
 static/slides/*.html
 
+# Intermediate slides (after @include expansion)
+.slides-build/
+
 
 # OS cruft
 .DS_Store

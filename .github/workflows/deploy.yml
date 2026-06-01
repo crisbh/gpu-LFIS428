@@ -42,13 +42,14 @@ jobs:
     - name: Install Marp
       run: npm install -g @marp-team/marp-cli
 
-    # Step 5: Convert Marp Slides
+    # Step 5: Convert Marp Slides (expanding @include code directives first)
     - name: Convert Marp Slides
       run: |
-        mkdir -p static/slides
+        mkdir -p static/slides .slides-build
         for file in slides/*.md; do
           filename=$(basename "$file" .md)
-          marp "$file" --html --theme slides/themes/curso.css --output "static/slides/${filename}.html"
+          python3 scripts/expand-includes.py "$file" > ".slides-build/${filename}.md"
+          marp ".slides-build/${filename}.md" --html --theme slides/themes/curso.css --output "static/slides/${filename}.html"
         done
 
     # Step 6: Build the Hugo site

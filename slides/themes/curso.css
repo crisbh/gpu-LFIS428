@@ -17,8 +17,8 @@ section {
 img {
   display: block;
   margin: auto;
-  width: 70%; /* Increase size */
-  max-width: 70%;
+  width: 70%;       /* default size for images with no explicit w:/h: */
+  max-width: 100%;  /* let per-image `w:NNNpx` keywords size up to the full slide */
 }
 
 /* Small, centered, grey caption for figure credits/sources.
