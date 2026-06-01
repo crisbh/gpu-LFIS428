@@ -1,6 +1,6 @@
-baseURL = "https://crisbh.github.io/numerical-relativity-intro/"
+baseURL = "https://crisbh.github.io/gpu-LFIS428/"
 languageCode = "es"
-title = "Introducción a la Relatividad Numérica"
+title = "Programación en GPUs"
 theme = "book"
 enableEmoji = true
 

@@ -32,170 +32,510 @@ style: |
   }
 ---
 
-# **Introducción a la Relatividad Numérica**
+# **Programación en GPUs**
 ## Clase 1
-## Información del curso e introducción
+## Introducción a CUDA
+
+Lenguaje: **CUDA/C** (GPUs de NVIDIA)
 
 ---
 
-## **¿Qué es la Relatividad Numérica?**
+## **Información sobre el curso**
 
-- La **Relatividad Numérica** es la rama de la física computacional que estudia soluciones de las ecuaciones de Einstein mediante técnicas numéricas.
-- Permite explorar fenómenos gravitacionales que:
-  - La gravedad Newtoniana no es capaz de describir.
-  - Los métodos analíticos no son capaces de resolver.
+Libros de referencia:
+- *Learn CUDA Programming* — Han, Sharma
+- *Professional CUDA C Programming* — Cheng, Grossman, McKercher
+- *Parallel Programming: Concepts and Practice* — Schmidt, González-Domínguez, Hundt, Schlarb
+- *Hands-On GPU Programming with Python and CUDA* — Tuomanen
 
----
-
-## **Objetivos del curso**
-
-En este curso, aprenderemos sobre:
-- Los conceptos fundamentales de la Relatividad Numérica.
-- Las principales aplicaciones en astrofísica y gravitación.
-- Los desafíos computacionales que aparecen al intentar resolver las ecuaciones de Einstein.
-- El rol de las simulaciones numéricas en el estudio de fenómenos gravitacionales extremos.
+El lenguaje del curso es **CUDA/C**, pero veremos un poco sobre cómo interactuar con CUDA a través de **Python**.
 
 ---
 
-## **Modalidad del curso** 
+## **Programa del curso**
 
-- El curso se desarrollará mediante clases teóricas y sesiones prácticas.
-- La primera parte del curso será principalmente teórica (~1 mes).
-- Luego, nos concentraremos en la parte numérica y aplicaciones.
-
-
----
-
-## **Aplicaciones de la Relatividad Numérica**
-
-- **Ondas gravitacionales:** Permite predecir y analizar señales detectadas por observatorios como LIGO y Virgo.
-- **Colisión de agujeros negros y estrellas de neutrones:** Permite modelar estos eventos y predecir sus efectos observacionales.
-- **Colapso gravitacional y formación de agujeros negros:** Permite estudiar cómo se forman estos objetos.
-- **Cosmología computacional:** Permite estudiar la evolución del universo y poner a prueba distintas teorías de la gravitación.
+1. Introducción a CUDA
+2. **Prueba** (Evaluación 1)
+3. El uso de la memoria del GPU
+4. Control de los *threads*
+5. **Tarea** (Evaluación 2)
+6. Invocación de los *kernels*
+7. Librerías de CUDA y Python
+8. **Tarea** (Evaluación 3)
+9. Aplicaciones (N-body, ray-tracing, OpenGL)
+10. **Proyecto final** (Deep Learning, Evaluación 4)
 
 ---
 
-## **La gravedad y el espaciotiempo** 
+## **Códigos**
 
-![Curved Spacetime](images/Sun-Earth-Moon-Space-Time.jpg)
+Cada capítulo tiene una carpeta con programas de ejemplo.
 
-
----
-## **Los agujeros negros** 
-
-![BH](images/Black_hole.webp)
-
-
----
-
-<div class="video-container">
-    <iframe 
-        src="https://www.youtube-nocookie.com/embed/FGC_DM7ZgAk" 
-        frameborder="0" 
-        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen>
-    </iframe>
-</div>
-
+Los códigos de esta clase están disponibles para descargar:
+- [hola_mundo.cu](../code/intro/hola_mundo.cu)
+- [suma_vectores_host.c](../code/intro/suma_vectores_host.c)
+- [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
+- [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
+- [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
 ---
 
-## **Las ondas gravitacionales**
-
-- En 2015, LIGO detectó por primera vez una señal de ondas gravitacionales generadas por la fusión de dos agujeros negros.
-- Este evento confirmó una predicción importante de la Relatividad General de Einstein: la existencia de dichas ondas.
-- Además, abrió una nueva era en la astronomía observacional.
-- Actualmente se planean nuevos proyectos para medir ondas gravitacionales en el futuro, incluso en el espacio (LISA).
+# Introducción a CUDA
 
 ---
 
-<div style="text-align: center;">
-  <img src="images/Nobel_Prize_GW_2017.jpg" width="200px">
-</div>
+## **¿Por qué GPUs?**
+
+![w:55%](images/use_of_gpu.png)
+
+Fuente: nvidia.com
 
 ---
 
-<!-- ![GW signal](images/LIGO_measurement_of_gravitational_waves.svg) -->
-<div style="text-align: center;">
-  <img src="images/LIGO_measurement_of_gravitational_waves.svg" width="200px">
-</div>
+## **Programación heterogénea**
 
+![](images/hetero_arch.png)
 
----
+El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
-## **Ecuaciones de Einstein**
-
-$$
-G_{\mu \nu} + \Lambda g_{\mu \nu} = \frac{8 \pi G}{c^4} T_{\mu \nu}
-$$
-donde
-- $G_{\mu \nu}$: tensor de Einstein $\to$ la curvatura del espaciotiempo.
-- $g_{\mu \nu}$: métrica del espaciotiempo $\to$ la geometría.
-- $T_{\mu \nu}$: tensor energía-momento $\to$ materia y energía.
-- $\Lambda$: constante cosmológica $\to$ expansión del universo.
+Fuente: *Professional CUDA C Programming*
 
 ---
 
-## **Desafíos Computacionales**
+## **GPU Hardware**
 
-1. **Ecuaciones altamente no lineales:** Las ecuaciones de Einstein son un sistema de ecuaciones en derivadas parciales no lineales, lo que dificulta su solución.
-2. **Condiciones de frontera y estabilidad numérica:** Se deben diseñar algoritmos que garanticen estabilidad y precisión en la simulación de espaciotiempos curvos.
-3. **Altos requerimientos computacionales:** Las simulaciones más realistas requieren una gran capacidad computacional, y típicamente se debe usar supercomputadores (clusters de cómputo).
+![w:60%](images/modern_gpu_performance.png)
 
-
----
-
-## **Impacto en la Ciencia y la Tecnología**
-
-La Relatividad Numérica no solo es relevante en la investigación teórica, sino que ha tenido un impacto profundo en áreas como:
-
-- **Astronomía de ondas gravitacionales:** Interpretación de datos obtenidos de observatorios como LIGO y Virgo.
-- **Exploración de nueva física:** Prueba de teorías alternativas de gravedad y materia oscura.
-- **Desarrollo de algoritmos computacionales avanzados:** Métodos de integración numérica y técnicas de análisis de datos.
+Fuente: NVIDIA Developer Blog
 
 ---
 
-## **Contenidos del curso** 
+## **CPU vs GPU**
 
-- Comenzaremos con una introducción a la Relatividad General.
-  - Conceptos principales (no exhaustivo): el espaciotiempo y la métrica, la curvatura, las Ecuaciones de Einstein.
-- Discutiremos algunas de las soluciones de mayor importancia (agujero negro de Schwarzschild, ondas gravitacionales).
-- Posteriormente discutiremos las ecuaciones que buscamos resolver en la Relatividad Numérica.
-- Luego, revisaremos los métodos numéricos necesarios para resolver dichas ecuaciones.
-- La parte final del curso estará enfocada en aplicaciones.
+![w:60%](images/cpu_vs_gpu.png)
+
+Fuente: *Professional CUDA C Programming*
 
 ---
 
-## **Evaluaciones del curso** 
-- Tareas de ejercicios propuestos (30%)
-    - Tarea 1: entrega semana 4 del curso.
-    - Tarea 2: entrega semana 7 del curso.
-- Un proyecto de investigación sobre un tópico afín:
-  - Presentación de avance: 26 de junio (20%)
-  - Presentación final: 10 y 17 de julio (50%)
+## **Thread del GPU vs thread del CPU**
 
-- Prueba Extraordinaria: 23 de julio.
+- *Threads* en el **CPU** son "pesados": el *context switching* es costoso. Los *cores* del CPU minimizan la *latency* para uno o dos *threads*.
+  - Un CPU de 4 procesadores *quad-core* puede ejecutar 16 *threads* a la vez (32 con *hyper-threading*).
+- *Threads* en el **GPU** son "livianos": hay miles disponibles y el *context switching* es rápido. Los *cores* manejan muchos *threads* para maximizar el *throughput*.
+  - Ejemplo: un GPU con 16 multiprocesadores y 1536 *threads* activos por multiprocesador alcanza $> 24000$ *threads* activos simultáneamente.
 
 ---
 
-## **Bibliografía del curso** 
+## **Un poco de jerga**
 
-La mayor parte de los contenidos del curso se discuten en:
-- T. Baumgarte & S. Shapiro, "Numerical Relativity: Starting from Scratch", Cambridge University Press, 1st edition, 2021.
-
-Bibliografía complementaria:
-- M. Alcubierre, "Introduction to 3+1 Numerical Relativity", Oxford University Press, 2008.
-- S. Carroll, "Spacetime and Geometry: An Introduction to General Relativity", Addison-Wesley, 2003.
-
+- **Thread**: secuencia de instrucciones, manejada por un *scheduler* (reparte el tiempo del procesador entre *threads*/procesos).
+- **Context switching**: parar la operación de un *thread* para permitir la de otro.
+- **Latency** (latencia): retraso entre emitir una instrucción y recibir los datos que pide.
+- **Throughput**: cantidad de datos que pasan por una red de comunicación por unidad de tiempo (típicamente GB/s).
+- **Bandwidth**: máximo teórico del *throughput* de una red de comunicación.
 
 ---
 
-## **Próximas clases**
+## **El compilador NVCC**
 
-- Como punto de partida, estudiaremos la gravedad Newtoniana.
-  - En particular, nos interesa entenderla en términos del Campo Gravitacional y su ecuación (de campo) governante.
-  - Discutiremos algunas motivaciones que llevan a reemplazarla por la Relatividad General de Einstein.
-- Haremos una revisión de algunas notaciones matemáticas necesarias para la Relatividad General.
-  - Notación indicial para vectores y tensores. 
-  - Notación de suma de Einstein.
-  - Operaciones básicas con vectores y tensores (índices).
+![w:55%](images/nvcc_compiler.png)
+
+- Código del **host**: corre en el CPU.
+- Código del **device**: corre en el GPU.
+
+Fuente: *Professional CUDA C Programming*
+
+---
+
+## **¿Tengo un GPU?**
+
+En el *shell* de Linux:
+
+```sh
+nvidia-smi
+```
+
+También se puede usar:
+
+```sh
+lspci | grep NVIDIA
+```
+
+---
+
+# Primer programa de CUDA
+
+---
+
+## **¡Hola Mundo! con CUDA**
+
+Ejemplo 1: [hola_mundo.cu](../code/intro/hola_mundo.cu)
+
+```cpp
+#include <stdio.h>
+#include <stdlib.h>
+
+__global__ void imprimir_desde_el_gpu() {
+  printf("Hola Mundo! desde el thread [%d,%d] del device\n",
+         threadIdx.x, blockIdx.x);
+}
+
+int main() {
+  printf("Hola Mundo desde el host!\n");
+  imprimir_desde_el_gpu<<<1, 10>>>();
+  cudaDeviceSynchronize();
+  return 0;
+}
+```
+
+Compilar con `nvcc -arch=sm_50 hola_mundo.cu -o hola_mundo.x` (el valor de `-arch` depende del GPU).
+
+---
+
+# Un programa más útil
+
+---
+
+## **Suma de vectores**
+
+![w:60%](images/vector_addition.png)
+
+Fuente: *Professional CUDA C Programming*
+
+---
+
+## **Suma de vectores: host**
+
+Ejemplo 2a: [suma_vectores_host.c](../code/intro/suma_vectores_host.c)
+
+```c
+#define N 512
+
+void suma_host(int *a, int *b, int *c) {
+  for (int idx = 0; idx < N; idx++)
+    c[idx] = a[idx] + b[idx];
+}
+```
+
+Compilar con `gcc suma_vectores_host.c -o suma_vectores_host.x`.
+
+---
+
+## **Suma de vectores: device**
+
+Ejemplo 2b: [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
+
+```cpp
+__global__ void suma_device(int *a, int *b, int *c) {
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  c[idx] = a[idx] + b[idx];
+}
+```
+
+- No hay ciclo `for`: las coordenadas de los *threads* reemplazan el índice del ciclo.
+- `N` queda definida implícitamente al lanzar el *kernel* con `N` *threads*.
+
+Compilar con `nvcc -arch=sm_50 suma_vectores_gpu.cu -o suma_vectores_gpu.x`.
+
+---
+
+## **Suma de vectores: manejo de memoria**
+
+```cpp
+cudaMalloc((void **)&d_a, size);            // asignar memoria en el device
+cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice);  // host -> device
+suma_device<<<2, N / 2>>>(d_a, d_b, d_c);   // invocar kernel
+cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);  // device -> host
+```
+
+- `cudaMalloc`: asignar memoria en el *device*.
+- `cudaMemcpy`: copiar datos entre el *host* y el *device* (en ambas direcciones).
+
+Más funciones en la documentación del **CUDA Runtime API**.
+
+---
+
+# Kernels
+
+---
+
+## **Utilizando el GPU**
+
+- Para realizar un trabajo en el GPU hay que invocar un **kernel**.
+- Un *kernel* es una función que corre en el GPU, con ciertas restricciones.
+
+```cpp
+__global__ void nombre_kernel(...) {
+  // cuerpo de la función
+}
+```
+
+Para invocarlo:
+
+```cpp
+nombre_kernel<<< N, M >>>(...);
+```
+
+Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
+
+---
+
+## **Restricciones para los kernels**
+
+- Acceso a la memoria del *device* solamente.
+- El tipo de retorno debe ser `void`.
+- No se puede usar un número variable de argumentos.
+- No se puede usar variables estáticas.
+- No se puede usar punteros a funciones.
+- Corren asincrónicamente.
+
+---
+
+## **Organización de los threads**
+
+![w:55%](images/cuda_indexing.png)
+
+- Todos los *threads* de un *kernel* forman un **grid** y comparten la memoria **global** del GPU.
+- Un *grid* se compone de **bloques** de *threads*; cada bloque tiene su memoria **compartida**.
+- Coordenadas únicas: `blockIdx` (índice del bloque en el *grid*) y `threadIdx` (índice del *thread* en el bloque).
+
+---
+
+## **Organización de los threads (dimensiones)**
+
+Se puede organizar los *threads* en 1D, 2D o 3D. Las coordenadas son del tipo `uint3` (device):
+
+- `blockIdx.x`, `blockIdx.y`, `blockIdx.z`
+- `threadIdx.x`, `threadIdx.y`, `threadIdx.z`
+
+Dimensiones del *grid* y los bloques:
+
+- `blockDim.x/y/z` (en *threads*)
+- `gridDim.x/y/z` (en *bloques*)
+
+---
+
+## **Organización de los threads (host)**
+
+En el *host* las dimensiones se especifican con el tipo `dim3`:
+
+```cpp
+dim3 bloques(bx, by, bz);
+dim3 grid(gx, gy, gz);
+nombre_kernel<<< grid, bloques >>>(...);
+```
+
+Para una distribución 2D, basta con dar dos valores (o poner $1$ en $z$):
+
+```cpp
+dim3 bloques(bx, by);
+dim3 grid(gx, gy);
+```
+
+---
+
+## **¡Importante!**
+
+- Hay un límite de **$1024$ *threads* por bloque**, sin importar si es 1D, 2D o 3D.
+  - 1D: hasta $1024$ en $x$.
+  - 2D: $32 \times 32 = 1024$.
+  - 3D: por ejemplo $16 \times 16 \times 4 = 1024$.
+- Es fácil pasarse del límite y el error es difícil de detectar (más sobre esto en un momento).
+
+---
+
+## **Organización de los threads: ejemplo**
+
+Ejemplo 3: [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
+
+```cpp
+__global__ void mostrarIndices(void) {
+  printf("threadIdx: (%d,%d,%d)  blockIdx: (%d,%d,%d)  "
+         "blockDim: (%d,%d,%d)  gridDim: (%d,%d,%d)\n",
+         threadIdx.x, threadIdx.y, threadIdx.z,
+         blockIdx.x, blockIdx.y, blockIdx.z,
+         blockDim.x, blockDim.y, blockDim.z,
+         gridDim.x, gridDim.y, gridDim.z);
+}
+
+int main() {
+  dim3 block(3, 3);
+  dim3 grid(2, 2);
+  mostrarIndices<<<grid, block>>>();
+  cudaDeviceReset();
+}
+```
+
+Compilar con `nvcc -arch=sm_50 mostrarIndices.cu -o mostrarIndices.x`.
+
+---
+
+## **Warps, bloques, grids**
+
+- Los *threads* trabajan en grupos de $32$ llamados **warps**.
+- Según el número de *threads* por bloque, cada bloque tendrá múltiples *warps*.
+- Los *threads* de un *warp* están sincronizados implícitamente.
+- Todos los *threads* de un bloque comparten un espacio de memoria compartida.
+- **No** hay comunicación entre *threads* de distintos bloques.
+
+---
+
+## **Diseño de los kernels**
+
+- Los *kernels* siguen el modelo **SPMD** (*single program, multiple data*).
+- Un *kernel* es **código escalar** para un solo *thread*.
+- Al invocarlo, muchos *threads* realizan la misma operación definida en el *kernel*.
+
+---
+
+## **Variedades de funciones en CUDA**
+
+- `__global__`: ejecuta en el *device*; se llama desde el *host* (y desde el *device* para *compute capability* $> 3$).
+- `__host__`: ejecuta en el *host*; se llama desde el *host* (normalmente no hay que especificarlo).
+- `__device__`: ejecuta en el *device*; se llama desde el *device*.
+
+Una función se puede compilar para *host* y *device* combinando `__host__` y `__device__`.
+
+---
+
+# Errores
+
+---
+
+## **Manejando errores**
+
+- Siempre hay errores en un programa... y en CUDA son un poco difíciles de detectar.
+- Todas las funciones del API de CUDA devuelven un `enum` (`cudaError_t`) con el tipo de error.
+
+```cpp
+cudaError_t err = cudaMemcpy(...);
+cudaGetErrorString(err);
+```
+
+---
+
+## **Manejando errores: macro**
+
+Una forma mejor es usar un *macro*:
+
+```cpp
+#define CHECK(call)                                                   \
+{                                                                     \
+  const cudaError_t err = call;                                       \
+  if (err != cudaSuccess) {                                           \
+    printf("Error: %s:%d, ", __FILE__, __LINE__);                     \
+    printf("codigo:%d, mensaje: %s\n", err, cudaGetErrorString(err)); \
+    exit(1);                                                          \
+  }                                                                   \
+}
+```
+
+---
+
+## **Manejando errores: kernels**
+
+- ¡La invocación de un *kernel* **no devuelve nada**! Si falla, no aparece ningún mensaje de error.
+- Ejemplo: invocar con demasiados *threads*.
+
+```cpp
+suma_device<<<1, 2048>>>(d_a, d_b, d_c);
+cudaError_t err = cudaGetLastError();
+if (err != cudaSuccess)
+  printf("Error: %s\n", cudaGetErrorString(err));
+```
+
+Usamos `cudaGetLastError` para capturar el error. Más información en la documentación del API.
+
+---
+
+# Profiling
+
+---
+
+## **Profiling (perfilaje)**
+
+Los *profilers* dan información sobre la ejecución (tiempo por función, uso de memoria, etc.). Para CUDA:
+
+- **nvprof**: GPUs de *compute capability* $< 7$. Uso de recursos y tiempo de las funciones del API.
+- **ncu** (NSight Compute): GPUs de CC $\geq 7$. Uso de recursos del GPU, transferencias de memoria, etc.
+- **nsys** (NSight Systems): GPUs de CC $\geq 7$. Tiempo de ejecución de las funciones.
+
+---
+
+## **nvprof**
+
+![w:60%](images/nvprof_example.png)
+
+- Opciones: `nvprof --help`.
+- Para el uso de recursos se usan **métricas**: `nvprof --query-metrics`.
+
+---
+
+## **Profilers visuales: NVVP**
+
+![w:55%](images/nvvp.png)
+
+```sh
+nvprof --export-profile profile.nvvp --analysis-metrics ./programa
+```
+
+El archivo `profile.nvvp` se abre con NVVP (NVIDIA Visual Profiler).
+
+---
+
+## **Profilers visuales: NSight Compute**
+
+![w:55%](images/ncu_example.png)
+
+```sh
+ncu -o informacion ./programa.x      # guarda informacion.ncu-rep
+ncu --metrics <metrica> ./programa.x # información en pantalla
+```
+
+Se abre el `.ncu-rep` con NSight Compute (`ncu-ui`). Métricas: `ncu --query-metrics`.
+
+---
+
+## **Profilers visuales: NSight Systems**
+
+![w:55%](images/nsys_example.png)
+
+```sh
+nsys profile ./programa.x              # guarda report.qdrep
+nsys profile --stats=true ./programa.x # información en pantalla
+```
+
+El `.qdrep` se abre con NSight Systems (`nsys-ui`).
+
+---
+
+## **¿Acotado por el cómputo o por la memoria?**
+
+- **Compute bound**: el rendimiento lo limita la rapidez de las operaciones aritméticas del GPU.
+- **Memory bound**: el rendimiento lo limita la rapidez de la comunicación con la memoria del GPU.
+- Casi **siempre** los programas de cómputo científico son *memory bound*.
+
+En el próximo capítulo veremos cómo mejorar el uso de la memoria...
+
+---
+
+## **Información del GPU en el sistema**
+
+Con el API de CUDA: `cudaGetDeviceProperties` — Ejemplo 4: [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
+
+```cpp
+cudaDeviceProp deviceProp;
+cudaGetDeviceProperties(&deviceProp, dev);
+printf("Device %d: \"%s\"\n", dev, deviceProp.name);
+```
+
+En el *shell* de Linux: `nvidia-smi` o `lspci | grep NVIDIA`.
+
+Más información en la documentación sobre *device management*.
+
+---
+
+# ¡Gracias!
+
+## Próxima clase: el uso de la memoria del GPU
