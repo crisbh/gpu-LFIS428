@@ -1,0 +1,48 @@
+/* @theme curso */
+
+/* Shared Marp theme for the "Programación en GPUs" slides.
+   Extends the built-in `gaia` theme and adds course-wide rules.
+   Used by every deck via `theme: curso` in its front matter.
+   Registered through the marp CLI flag `--theme slides/themes/curso.css`
+   (see the Makefile and .github/workflows/deploy.yml). */
+
+@import 'gaia';
+
+section {
+  font-size: 2.0em !important;
+  font-family: 'Arial', sans-serif;
+  overflow: hidden;
+}
+
+img {
+  display: block;
+  margin: auto;
+  width: 70%; /* Increase size */
+  max-width: 70%;
+}
+
+/* Small, centered, grey caption for figure credits/sources.
+   Usage:  <p class="credit">Fuente: ...</p>  */
+.credit {
+  text-align: center;
+  font-size: 0.6em;
+  color: #666;
+  margin-top: 0.2em;
+}
+
+.video-container {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  height: 0;
+  overflow: hidden;
+  max-width: 100%;
+  background: black;
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}

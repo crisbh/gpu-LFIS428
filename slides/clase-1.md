@@ -3,33 +3,7 @@ marp: true
 paginate: true
 math: katex
 html: true
-style: |
-  section {
-    font-size: 2.2em !important;
-    font-family: 'Arial', sans-serif;
-    overflow: hidden;
-  }
-  img {
-    display: block;
-    margin: auto;
-    width: 70%; /* Increase size */
-    max-width: 70%;
-  }
-  .video-container {
-    position: relative;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
-    height: 0;
-    overflow: hidden;
-    max-width: 100%;
-    background: black;
-  }
-  .video-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-  }
+theme: curso
 ---
 
 # **Programación en GPUs**
@@ -88,7 +62,7 @@ Los códigos de esta clase están disponibles para descargar:
 
 ![w:55%](images/use_of_gpu.png)
 
-Fuente: nvidia.com
+<p class="credit">Fuente: nvidia.com</p>
 
 ---
 
@@ -98,7 +72,7 @@ Fuente: nvidia.com
 
 El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
-Fuente: *Professional CUDA C Programming*
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 
@@ -106,7 +80,7 @@ Fuente: *Professional CUDA C Programming*
 
 ![w:60%](images/modern_gpu_performance.png)
 
-Fuente: NVIDIA Developer Blog
+<p class="credit">Fuente: NVIDIA Developer Blog</p>
 
 ---
 
@@ -114,7 +88,7 @@ Fuente: NVIDIA Developer Blog
 
 ![w:60%](images/cpu_vs_gpu.png)
 
-Fuente: *Professional CUDA C Programming*
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 
@@ -144,7 +118,7 @@ Fuente: *Professional CUDA C Programming*
 - Código del **host**: corre en el CPU.
 - Código del **device**: corre en el GPU.
 
-Fuente: *Professional CUDA C Programming*
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 
@@ -201,7 +175,7 @@ Compilar con `nvcc -arch=sm_50 hola_mundo.cu -o hola_mundo.x` (el valor de `-arc
 
 ![w:60%](images/vector_addition.png)
 
-Fuente: *Professional CUDA C Programming*
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 

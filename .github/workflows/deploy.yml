@@ -48,7 +48,7 @@ jobs:
         mkdir -p static/slides
         for file in slides/*.md; do
           filename=$(basename "$file" .md)
-          marp "$file" --html --theme gaia --output "static/slides/${filename}.html"
+          marp "$file" --html --theme slides/themes/curso.css --output "static/slides/${filename}.html"
         done
 
     # Step 6: Build the Hugo site

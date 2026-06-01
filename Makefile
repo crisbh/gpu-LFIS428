@@ -8,7 +8,7 @@ OUTPUT_DIR := static/slides
 HTML_SLIDES := $(patsubst slides/%.md, $(OUTPUT_DIR)/%.html, $(SLIDES))
 
 # Define Marp command
-MARP_CMD := marp --html --theme gaia
+MARP_CMD := marp --html --theme slides/themes/curso.css
 HUGO_CMD := hugo server --minify --theme hugo-book
 
 # Build website with hugo
