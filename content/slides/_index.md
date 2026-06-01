@@ -10,4 +10,4 @@ description: "Clases del curso"
 - [Control de los threads](threads.html)
 - Invocación de los kernels (próximamente)
 - Librerías de CUDA y Python (próximamente)
-- Aplicaciones — N-cuerpos, ray-tracing, OpenGL (próximamente)
+- [Aplicaciones — N-cuerpos, ray-tracing, OpenGL](aplicaciones.html)
