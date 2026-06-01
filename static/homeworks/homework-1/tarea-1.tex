@@ -1,0 +1,63 @@
+\documentclass[11pt, letterpaper, addpoints]{exam}
+\input{setup.tex}
+
+% Define root path for questions
+\newcommand{\repository}{../../../repositorio-preguntas/}
+
+% Define command to concatenate path+filename
+\newcommand{\concatpath}[1]{\repository/#1}
+
+
+%%%%%%%%%%%%%%% TODO: Input Test details %%%%%%%%%%%%%%%%%%
+
+\newcommand{\examdate}{17 de abril de 2025}
+\newcommand{\examtitle}{Tarea 1}
+\newcommand{\coursename}{Introducción a la Relatividad Numérica}
+
+% Choose whether we want to print the answers or not.
+\noprintanswers
+%\printanswers
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+\input{header.tex}
+
+\vspace{1mm}
+\thispagestyle{empty}
+%\vspace{10mm}
+Nombre:\enspace\hrulefill
+\vspace{5mm}
+
+\centering
+\textbf{\underline{Instrucciones}}\\
+\vspace{2mm} 
+{\small \bfseries 
+Responder las preguntas a mano, en forma legible y
+argumentando claramente.\\
+Puede entregar su tarea en papel, o bien enviar su versión escaneada por email a
+cristian.barrera@uv.cl.\\}
+\vspace{15mm}
+
+%\input{formulario-prueba-2.tex}
+%\newpage\phantom{blabla}
+%\newpage\phantom{blabla}
+%\thispagestyle{empty}
+%\newpage
+
+% \centering
+% \textbf{\underline{Preguntas}}\\
+% \vspace{10mm}
+\input{questions.tex}
+
+%\newpage\phantom{blabla}
+%\newpage\phantom{blabla}
+%\thispagestyle{empty}
+%\input{formulario.tex}
+
+%%%%%%%%%%% OPTIONAL: Tabla de Puntajes %%%%%%%%%%%%%
+%{\large \bfseries Puntajes}
+%\begin{center}
+%\gradetable[h][questions]
+%\end{center}
+
+\end{document}

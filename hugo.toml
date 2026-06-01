@@ -1,0 +1,36 @@
+baseURL = "https://crisbh.github.io/numerical-relativity-intro/"
+languageCode = "es"
+title = "Introducción a la Relatividad Numérica"
+theme = "book"
+enableEmoji = true
+
+[params]
+  BookTheme = 'auto'
+  BookToC = true
+  BookSearch = false
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    codeFences = true
+    guessSyntax = false
+    hl_Lines = ''
+    lineNoStart = 1
+    lineNos = false
+    lineNumbersInTable = true
+    noClasses = true
+    style = 'monokailight'
+    tabWidth = 8
+
+[[menu.after]]
+    name = "📖 Clases"
+    url = "/slides/"
+    weight = 5
+
+[[menu.after]]
+    name = "📖 Tareas"
+    url = "/homeworks/"
+    weight = 6
+

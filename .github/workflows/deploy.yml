@@ -1,0 +1,50 @@
+name: Deploy Hugo Site with Marp Slides
+
+on:
+  push:
+    branches:
+      - main  # Triggers deployment when pushing to main
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository with submodules
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        submodules: true  # Ensures Hugo themes are cloned
+
+    # Step 2: Install the latest Hugo Extended
+    - name: Install Hugo Extended
+      uses: peaceiris/actions-hugo@v2
+      with:
+        hugo-version: '0.128.0'
+        extended: true
+
+    # Step 3: Install Marp
+    - name: Install Marp
+      run: npm install -g @marp-team/marp-cli
+
+    # Step 4: Convert Marp Slides
+    - name: Convert Marp Slides
+      run: |
+        mkdir -p static/slides
+        for file in slides/*.md; do
+          filename=$(basename "$file" .md)
+          marp "$file" --html --theme gaia --output "static/slides/${filename}.html"
+        done
+
+    # Step 5: Build the Hugo site
+    - name: Build Hugo Site
+      run: hugo --minify --cleanDestinationDir --theme hugo-book
+
+    # Step 6: Deploy to GitHub Pages
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./public
+        publish_branch: gh-pages
+

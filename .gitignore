@@ -1,0 +1,10 @@
+# Hugo build outputs
+.hugo_build.lock
+public/
+resources/
+
+static/slides/*.html
+
+
+# OS cruft
+.DS_Store
