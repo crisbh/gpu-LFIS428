@@ -34,3 +34,8 @@ enableEmoji = true
     url = "/homeworks/"
     weight = 6
 
+[[menu.after]]
+    name = "💻 Códigos"
+    url = "/codigos/"
+    weight = 7
+
