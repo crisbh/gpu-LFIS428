@@ -27,22 +27,26 @@ jobs:
       with:
         submodules: recursive  # Ensures Hugo themes are cloned
 
-    # Step 2: Configure GitHub Pages (provides baseURL etc.)
+    # Step 2: Validate internal figure/code/include/deck links (fail fast)
+    - name: Check links
+      run: make check
+
+    # Step 3: Configure GitHub Pages (provides baseURL etc.)
     - name: Setup Pages
       uses: actions/configure-pages@v5
 
-    # Step 3: Install the latest Hugo Extended
+    # Step 4: Install the latest Hugo Extended
     - name: Install Hugo Extended
       uses: peaceiris/actions-hugo@v3
       with:
         hugo-version: '0.128.0'
         extended: true
 
-    # Step 4: Install Marp
+    # Step 5: Install Marp
     - name: Install Marp
       run: npm install -g @marp-team/marp-cli
 
-    # Step 5: Convert Marp Slides (expanding @include code directives first)
+    # Step 6: Convert Marp Slides (expanding @include code directives first)
     - name: Convert Marp Slides
       run: |
         mkdir -p static/slides .slides-build
@@ -52,11 +56,11 @@ jobs:
           marp ".slides-build/${filename}.md" --html --theme slides/themes/curso.css --output "static/slides/${filename}.html"
         done
 
-    # Step 6: Build the Hugo site
+    # Step 7: Build the Hugo site
     - name: Build Hugo Site
       run: hugo --minify --cleanDestinationDir --theme hugo-book
 
-    # Step 7: Upload the built site as a Pages artifact
+    # Step 8: Upload the built site as a Pages artifact
     - name: Upload Pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
@@ -69,7 +73,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-    # Step 8: Deploy the artifact to GitHub Pages
+    # Step 9: Deploy the artifact to GitHub Pages
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
