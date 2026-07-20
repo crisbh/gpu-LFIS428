@@ -9,5 +9,8 @@ static/slides/*.html
 .slides-build/
 
 
+# Reference fork (separate git repo; source material, not part of the site build)
+curso-programacion-gpu-uv/
+
 # OS cruft
 .DS_Store
