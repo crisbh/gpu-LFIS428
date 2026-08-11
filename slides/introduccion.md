@@ -7,7 +7,6 @@ theme: curso
 ---
 
 # **Programación en GPUs**
-## Clase 1
 ## Introducción a CUDA
 
 Lenguaje: **CUDA/C** (GPUs de NVIDIA)
@@ -16,13 +15,14 @@ Lenguaje: **CUDA/C** (GPUs de NVIDIA)
 
 ## **Información sobre el curso**
 
+El lenguaje del curso es **CUDA/C**, pero veremos un poco sobre cómo interactuar con CUDA a través de **Python**.
+
 Libros de referencia:
 - *Learn CUDA Programming* — Han, Sharma
 - *Professional CUDA C Programming* — Cheng, Grossman, McKercher
 - *Parallel Programming: Concepts and Practice* — Schmidt, González-Domínguez, Hundt, Schlarb
 - *Hands-On GPU Programming with Python and CUDA* — Tuomanen
 
-El lenguaje del curso es **CUDA/C**, pero veremos un poco sobre cómo interactuar con CUDA a través de **Python**.
 
 ---
 
@@ -35,8 +35,8 @@ El lenguaje del curso es **CUDA/C**, pero veremos un poco sobre cómo interactua
 5. **Quiz** (Evaluación 2)
 6. Invocación de los *kernels*
 7. Librerías de CUDA y Python
-8. Aplicaciones (N-body, ray-tracing, OpenGL)
-9. **Proyecto final** (Evaluación 3)
+8. Aplicaciones (N-body, ray-tracing)
+9. **Proyecto final** (Evaluación 3 y 4)
 
 ---
 
@@ -61,9 +61,10 @@ Los códigos de esta clase están disponibles para descargar:
 
 ![w:630px](images/use_of_gpu.png)
 
+<p class="credit">Fuente: nvidia.com</p>
+
 El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
-<p class="credit">Fuente: nvidia.com</p>
 
 ---
 
@@ -114,11 +115,11 @@ El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 ## **El compilador NVCC**
 
 ![w:630px](images/nvcc_compiler.png)
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 - Código del **host**: corre en el CPU.
 - Código del **device**: corre en el GPU.
 
-<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 
@@ -203,11 +204,11 @@ Más funciones en la documentación del **CUDA Runtime API**.
 
 ---
 
-# Kernels
+# Los Kernels
 
 ---
 
-## **Utilizando el GPU**
+## **Los Kernels: Utilizando el GPU**
 
 - Para realizar un trabajo en el GPU hay que invocar un **kernel**.
 - Un *kernel* es una función que corre en el GPU, con ciertas restricciones.
@@ -243,7 +244,7 @@ Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
 
 ![w:630px](images/cuda_indexing.png)
 
-- Todos los *threads* de un *kernel* forman un **grid** y comparten la memoria **global** del GPU.
+- Los *threads* forman un **grid** y comparten la memoria **global** del GPU.
 - Un *grid* se compone de **bloques** de *threads*; cada bloque tiene su memoria **compartida**.
 - Coordenadas únicas: `blockIdx` (índice del bloque en el *grid*) y `threadIdx` (índice del *thread* en el bloque).
 
@@ -318,21 +319,22 @@ Compilar con `nvcc -arch=sm_50 mostrarIndices.cu -o mostrarIndices.x`.
 
 ---
 
-## **Warps, bloques, grids**
-
-- Los *threads* trabajan en grupos de $32$ llamados **warps**.
-- Según el número de *threads* por bloque, cada bloque tendrá múltiples *warps*.
-- Los *threads* de un *warp* están sincronizados implícitamente.
-- Todos los *threads* de un bloque comparten un espacio de memoria compartida.
-- **No** hay comunicación entre *threads* de distintos bloques.
-
----
-
 ## **Diseño de los kernels**
 
 - Los *kernels* siguen el modelo **SPMD** (*single program, multiple data*).
 - Un *kernel* es **código escalar** para un solo *thread*.
 - Al invocarlo, muchos *threads* realizan la misma operación definida en el *kernel*.
+
+---
+
+## **Warps, bloques, grids**
+
+- Los *threads* trabajan en grupos de $32$ llamados **warps**.
+  - Los warps no son visibles para el programador, pero es importante para el rendimiento.
+- Los *threads* de un *warp* están sincronizados implícitamente.
+- Según el número de *threads* por bloque, cada bloque tendrá múltiples *warps*.
+- Todos los *threads* de un bloque comparten un espacio de memoria compartida.
+- **No** hay comunicación entre *threads* de distintos bloques.
 
 ---
 
@@ -362,7 +364,7 @@ cudaGetErrorString(err);
 
 ---
 
-## **Manejando errores: macro**
+## **Manejando errores: un macro útil**
 
 Una forma mejor es usar un *macro*:
 
@@ -483,6 +485,6 @@ Más información en la documentación sobre *device management*.
 
 ---
 
-# ¡Gracias!
+## Fin capitulo 1
 
-## Próxima clase: el uso de la memoria del GPU
+Próxima clase: el uso de la memoria del GPU
