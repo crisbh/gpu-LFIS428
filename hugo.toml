@@ -24,20 +24,20 @@ enableEmoji = true
     style = 'monokailight'
     tabWidth = 8
 
-# [[menu.after]]
-#     name = "🗓️ Calendario"
-#     url = "/calendario/"
-#     weight = 4
+#[[menu.after]]
+#    name = "🗓️ Calendario"
+#    url = "/calendario/"
+#    weight = 4
 
 [[menu.after]]
     name = "📖 Clases"
     url = "/slides/"
     weight = 5
 
-[[menu.after]]
-    name = "📝 Projectos"
-    url = "/homeworks/"
-    weight = 6
+#[[menu.after]]
+#    name = "📝 Proyectos"
+#    url = "/homeworks/"
+#    weight = 6
 
 [[menu.after]]
     name = "💻 Códigos"

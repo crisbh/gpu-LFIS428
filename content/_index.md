@@ -1,4 +1,4 @@
-# **Programación en GPUs**
+# **Optimización y Programación en GPU**
 **Dr. Cristian Barrera Hinojosa**
 
 **Instituto de Física y Astronomía, Universidad de Valparaíso, Chile**
@@ -6,7 +6,7 @@
 
 ## Descripción del curso
 
-Este curso ofrece una introducción práctica a la programación de unidades de procesamiento gráfico (GPUs) para cómputo de alto rendimiento. Usando CUDA/C sobre GPUs de NVIDIA, estudiaremos el modelo de programación heterogénea (host/device), la organización de los threads, el manejo de la memoria del GPU y el uso de herramientas de profiling, hasta llegar a aplicaciones como simulaciones de N-cuerpos, ray-tracing y aprendizaje profundo. El curso combina clases teóricas con sesiones prácticas de programación.
+Este curso ofrece una introducción práctica a la programación de unidades de procesamiento gráfico (GPUs) para cómputo de alto rendimiento. Usando CUDA/C con GPUs de NVIDIA, estudiaremos y aplicaremos el modelo de programación heterogénea (host/device), la organización de los threads, el manejo de la memoria del GPU y el uso de herramientas de profiling. Por último, revisaremos algunos casos de estudio como simulaciones de N-cuerpos y ray-tracing. El curso combina clases teóricas con sesiones prácticas de programación.
 
 El lenguaje principal del curso es CUDA/C, pero también veremos cómo interactuar con CUDA a través de Python.
 
@@ -17,15 +17,15 @@ El lenguaje principal del curso es CUDA/C, pero también veremos cómo interactu
 - El uso de la memoria del GPU
 - Profiling y optimización de rendimiento
 - Librerías de CUDA y Python
-- Aplicaciones: N-cuerpos, ray-tracing, OpenGL
-- Proyecto final (aprendizaje profundo)
+- Aplicaciones: N-cuerpos, ray-tracing
 
 
 ## Evaluaciones
 La nota final tendrá las siguientes componentes:
-- Una prueba (25% nota final).
-- Dos tareas (25% cada una).
-- Un proyecto final (25% nota final).
+- Dos quizes (25% nota final).
+- Trabajo de proyecto individual (50% nota final).
+
+También existe una Prueba Recuperativa, y una Prueba Extraordinaria.
 
 
 ## Bibliografía
