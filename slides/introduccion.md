@@ -48,6 +48,7 @@ Los códigos de esta clase están disponibles para descargar:
 - [hola_mundo.cu](../code/intro/hola_mundo.cu)
 - [suma_vectores_host.c](../code/intro/suma_vectores_host.c)
 - [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
+- [saxpy.cu](../code/intro/saxpy.cu)
 - [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 - [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
@@ -139,6 +140,39 @@ lspci | grep NVIDIA
 
 ---
 
+## **Google Colab: un GPU T4 gratis**
+
+[Google Colab](https://colab.research.google.com) ofrece GPUs **NVIDIA T4** gratuitas en la nube.
+
+1. Menú **Entorno de ejecución → Cambiar tipo de entorno de ejecución**.
+2. **Acelerador por hardware → GPU (T4)**.
+3. Verificar el GPU asignado:
+
+```sh
+!nvidia-smi
+```
+
+El T4 tiene *compute capability* $7.5$.
+
+---
+
+## **Compilar CUDA en Colab**
+
+Colab no tiene un editor de archivos: se escribe el `.cu` con `%%writefile` y se compila con `!nvcc`.
+
+```sh
+%%writefile hola_mundo.cu
+// ... código CUDA ...
+```
+
+En otra celda, compilar y ejecutar (el T4 es CC $7.5$ → `-arch=sm_75`):
+
+```sh
+!nvcc -arch=sm_75 hola_mundo.cu -o hola_mundo.x && ./hola_mundo.x
+```
+
+---
+
 # Primer programa de CUDA
 
 ---
@@ -201,6 +235,19 @@ cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);  // device -> host
 - `cudaMemcpy`: copiar datos entre el *host* y el *device* (en ambas direcciones).
 
 Más funciones en la documentación del **CUDA Runtime API**.
+
+---
+
+## **SAXPY**
+
+La operación **SAXPY** (*single-precision A·X plus Y*): $Y = a \cdot X + Y$.
+
+Ejemplo 3: [saxpy.cu](../code/intro/saxpy.cu)
+
+@include[cuda]{static/code/intro/saxpy.cu:5-9}
+
+- Patrón muy común en cómputo científico (BLAS nivel 1).
+- El `if (i < n)` protege del exceso de *threads*; se lanza con `blocks = (N + threads - 1) / threads`.
 
 ---
 
@@ -295,7 +342,7 @@ dim3 grid(gx, gy);
 
 ## **Índices de los threads: el kernel**
 
-Ejemplo 3: [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
+Ejemplo 4: [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 
 @include[cuda]{static/code/intro/mostrarIndices.cu:1-10}
 
@@ -463,9 +510,34 @@ En el próximo capítulo veremos cómo mejorar el uso de la memoria...
 
 ---
 
+## **Modelo Roofline**
+
+<svg viewBox="0 0 620 250" style="width:52%" xmlns="http://www.w3.org/2000/svg">
+  <!-- ejes -->
+  <line x1="70" y1="205" x2="590" y2="205" stroke="#8895a7" stroke-width="2"/>
+  <line x1="70" y1="205" x2="70" y2="25" stroke="#8895a7" stroke-width="2"/>
+  <!-- roofline -->
+  <polyline points="70,205 285,75 580,75" fill="none" stroke="#2a7ae2" stroke-width="4"/>
+  <!-- linea del ridge point -->
+  <line x1="285" y1="75" x2="285" y2="205" stroke="#8895a7" stroke-width="1.5" stroke-dasharray="5,5"/>
+  <circle cx="285" cy="75" r="6" fill="#e8603c"/>
+  <!-- etiquetas -->
+  <text x="215" y="240" fill="#35495e" font-size="16">Intensidad aritmética (FLOP/byte)</text>
+  <text x="30" y="140" fill="#35495e" font-size="16" transform="rotate(-90 30 140)">Rendimiento</text>
+  <text x="120" y="135" fill="#2a7ae2" font-size="15" transform="rotate(-31 120 135)">ancho de banda</text>
+  <text x="360" y="62" fill="#2a7ae2" font-size="15">pico de cómputo</text>
+  <text x="105" y="190" fill="#6b7785" font-size="13">memory bound</text>
+  <text x="390" y="190" fill="#6b7785" font-size="13">compute bound</text>
+</svg>
+
+- Rendimiento $\leq \min(\text{pico de cómputo},\ AI \times \text{ancho de banda})$, con $AI$ la intensidad aritmética (FLOP/byte).
+- El **ridge point** (punto naranja) separa las regiones *memory bound* y *compute bound*.
+
+---
+
 ## **Información del GPU en el sistema**
 
-Con el API de CUDA: `cudaGetDeviceProperties` — Ejemplo 4: [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
+Con el API de CUDA: `cudaGetDeviceProperties` — Ejemplo 5: [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
 ```cuda
 cudaDeviceProp deviceProp;

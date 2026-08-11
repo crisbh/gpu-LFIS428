@@ -12,6 +12,7 @@ Programas de ejemplo para las clases:
 - [hola_mundo.cu](../code/intro/hola_mundo.cu)
 - [suma_vectores_host.c](../code/intro/suma_vectores_host.c)
 - [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
+- [saxpy.cu](../code/intro/saxpy.cu)
 - [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 - [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 

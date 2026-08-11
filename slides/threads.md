@@ -697,6 +697,40 @@ Ejemplo 13: [warp_shuffle_down.cu](../code/threads/warp_shuffle_down.cu).
 
 ---
 
+# Operaciones atómicas
+
+---
+
+## **Operaciones atómicas**
+
+- Cuando muchos *threads* escriben en la **misma** dirección de memoria hay una *race condition*: el resultado depende del orden de ejecución.
+- Una operación **atómica** garantiza que la lectura-modificación-escritura ocurra sin interrupción.
+
+```cuda
+__global__ void suma_atomica(int *contador, const int *datos) {
+  int i = threadIdx.x + blockIdx.x * blockDim.x;
+  atomicAdd(contador, datos[i]); // seguro: sin race condition
+}
+```
+
+- Otras: `atomicSub`, `atomicMax`, `atomicMin`, `atomicExch`, `atomicCAS`, ...
+
+---
+
+## **Atómicas: costo y buenas prácticas**
+
+- Serializan los accesos concurrentes → pueden ser **lentas** si hay mucha contención.
+- Buena práctica: reducir primero dentro del bloque (memoria compartida o *warp primitives*) y usar **una** atómica por bloque.
+
+```cuda
+// cada bloque aporta su resultado parcial al total global
+if (threadIdx.x == 0) atomicAdd(total, suma_del_bloque);
+```
+
+- Es una alternativa simple (con contención) a la **reducción** en paralelo que vimos antes.
+
+---
+
 # ¡Gracias!
 
 ## Próxima clase: invocación de los kernels
