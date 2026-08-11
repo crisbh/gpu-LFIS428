@@ -1,0 +1,32 @@
+<!--
+  Project override of hugo-book's docs/menu-hugo.html.
+  Only change vs. the theme: open a menu link in a new tab (target="_blank")
+  for external (http/https) URLs, not for internal ones defined via `url`.
+  The theme forced target="_blank" on every entry lacking an associated
+  .Page (i.e. all our `[[menu.after]]` entries defined with `url`), which made
+  the Home/Clases/Códigos buttons open in a new tab.
+-->
+{{ if . }}
+  {{ template "book-menu-hugo" . }}
+{{ end }}
+
+{{ define "book-menu-hugo" }}
+<ul>
+  {{ range . }}
+  <li>
+    <a href="{{ .URL }}" {{ with .Params.class }}class="{{ . }}"{{ end }} {{ if hasPrefix .URL "http" }}target="_blank" rel="noopener"{{ end }}>
+      {{- .Pre -}}
+      {{ with .Page }}
+        {{ partial "docs/title" .Page }}
+      {{ else }}
+        {{ .Name }}
+      {{ end }}
+      {{- .Post -}}
+    </a>
+    {{- with .Children }}
+      {{ template "book-menu-hugo" . }}
+    {{- end }}
+  </li>
+  {{ end }}
+</ul>
+{{ end }}
