@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 // Tamaño de los vectores
-#define N 512
+#define N 2048
 
 void suma_host(int *a, int *b, int *c) {
   for (int idx = 0; idx < N; idx++)

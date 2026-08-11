@@ -12,4 +12,4 @@ Diapositivas del curso para cada tema/unidad:
 <!-- - [3. Control de los threads](threads.html) -->
 <!-- - [4. Invocación de los kernels](kernels.html) -->
 <!-- - [5. Librerías de CUDA y Python](librerias-python.html) -->
-<!-- - [6. Aplicaciones: N-cuerpos, ray-tracing, OpenGL](aplicaciones.html) -->
+<!-- - [6. Aplicaciones: N-cuerpos, ray-tracing](aplicaciones.html) -->

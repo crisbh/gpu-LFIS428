@@ -181,8 +181,8 @@ Ejemplo 2b: [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
 
 @include[cuda]{static/code/intro/suma_vectores_gpu.cu:12-15}
 
-- No hay ciclo `for`: las coordenadas de los *threads* reemplazan el índice del ciclo.
-- `N` queda definida implícitamente al lanzar el *kernel* con `N` *threads*.
+- No hay ciclo `for`: cada *thread* calcula su índice global (`threadIdx.x + blockIdx.x * blockDim.x`) y procesa un elemento.
+- El *kernel* **no verifica límites**: hay que lanzar exactamente `N` *threads*, o agregar `if (idx < N)` para evitar accesos fuera del arreglo.
 
 Compilar con `nvcc -arch=sm_50 suma_vectores_gpu.cu -o suma_vectores_gpu.x`.
 
@@ -293,29 +293,19 @@ dim3 grid(gx, gy);
 
 ---
 
-## **Organización de los threads: ejemplo**
+## **Índices de los threads: el kernel**
 
 Ejemplo 3: [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 
-```cuda
-__global__ void mostrarIndices(void) {
-  printf("threadIdx: (%d,%d,%d)  blockIdx: (%d,%d,%d)  "
-         "blockDim: (%d,%d,%d)  gridDim: (%d,%d,%d)\n",
-         threadIdx.x, threadIdx.y, threadIdx.z,
-         blockIdx.x, blockIdx.y, blockIdx.z,
-         blockDim.x, blockDim.y, blockDim.z,
-         gridDim.x, gridDim.y, gridDim.z);
-}
+@include[cuda]{static/code/intro/mostrarIndices.cu:1-10}
 
-int main() {
-  dim3 block(3, 3);
-  dim3 grid(2, 2);
-  mostrarIndices<<<grid, block>>>();
-  cudaDeviceReset();
-}
-```
+Cada *thread* imprime sus coordenadas y las dimensiones del *grid* y del bloque.
 
-Compilar con `nvcc -arch=sm_50 mostrarIndices.cu -o mostrarIndices.x`.
+---
+
+## **Índices de los threads: el lanzamiento**
+
+@include[cuda]{static/code/intro/mostrarIndices.cu:12-31}
 
 ---
 
@@ -331,8 +321,9 @@ Compilar con `nvcc -arch=sm_50 mostrarIndices.cu -o mostrarIndices.x`.
 
 - Los *threads* trabajan en grupos de $32$ llamados **warps**.
   - Los warps no son visibles para el programador, pero es importante para el rendimiento.
-- Los *threads* de un *warp* están sincronizados implícitamente.
-- Según el número de *threads* por bloque, cada bloque tendrá múltiples *warps*.
+- Los *threads* de un *warp* avanzan sincronizados (*lock-step*) en GPUs anteriores a Volta.
+  - Desde *compute capability* $7.0$ (*independent thread scheduling*) hay que usar `__syncwarp()` para garantizarlo.
+- Cada bloque puede tener múltiples *warps*, según cuantos *threads* hay.
 - Todos los *threads* de un bloque comparten un espacio de memoria compartida.
 - **No** hay comunicación entre *threads* de distintos bloques.
 
@@ -340,7 +331,7 @@ Compilar con `nvcc -arch=sm_50 mostrarIndices.cu -o mostrarIndices.x`.
 
 ## **Variedades de funciones en CUDA**
 
-- `__global__`: ejecuta en el *device*; se llama desde el *host* (y desde el *device* para *compute capability* $> 3$).
+- `__global__`: ejecuta en el *device*; se llama desde el *host* (y desde el *device* para *compute capability* $\geq 3.5$).
 - `__host__`: ejecuta en el *host*; se llama desde el *host* (normalmente no hay que especificarlo).
 - `__device__`: ejecuta en el *device*; se llama desde el *device*.
 
@@ -406,9 +397,9 @@ Usamos `cudaGetLastError` para capturar el error. Más información en la docume
 
 Los *profilers* dan información sobre la ejecución (tiempo por función, uso de memoria, etc.). Para CUDA:
 
-- **nvprof**: GPUs de *compute capability* $< 7$. Uso de recursos y tiempo de las funciones del API.
-- **ncu** (NSight Compute): GPUs de CC $\geq 7$. Uso de recursos del GPU, transferencias de memoria, etc.
-- **nsys** (NSight Systems): GPUs de CC $\geq 7$. Tiempo de ejecución de las funciones.
+- **nvprof**: GPUs hasta *compute capability* $7.x$ (obsoleto en GPUs más nuevas, CC $\geq 8$). Uso de recursos y tiempo de las funciones del API.
+- **ncu** (NSight Compute): recomendado para CC $\geq 7$. Uso de recursos del GPU, transferencias de memoria, etc.
+- **nsys** (NSight Systems): recomendado para CC $\geq 7$. Tiempo de ejecución de las funciones.
 
 ---
 
@@ -437,6 +428,9 @@ El archivo `profile.nvvp` se abre con NVVP (NVIDIA Visual Profiler).
 
 ![w:630px](images/ncu_example.png)
 
+---
+
+## **Profilers visuales: NSight Compute**
 ```sh
 ncu -o informacion ./programa.x      # guarda informacion.ncu-rep
 ncu --metrics <metrica> ./programa.x # información en pantalla
@@ -485,6 +479,6 @@ Más información en la documentación sobre *device management*.
 
 ---
 
-## Fin capitulo 1
+## Fin capítulo 1
 
 Próxima clase: el uso de la memoria del GPU
