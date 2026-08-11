@@ -25,7 +25,10 @@ La nota final tendrá las siguientes componentes:
 - Dos quizes (25% nota final cada uno).
 - Trabajo de proyecto individual (50% nota final).
 
-También existe una Prueba Recuperativa, y una Prueba Extraordinaria.
+Dependiendo de la situación del/la estudiante, existen dos instancias extras:
+
+- Una Prueba Recuperativa: reemplaza la nota de uno de los quizes (no del proyecto). **Requiere previa justificación**.
+- Una Prueba Extraordinaria: debe rendirse **si la nota final es menor a 5.0.**
 
 
 ## Bibliografía
