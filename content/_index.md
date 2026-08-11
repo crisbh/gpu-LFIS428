@@ -22,7 +22,7 @@ El lenguaje principal del curso es CUDA/C, pero también veremos cómo interactu
 
 ## Evaluaciones
 La nota final tendrá las siguientes componentes:
-- Dos quizes (25% nota final).
+- Dos quizes (25% nota final cada uno).
 - Trabajo de proyecto individual (50% nota final).
 
 También existe una Prueba Recuperativa, y una Prueba Extraordinaria.

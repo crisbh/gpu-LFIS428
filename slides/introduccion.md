@@ -29,15 +29,14 @@ El lenguaje del curso es **CUDA/C**, pero veremos un poco sobre cómo interactua
 ## **Programa del curso**
 
 1. Introducción a CUDA
-2. **Prueba** (Evaluación 1)
+2. **Quiz** (Evaluación 1)
 3. El uso de la memoria del GPU
 4. Control de los *threads*
-5. **Tarea** (Evaluación 2)
+5. **Quiz** (Evaluación 2)
 6. Invocación de los *kernels*
 7. Librerías de CUDA y Python
-8. **Tarea** (Evaluación 3)
-9. Aplicaciones (N-body, ray-tracing, OpenGL)
-10. **Proyecto final** (Deep Learning, Evaluación 4)
+8. Aplicaciones (N-body, ray-tracing, OpenGL)
+9. **Proyecto final** (Evaluación 3)
 
 ---
 

@@ -36,7 +36,7 @@ Las fechas son referenciales (ajústalas desde la planilla del curso). El materi
 
 | Clase | Fecha | Tema | Evaluación |
 |:---:|:---|:---|:---|
-| 17 | — | Introducción al proyecto final: temas (p. ej. *deep learning*), formación de grupos | |
+| 17 | — | Introducción al proyecto final: temas, formación de grupos | |
 | 18 | — | Definición de propuestas y lineamientos | |
 | 19 | — | Desarrollo del proyecto (asesoría) | |
 | 20 | — | Desarrollo del proyecto (asesoría) | |

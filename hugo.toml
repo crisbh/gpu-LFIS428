@@ -24,6 +24,11 @@ enableEmoji = true
     style = 'monokailight'
     tabWidth = 8
 
+[[menu.after]]
+    name = "🏠 Home"
+    url = "/"
+    weight = 3
+
 #[[menu.after]]
 #    name = "🗓️ Calendario"
 #    url = "/calendario/"
