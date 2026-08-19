@@ -128,7 +128,7 @@ El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
 ## **Un poco de jerga**
 
-- **thread** (hilo): *contexto virtual de ejecución* que es *asignado* a un core (núcleo) forma independiente por un *scheduler* para su ejecución.
+- **Thread** (hilo): *contexto virtual de ejecución* que es *asignado* a un core (núcleo) forma independiente por un *scheduler* para su ejecución.
 - **Context switching**: guardar el estado de ejecución de un thread (registros, program counter, stack) y cargar el de otro, para que el core pase de ejecutar uno a ejecutar el otro.
 - **Latency** (latencia): retraso entre emitir una instrucción y recibir los datos que pide.
 
