@@ -174,8 +174,7 @@ lspci | grep NVIDIA
 
 [Google Colab](https://colab.research.google.com) ofrece GPUs **NVIDIA T4** gratuitas en la nube.
 
-1. Menú **Entorno de ejecución → Cambiar tipo de entorno de ejecución** (arriba
-   a la derecha, al lado de *conectar*.
+1. Menú **Entorno de ejecución → Cambiar tipo de entorno de ejecución** (arriba a la derecha, al lado de *conectar*.
 2. **Acelerador por hardware → GPU (T4)**.
 3. Verificar el GPU asignado:
 
@@ -184,6 +183,21 @@ lspci | grep NVIDIA
 ```
 
 <!-- El T4 tiene *compute capability* $7.5$. -->
+
+---
+
+# Primer programa de CUDA
+
+---
+
+## **¡Hola Mundo! con CUDA**
+
+Ejemplo 1: [hola_mundo.cu](../code/intro/hola_mundo.cu)
+
+@include[cuda]{static/code/intro/hola_mundo.cu}
+
+Compilar con `nvcc -arch=sm_50 hola_mundo.cu -o hola_mundo.x` (el valor de `-arch` depende del GPU).
+
 
 ---
 
@@ -207,21 +221,6 @@ lspci | grep NVIDIA
 ```
 
 ---
-
-# Primer programa de CUDA
-
----
-
-## **¡Hola Mundo! con CUDA**
-
-Ejemplo 1: [hola_mundo.cu](../code/intro/hola_mundo.cu)
-
-@include[cuda]{static/code/intro/hola_mundo.cu}
-
-Compilar con `nvcc -arch=sm_50 hola_mundo.cu -o hola_mundo.x` (el valor de `-arch` depende del GPU).
-
----
-
 # Un programa más útil
 
 ---
@@ -560,12 +559,12 @@ En el próximo capítulo veremos cómo mejorar el uso de la memoria...
   <text x="215" y="240" fill="#35495e" font-size="16">Intensidad aritmética (FLOP/byte)</text>
   <text x="30" y="140" fill="#35495e" font-size="16" transform="rotate(-90 30 140)">Rendimiento</text>
   <text x="120" y="135" fill="#2a7ae2" font-size="15" transform="rotate(-31 120 135)">ancho de banda</text>
-  <text x="360" y="62" fill="#2a7ae2" font-size="15">pico de cómputo</text>
+  <text x="360" y="62" fill="#2a7ae2" font-size="15">peak de cómputo</text>
   <text x="105" y="190" fill="#6b7785" font-size="13">memory bound</text>
   <text x="390" y="190" fill="#6b7785" font-size="13">compute bound</text>
 </svg>
 
-- Rendimiento $\leq \min(\text{pico de cómputo},\ AI \times \text{ancho de banda})$, con $AI$ la intensidad aritmética (FLOP/byte).
+- Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$, con $AI$ la intensidad aritmética (FLOP/byte).
 - El **ridge point** (punto naranja) separa las regiones *memory bound* y *compute bound*.
 
 ---
