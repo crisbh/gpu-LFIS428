@@ -9,8 +9,6 @@ theme: curso
 # **Programación en GPUs**
 ## Introducción a CUDA
 
-Lenguaje: **CUDA/C** (GPUs de NVIDIA)
-
 ---
 
 ## **Información sobre el curso**
@@ -36,15 +34,15 @@ Libros de referencia:
 6. Invocación de los *kernels*
 7. Librerías de CUDA y Python
 8. Aplicaciones (N-body, ray-tracing)
-9. **Proyecto final** (Evaluación 3 y 4)
+9. **Proyecto final** (Evaluaciones 3 y 4)
 
 ---
 
 ## **Códigos**
 
-Cada capítulo tiene una carpeta con programas de ejemplo.
+Cada capítulo tiene asociado programas de ejemplo.
 
-Los códigos de esta clase están disponibles para descargar:
+Durante las primeras clases usaremos:
 - [hola_mundo.cu](../code/intro/hola_mundo.cu)
 - [suma_vectores_host.c](../code/intro/suma_vectores_host.c)
 - [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
@@ -54,7 +52,11 @@ Los códigos de esta clase están disponibles para descargar:
 
 ---
 
-# Introducción a CUDA
+<!-- _class: hook -->
+
+## **Introducción a CUDA**
+
+<p class="destacado">¿Por qué programar con GPUs?</p>
 
 ---
 
@@ -94,22 +96,50 @@ El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
 ---
 
+<!-- _class: hook -->
+
+## **Introducción a CUDA**
+
+<p class="destacado">¿Qué entendemos por threads (hilos)?</p>
+
+---
+
+## **¿Qué es un thread?**
+
+- Un *thread* es un **contexto virtual de ejecución** que es **asignado** a un core (núcleo) forma independiente por un *scheduler* para su ejecución.
+  - Los CPU pueden tener **hyper-threading**, lo que permite que un *core* ejecute varios *threads* al mismo tiempo.
+- Varios *threads* pueden avanzar de forma concurrente, ya sea repartiéndose el tiempo de un mismo *core* o corriendo en paralelo en distintos *cores*.
+
+---
+
 ## **Thread del GPU vs thread del CPU**
 
-- *Threads* en el **CPU** son "pesados": el *context switching* es costoso. Los *cores* del CPU minimizan la *latency* para uno o dos *threads*.
+- *Threads* del **CPU** son "pesados": el *context switching* es costoso. Los *cores* del CPU minimizan la *latency* para uno o dos *threads*.
   - Un CPU de 4 procesadores *quad-core* puede ejecutar 16 *threads* a la vez (32 con *hyper-threading*).
-- *Threads* en el **GPU** son "livianos": hay miles disponibles y el *context switching* es rápido. Los *cores* manejan muchos *threads* para maximizar el *throughput*.
+
+---
+
+## **Thread del GPU vs thread del CPU**
+
+- *Threads* del **GPU** son "livianos": el *context switching* es rápido y hay miles disponibles. Los *cores* manejan muchos *threads* para maximizar el *throughput*.
   - Ejemplo: un GPU con 16 multiprocesadores y 1536 *threads* activos por multiprocesador alcanza $> 24000$ *threads* activos simultáneamente.
 
 ---
 
 ## **Un poco de jerga**
 
-- **Thread**: secuencia de instrucciones, manejada por un *scheduler* (reparte el tiempo del procesador entre *threads*/procesos).
-- **Context switching**: parar la operación de un *thread* para permitir la de otro.
+- **thread** (hilo): *contexto virtual de ejecución* que es *asignado* a un core (núcleo) forma independiente por un *scheduler* para su ejecución.
+- **Context switching**: guardar el estado de ejecución de un thread (registros, program counter, stack) y cargar el de otro, para que el core pase de ejecutar uno a ejecutar el otro.
 - **Latency** (latencia): retraso entre emitir una instrucción y recibir los datos que pide.
-- **Throughput**: cantidad de datos que pasan por una red de comunicación por unidad de tiempo (típicamente GB/s).
-- **Bandwidth**: máximo teórico del *throughput* de una red de comunicación.
+
+---
+
+## **Un poco de jerga**
+
+- **Throughput**: cantidad de trabajo (datos, operaciones, instrucciones) completado por unidad de tiempo.
+  - Ejemplos: ancho de banda de memoria (GB/s), operaciones de punto flotante por segundo (FLOP/s)
+- **Bandwidth** (ancho de banda): capacidad máxima de transferencia de un canal de comunicación (memoria, PCIe, NVLink, red), típicamente en GB/s. Es el máximo teórico del throughput, y es una propiedad del hardware.
+- **Arithmetic intensity** (intensidad aritmética): número de operaciones aritméticas realizadas por byte transferido desde memoria. Determina si un kernel está limitado por cómputo o por ancho de banda.
 
 ---
 
@@ -124,7 +154,7 @@ El cómputo se reparte entre el **host** (CPU) y el **device** (GPU).
 
 ---
 
-## **¿Tengo un GPU?**
+## **¿Tengo un GPU de NVIDIA?**
 
 En el *shell* de Linux:
 
@@ -140,11 +170,12 @@ lspci | grep NVIDIA
 
 ---
 
-## **Google Colab: un GPU T4 gratis**
+## **Google Colab: acceso a la GPU T4 gratis**
 
 [Google Colab](https://colab.research.google.com) ofrece GPUs **NVIDIA T4** gratuitas en la nube.
 
-1. Menú **Entorno de ejecución → Cambiar tipo de entorno de ejecución**.
+1. Menú **Entorno de ejecución → Cambiar tipo de entorno de ejecución** (arriba
+   a la derecha, al lado de *conectar*.
 2. **Acelerador por hardware → GPU (T4)**.
 3. Verificar el GPU asignado:
 
@@ -152,20 +183,24 @@ lspci | grep NVIDIA
 !nvidia-smi
 ```
 
-El T4 tiene *compute capability* $7.5$.
+<!-- El T4 tiene *compute capability* $7.5$. -->
 
 ---
 
 ## **Compilar CUDA en Colab**
 
-Colab no tiene un editor de archivos: se escribe el `.cu` con `%%writefile` y se compila con `!nvcc`.
+- En Colab, se pueden crear y editar archivos desde una termial (e.g. con `vi`)
+- También se puede a través de una celda de Colab, se puede escribir un archivo `.cu` con `%%writefile`, bajo lo cual se pone el contenido
+
+- 1. Crear un archivo `.cu` con el código de `hola_mundo.cu`.
 
 ```sh
 %%writefile hola_mundo.cu
 // ... código CUDA ...
 ```
 
-En otra celda, compilar y ejecutar (el T4 es CC $7.5$ → `-arch=sm_75`):
+2. En otra celda, compilar y ejecutar con `nvcc`.
+<!-- (el T4 es CC $7.5$ → `-arch=sm_75`): -->
 
 ```sh
 !nvcc -arch=sm_75 hola_mundo.cu -o hola_mundo.x && ./hola_mundo.x

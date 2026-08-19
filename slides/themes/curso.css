@@ -30,6 +30,40 @@ img {
   margin-top: 0.2em;
 }
 
+/* Highlighted statement: large, blue, centered text — for a hook question
+   or key phrase that should dominate the slide. Pair with Marp/gaia's
+   built-in `lead` class to also center it vertically:
+
+     <!-- _class: lead -->
+
+     <p class="destacado">¿Por qué programar con GPUs?</p>
+
+   (markdown emphasis does not render inside raw HTML; the class already
+   handles the styling, so no *…* is needed) */
+.destacado {
+  text-align: center;
+  color: #76b900;   /* NVIDIA green */
+  font-size: 1.6em;
+  font-weight: bold;
+}
+
+/* Hook slide: keep the title at the top (like a normal slide) but center
+   the `.destacado` statement in the remaining space below it. Apply with:
+
+     <!-- _class: hook -->
+
+     ## **Título**
+
+     <p class="destacado">¿Frase destacada?</p>  */
+section.hook {
+  display: flex;
+  flex-direction: column;
+}
+
+section.hook .destacado {
+  margin: auto 0;   /* absorb the free vertical space above and below */
+}
+
 .video-container {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 aspect ratio */
