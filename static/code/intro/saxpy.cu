@@ -9,7 +9,8 @@ __global__ void saxpy(int n, float a, float *x, float *y) {
 }
 
 int main(void) {
-  int N = 1 << 20; // 1.048.576 elementos
+  // bit-shift: mueve el bit con valor 1 de la posición 0 a la 20
+  int N = 1 << 20; //  → 2^20 = 1.048.576
   size_t size = N * sizeof(float);
 
   float *x = (float *)malloc(size);

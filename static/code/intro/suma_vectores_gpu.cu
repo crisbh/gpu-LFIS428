@@ -45,7 +45,7 @@ int main(void) {
   cudaMalloc((void **)&d_b, size);
   cudaMalloc((void **)&d_c, size);
 
-  // Copiar al device los vectores a sumar 
+  // Copiar al device los vectores a sumar
   cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice);
   cudaMemcpy(d_b, b, size, cudaMemcpyHostToDevice);
 
