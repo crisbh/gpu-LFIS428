@@ -266,7 +266,9 @@ cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);  // device -> host
 ```
 
 - `cudaMalloc`: asignar memoria en el *device*.
+  - Retorna un puntero en el *device*.
 - `cudaMemcpy`: copiar datos entre el *host* y el *device* (en ambas direcciones).
+  - 1er argumento: puntero destino. 2do argumento: puntero origen.
 
 Más funciones en la documentación del **CUDA Runtime API**.
 
@@ -318,6 +320,14 @@ Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
 - No se puede usar variables estáticas.
 - No se puede usar punteros a funciones.
 - Corren asincrónicamente.
+---
+
+## **Organización de los threads**
+
+![w:430px](images/threads_hierarchy.png)
+
+- Los *threads* se organizan en un **grid** y comparten la memoria **global** del GPU.
+
 
 ---
 
@@ -325,8 +335,7 @@ Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
 
 ![w:630px](images/cuda_indexing.png)
 
-- Los *threads* forman un **grid** y comparten la memoria **global** del GPU.
-- Un *grid* se compone de **bloques** de *threads*; cada bloque tiene su memoria **compartida**.
+- El *grid* se compone de **bloques** de *threads*; cada bloque tiene su memoria **compartida**.
 - Coordenadas únicas: `blockIdx` (índice del bloque en el *grid*) y `threadIdx` (índice del *thread* en el bloque).
 
 ---
@@ -417,6 +426,34 @@ Cada *thread* imprime sus coordenadas y las dimensiones del *grid* y del bloque.
 - `__device__`: ejecuta en el *device*; se llama desde el *device*.
 
 Una función se puede compilar para *host* y *device* combinando `__host__` y `__device__`.
+
+---
+
+## **Ejercicio: El bug de los límites**
+
+Descarga: [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limites.cu)
+
+- Se lanzan $4 \times 256 = 1024$ *threads*, pero $N = 1000$.
+1. Ejecuta el código tal cual. ¿El resultado parece correcto?
+2. Arregla el *kernel* con una línea.
+3. Prueba ahora con $N = 1050$. ¿Qué problema hay ahora?
+
+---
+
+## **Ejercicio: un más kernel robusto (grid-stride)**
+
+Un *grid-stride loop* hace que el *kernel* sea correcto para **cualquier** `<<<blocks, threads>>>`:
+
+```cuda
+__global__ void suma_device(int *a, int *b, int *c, int n) {
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  int paso = blockDim.x * gridDim.x;   // total de threads
+  for (int i = idx; i < n; i += paso)
+    c[i] = a[i] + b[i];
+}
+```
+
+4. Reescribe el *kernel* así y pruébalo con $N = 1050$ y pocos bloques (p.ej. `blocks = 1`).
 
 ---
 

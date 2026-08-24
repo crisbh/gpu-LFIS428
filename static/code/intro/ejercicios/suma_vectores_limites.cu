@@ -1,15 +1,5 @@
 // ============================================================
-// Ejercicio 2: El bug de los límites
-// ============================================================
-// OBJETIVO: identificar y arreglar el bug más común en CUDA:
-//           threads que escriben fuera del arreglo.
-//
-// INSTRUCCIONES:
-//   1. Ejecuta el código tal como está con N = 1000.
-//      ¿Da resultados correctos? ¿Por qué (no)?
-//   2. Modifica el kernel para arreglar el problema.
-//   3. Extensión: prueba con N = 50, N = 999, N = 1024.
-//      ¿Qué fórmula general para blocks funciona siempre?
+// Ejercicio: El bug de los límites
 // ============================================================
 
 #include <stdio.h>
@@ -23,7 +13,7 @@ __global__ void suma_device(int *a, int *b, int *c, int n) {
 }
 
 int main(void) {
-  int N = 1000; // <-- prueba también con 50, 999, 1024
+  int N = 1000; // <-- probar también con 50, 999, 1024
   int size = N * sizeof(int);
 
   // Host
@@ -44,9 +34,10 @@ int main(void) {
   cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice);
   cudaMemcpy(d_b, b, size, cudaMemcpyHostToDevice);
 
-  // Lanzamiento: 4 bloques de 256 threads = 1024 threads en total
   int threads = 256;
   int blocks = 4;
+  printf("N=%d, lanzados %d threads (%d bloques x %d)\n", N, blocks * threads,
+         blocks, threads);
   suma_device<<<blocks, threads>>>(d_a, d_b, d_c, N);
 
   cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);
@@ -63,7 +54,7 @@ int main(void) {
     }
   }
   if (errores == 0)
-    printf("Todos los resultados coinciden.\n");
+    printf("Todos los resultados coinciden...\n");
   else
     printf("Total de errores: %d\n", errores);
 
