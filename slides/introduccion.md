@@ -506,13 +506,13 @@ if (err != cudaSuccess)
 
 ---
 
-## **Profiling (perfilaje)**
+## **Profiling (perfilación)**
 
 Los *profilers* dan información sobre la ejecución (tiempo por función, uso de memoria, etc.). Para CUDA:
 
-- **nvprof**: GPUs hasta *compute capability* $7.x$ (obsoleto en GPUs más nuevas, CC $\geq 8$). Uso de recursos y tiempo de las funciones del API.
-- **ncu** (NSight Compute): recomendado para CC $\geq 7$. Uso de recursos del GPU, transferencias de memoria, etc.
-- **nsys** (NSight Systems): recomendado para CC $\geq 7$. Tiempo de ejecución de las funciones.
+- **nvprof** (y **nvvp**, su interfaz gráfica): herramienta *legacy*. Funciona hasta *compute capability* $7.x$ (incluida la **T4**, CC $7.5$); **no** soporta CC $\geq 8$ y fue **eliminada** en CUDA 13. Combina métricas de recursos y trazas del API — hoy ese rol se reparte entre `ncu` y `nsys`.
+- **ncu** (Nsight Compute): análisis **por kernel** (CC $\geq 6.1$, Pascal en adelante): *occupancy*, uso de recursos, *memory workload* y modelo roofline.
+- **nsys** (Nsight Systems): análisis a nivel de **sistema**: línea de tiempo de las llamadas del API, los *kernels* y las transferencias de memoria (host ↔ device).
 
 ---
 
