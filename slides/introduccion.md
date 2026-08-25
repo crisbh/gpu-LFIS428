@@ -326,6 +326,8 @@ Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
 
 ![w:430px](images/threads_hierarchy.png)
 
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
 - Los *threads* se organizan en un **grid** y comparten la memoria **global** del GPU.
 
 
@@ -412,7 +414,7 @@ Cada *thread* imprime sus coordenadas y las dimensiones del *grid* y del bloque.
 - Los *threads* trabajan en grupos de $32$ llamados **warps**.
   - Los warps no son visibles para el programador, pero es importante para el rendimiento.
 - Los *threads* de un *warp* avanzan sincronizados (*lock-step*) en GPUs anteriores a Volta.
-  - Desde *compute capability* $7.0$ (*independent thread scheduling*) hay que usar `__syncwarp()` para garantizarlo.
+  - Desde *compute capability* $7.0$ hay que usar `__syncwarp()` para garantizarlo.
 - Cada bloque puede tener múltiples *warps*, según cuantos *threads* hay.
 - Todos los *threads* de un bloque comparten un espacio de memoria compartida.
 - **No** hay comunicación entre *threads* de distintos bloques.
