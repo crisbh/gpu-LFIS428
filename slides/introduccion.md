@@ -442,7 +442,7 @@ Descarga: [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limi
 
 ---
 
-## **Ejercicio: un más kernel robusto (grid-stride)**
+## **Ejercicio: un kernel más robusto (grid-stride)**
 
 Un *grid-stride loop* hace que el *kernel* sea correcto para **cualquier** `<<<blocks, threads>>>`:
 
