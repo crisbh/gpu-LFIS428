@@ -5,55 +5,59 @@ description: "Calendario de clases del curso"
 
 # Calendario del curso
 
-Sesiones de **90 minutos**, con teoría y una parte práctica (*hands-on* al menos cada dos sesiones, marcadas con 🛠️). Las **clases 1–16** cubren los contenidos; las **clases 17–28** se reservan para el desarrollo y la presentación del **proyecto final**.
+Sesiones de **90 minutos**, con teoría y una parte práctica (*hands-on* al menos cada dos sesiones, marcadas con 🛠️). Las **clases 1–17** cubren los contenidos; las **clases 18–29** se reservan para el desarrollo y la presentación del **proyecto final**.
 
-Las fechas son referenciales (ajústalas desde la planilla del curso). El material apunta al tema; cuando una clase empieza a mitad de un tema, el enlace lleva directo a la diapositiva de inicio (p. ej. `memoria.html#21`).
+Las fechas son referenciales (ajústalas desde la planilla del curso). El material apunta al tema; cuando una clase empieza a mitad de un tema, el enlace lleva directo a la diapositiva de inicio (p. ej. `memoria.html#24`).
 
-## Contenidos (clases 1–16)
+## Contenidos (clases 1–17)
 
 | Clase | Fecha | Tema | Material | Evaluación |
 |:---:|:---|:---|:---|:---|
-| 1 | — | Introducción: arquitectura GPU, modelo heterogéneo, NVCC | [Introducción](../slides/introduccion.html) | |
-| 2 | — | 🛠️ Primer kernel, organización de threads e índices | [Introducción](../slides/introduccion.html#14) | |
-| 3 | — | 🛠️ Manejo de errores y *profiling* (nvprof/ncu/nsys) | [Introducción](../slides/introduccion.html#32) | |
-| 4 | — | Jerarquía de memoria; memoria global y acceso *coalesced* | [Memoria](../slides/memoria.html) | |
-| 5 | — | 🛠️ Transpuesta de matrices; AoS vs. SoA | [Memoria](../slides/memoria.html#14) | |
-| 6 | — | Memoria compartida y conflictos de bancos | [Memoria](../slides/memoria.html#21) | |
-| 7 | — | 🛠️ Memoria constante, unificada y *pinned* | [Memoria](../slides/memoria.html#46) | |
-| 8 | — | **Prueba** (contenidos de las clases 1–7) | | Prueba (25%) |
-| 9 | — | SIMT y *occupancy* | [Threads](../slides/threads.html) | |
-| 10 | — | 🛠️ Reducción paralela y divergencia de *warps* | [Threads](../slides/threads.html#24) | |
-| 11 | — | 🛠️ *Loop/warp unrolling*, *grid-stride loops* | [Threads](../slides/threads.html#40) | |
-| 12 | — | *Warp primitives*; repaso de optimización | [Threads](../slides/threads.html#63) | Tarea 1 (25%) |
-| 13 | — | Invocación de kernels: *streams*, eventos, paralelismo dinámico | [Kernels](../slides/kernels.html) | |
-| 14 | — | 🛠️ Librerías de CUDA y Python (cuBLAS/cuFFT/cuRAND, PyCUDA/Numba/CuPy) | [Librerías](../slides/librerias-python.html) | |
-| 15 | — | 🛠️ Aplicaciones: N-cuerpos y OpenGL | [Aplicaciones](../slides/aplicaciones.html#3) | |
-| 16 | — | Aplicaciones: *ray tracing* | [Aplicaciones](../slides/aplicaciones.html#37) | Tarea 2 (25%) |
+| 1 | — | Introducción: reglas, paralelismo GPU vs CPU, Colab (T4), primer kernel (hola mundo) | [Introducción](../slides/introduccion.html) | |
+| 2 | — | 🛠️ Suma de vectores host vs. device; manejo de memoria (cudaMalloc, cudaMemcpy) | [Introducción](../slides/introduccion.html#25) | |
+| 3 | — | SAXPY; reglas de kernels; organización de threads (blocks, grid); warps; manejo de errores | [Introducción](../slides/introduccion.html#29) | |
+| 4 | — | Invocación de kernels: *streams*, ejecución asíncrona, eventos | [Kernels](../slides/kernels.html#5) | |
+| 5 | — | Profilers (Nsight); análisis de optimización; modelo roofline | [Introducción](../slides/introduccion.html#50) | |
+| 6 | — | 🛠️ Ejercicio (bug de los límites, *grid-stride*) | [Introducción](../slides/introduccion.html#43) | |
+| 7 | — | **Quiz 1** (contenidos de las clases 1–6) | | Quiz 1 |
+| 8 | — | Receso Fiestas Patrias | | |
+| 9 | — | Receso Fiestas Patrias | | |
+| 10 | — | Memoria: jerarquía y accesos; transpuesta de matrices; AoS vs. SoA | [Memoria](../slides/memoria.html) | |
+| 11 | — | 🛠️ Memoria compartida y *padding*; memoria constante | [Memoria](../slides/memoria.html#24) | |
+| 12 | — | 🛠️ Memoria unificada y *pinned* | [Memoria](../slides/memoria.html#52) | |
+| 13 | — | Occupancy; reducción paralela; divergencia de *warps*; *loop unrolling* | [Threads](../slides/threads.html#16) | |
+| 14 | — | *Grid-stride loops*; *warp primitives*; operaciones atómicas | [Threads](../slides/threads.html#59) | Tarea 1 |
+| 15 | — | 🛠️ Librerías de CUDA y Python (cuBLAS/cuFFT/cuRAND, PyCUDA/Numba/CuPy) | [Librerías](../slides/librerias-python.html) | |
+| 16 | — | 🛠️ Aplicaciones: N-cuerpos y OpenGL | [Aplicaciones](../slides/aplicaciones.html#3) | |
+| 17 | — | Aplicaciones: *ray tracing* | [Aplicaciones](../slides/aplicaciones.html#37) | Tarea 2 |
 
-> **Nota de ritmo:** la secuencia de optimización de la reducción (clases 10–11) recorre 8 variantes (`reduccion_global` … `reduccion_global8`). En clase se cubren **3–4 representativas** (p. ej. memoria global → sin divergencia → *unrolling* ×2 → *warp unrolling*); el resto queda como **referencia / autoestudio** en el deck de [Threads](../slides/threads.html#40).
+> **Nota de ritmo:** la secuencia de optimización de la reducción (clase 13) recorre 8 variantes (`reduccion_global` … `reduccion_global8`). En clase se cubren **3–4 representativas** (p. ej. memoria global → sin divergencia → *unrolling* ×2 → *warp unrolling*); el resto queda como **referencia / autoestudio** en el deck de [Threads](../slides/threads.html#27). El deck de [Kernels](../slides/kernels.html#15) también incluye *dynamic parallelism*, CUDA/OpenMP, MPS y *kernel overhead* como **referencia / autoestudio** (más allá de *streams* y eventos de la clase 4).
 
-## Proyecto final (clases 17–28)
+## Proyecto final (clases 18–29)
 
 | Clase | Fecha | Tema | Evaluación |
 |:---:|:---|:---|:---|
-| 17 | — | Introducción al proyecto final: temas, formación de grupos | |
-| 18 | — | Definición de propuestas y lineamientos | |
-| 19 | — | Desarrollo del proyecto (asesoría) | |
+| 18 | — | Introducción al proyecto final: temas, formación de grupos | |
+| 19 | — | Definición de propuestas y lineamientos | |
 | 20 | — | Desarrollo del proyecto (asesoría) | |
 | 21 | — | Desarrollo del proyecto (asesoría) | |
-| 22 | — | **Presentaciones de avance** | Avance del proyecto |
-| 23 | — | Desarrollo del proyecto (asesoría) | |
+| 22 | — | Desarrollo del proyecto (asesoría) | |
+| 23 | — | **Presentaciones de avance** | Avance del proyecto |
 | 24 | — | Desarrollo del proyecto (asesoría) | |
 | 25 | — | Desarrollo del proyecto (asesoría) | |
 | 26 | — | Desarrollo del proyecto (asesoría) | |
-| 27 | — | **Presentaciones finales** (parte 1) | Proyecto final (25%) |
-| 28 | — | **Presentaciones finales** (parte 2) y cierre | Proyecto final (25%) |
+| 27 | — | Desarrollo del proyecto (asesoría) | |
+| 28 | — | **Presentaciones finales** (parte 1) | Proyecto final |
+| 29 | — | **Presentaciones finales** (parte 2) y cierre | Proyecto final |
 
 <!--
 Mantenimiento:
 - Rellena "Fecha" desde la planilla del curso y ajusta los #N de inicio de cada clase.
-- Las clases 13 y 14 (kernels, librerías de Python) aún no tienen material migrado
-  (ver content/slides/_index.md y CLAUDE.md). Reemplaza "(próximamente)" al migrarlas.
-- Las clases 17–28 son un colchón generoso: si los contenidos se extienden, se pueden
+- Los nombres/pesos/ubicación de las evaluaciones (Quiz 1, Tarea 1, Tarea 2, proyecto)
+  deben reconciliarse con el esquema de evaluación en content/_index.md (fuente de verdad);
+  no inventar pesos aquí.
+- Todos los módulos están migrados (introduccion, kernels, memoria, threads, librerias-python,
+  aplicaciones). Los #N asumen los decks actuales; re-derívalos si se reordenan diapositivas.
+- Las clases 18–29 son un colchón generoso: si los contenidos se extienden, se pueden
   adelantar 2–3 sesiones de proyecto como prácticas extra.
 -->

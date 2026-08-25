@@ -14,8 +14,8 @@ Programas de ejemplo para las clases:
 - [suma_vectores_gpu.cu](../code/intro/suma_vectores_gpu.cu)
 - [saxpy.cu](../code/intro/saxpy.cu)
 - [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
-- [errores.cu](../code/intro/errores.cu)
 - [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limites.cu) (ejercicio)
+- [errores.cu](../code/intro/errores.cu)
 <!-- - [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu) -->
 
 <!-- ###################################### -->

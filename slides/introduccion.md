@@ -431,20 +431,20 @@ Una función se puede compilar para *host* y *device* combinando `__host__` y `_
 
 ---
 
-## **Ejercicio: El bug de los límites**
+## **Ejercicio: el bug de los límites**
 
-Descarga: [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limites.cu)
+Descargar: [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limites.cu)
 
 - Se lanzan $4 \times 256 = 1024$ *threads*, pero $N = 1000$.
-1. Ejecuta el código tal cual. ¿El resultado parece correcto?
-2. Arregla el *kernel* con una línea.
-3. Prueba ahora con $N = 1050$. ¿Qué problema hay ahora?
+1. Ejecutar el código tal cual. ¿El resultado parece correcto?
+2. Arreglar el *kernel* con una línea.
+3. Probar ahora con $N = 1050$. ¿Qué problema hay ahora?
 
 ---
 
 ## **Ejercicio: un kernel más robusto (grid-stride)**
 
-Un *grid-stride loop* hace que el *kernel* sea correcto para **cualquier** `<<<blocks, threads>>>`:
+Un *grid-stride loop* hace que el *kernel* sea correcto para **cualquier** configuración de `<<<blocks, threads>>>`:
 
 ```cuda
 __global__ void suma_device(int *a, int *b, int *c, int n) {
@@ -455,7 +455,7 @@ __global__ void suma_device(int *a, int *b, int *c, int n) {
 }
 ```
 
-4. Reescribe el *kernel* así y pruébalo con $N = 1050$ y pocos bloques (p.ej. `blocks = 1`).
+4. Reescribir el *kernel* así y comprobar que funciona bien con $N = 1050$ y pocos bloques (e.g. `blocks = 1`).
 
 ---
 
@@ -466,7 +466,7 @@ __global__ void suma_device(int *a, int *b, int *c, int n) {
 ## **Manejando errores**
 
 - Siempre hay errores en un programa... y en CUDA son un poco difíciles de detectar.
-- Todas las funciones del API de CUDA devuelven un `enum` (`cudaError_t`) con el tipo de error.
+- Las funciones del API de CUDA devuelven un `enum` (`cudaError_t`) con el tipo de error.
 
 ```cuda
 cudaError_t err = cudaMemcpy(...);
@@ -481,13 +481,13 @@ Una forma conveniente es usar un *macro* — Ejemplo completo: [errores.cu](../c
 
 @include[cuda]{static/code/intro/errores.cu:4-13}
 
-Se envuelve cada llamada del API: `CHECK(cudaMalloc(...));`. Si falla, imprime el archivo, la línea y el mensaje, y termina el programa.
+Se envuelve cada llamada del API, e.g. `CHECK(cudaMalloc(...));`. Si falla, imprime el archivo, la línea y el mensaje, y termina el programa.
 
 ---
 
 ## **Manejando errores: kernels**
 
-- ¡La invocación de un *kernel* **no devuelve nada**! Si falla, no aparece ningún mensaje de error.
+- Dado que la invocación de un *kernel* **no devuelve nada**, no aparece ningún mensaje de error si este falla!
 - Ejemplo: invocar con demasiados *threads*.
 
 ```cuda
@@ -497,7 +497,8 @@ if (err != cudaSuccess)
   printf("Error: %s\n", cudaGetErrorString(err));
 ```
 
-Usamos `cudaGetLastError` para capturar el error. El ejemplo completo con el macro `CHECK` está en [errores.cu](../code/intro/errores.cu).
+- Usamos `cudaGetLastError` para capturar el error. 
+- El ejemplo completo con el macro `CHECK` está en [errores.cu](../code/intro/errores.cu).
 
 ---
 
