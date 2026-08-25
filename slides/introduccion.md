@@ -291,7 +291,7 @@ Ejemplo 3: [saxpy.cu](../code/intro/saxpy.cu)
 
 ---
 
-## **Los Kernels: Utilizando el GPU**
+## **Los Kernels: funciones para el GPU**
 
 - Para realizar un trabajo en el GPU hay que invocar un **kernel**.
 - Un *kernel* es una función que corre en el GPU, con ciertas restricciones.
@@ -477,19 +477,11 @@ cudaGetErrorString(err);
 
 ## **Manejando errores: un macro útil**
 
-Una forma mejor es usar un *macro*:
+Una forma conveniente es usar un *macro* — Ejemplo completo: [errores.cu](../code/intro/errores.cu)
 
-```cuda
-#define CHECK(call)                                                   \
-{                                                                     \
-  const cudaError_t err = call;                                       \
-  if (err != cudaSuccess) {                                           \
-    printf("Error: %s:%d, ", __FILE__, __LINE__);                     \
-    printf("codigo:%d, mensaje: %s\n", err, cudaGetErrorString(err)); \
-    exit(1);                                                          \
-  }                                                                   \
-}
-```
+@include[cuda]{static/code/intro/errores.cu:4-13}
+
+Se envuelve cada llamada del API: `CHECK(cudaMalloc(...));`. Si falla, imprime el archivo, la línea y el mensaje, y termina el programa.
 
 ---
 
@@ -505,7 +497,7 @@ if (err != cudaSuccess)
   printf("Error: %s\n", cudaGetErrorString(err));
 ```
 
-Usamos `cudaGetLastError` para capturar el error. Más información en la documentación del API.
+Usamos `cudaGetLastError` para capturar el error. El ejemplo completo con el macro `CHECK` está en [errores.cu](../code/intro/errores.cu).
 
 ---
 
