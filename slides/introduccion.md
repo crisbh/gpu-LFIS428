@@ -312,6 +312,14 @@ Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
 
 ---
 
+## **Diseño de los kernels**
+
+- Los *kernels* siguen el modelo **SPMD** (*single program, multiple data*).
+- Un *kernel* es **código escalar** para un solo *thread*.
+- Al invocarlo, muchos *threads* realizan la misma operación definida en el *kernel*.
+
+---
+
 ## **Restricciones para los kernels**
 
 - Acceso a la memoria del *device* solamente.
@@ -328,17 +336,18 @@ Los valores de $N$ y $M$ controlan el número de *threads* que usa el *kernel*.
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
-- Los *threads* se organizan en un **grid** y comparten la memoria **global** del GPU.
-
+- Los *threads* se organizan de forma jerárquica en **grids** y **bloques**.
+- El *grid* tiene **bloques** de *threads*, los que comparten memoria.
 
 ---
 
-## **Organización de los threads**
+## **Organización de los threads (índices)**
 
 ![w:630px](images/cuda_indexing.png)
 
-- El *grid* se compone de **bloques** de *threads*; cada bloque tiene su memoria **compartida**.
-- Coordenadas únicas: `blockIdx` (índice del bloque en el *grid*) y `threadIdx` (índice del *thread* en el bloque).
+- `blockIdx`: índice del *bloque* en el *grid*.
+- `threadIdx`: índice del *thread* en el *bloque* .
+- `index`: combinación que sirve de índice global del *thread* en el *grid*.
 
 ---
 
@@ -378,10 +387,11 @@ dim3 grid(gx, gy);
 ## **¡Importante!**
 
 - Hay un límite de **$1024$ *threads* por bloque**, sin importar si es 1D, 2D o 3D.
-  - 1D: hasta $1024$ en $x$.
-  - 2D: $32 \times 32 = 1024$.
-  - 3D: por ejemplo $16 \times 16 \times 4 = 1024$.
-- Es fácil pasarse del límite y el error es difícil de detectar (más sobre esto en un momento).
+  - Bloque 1D: hasta $1024$ en $x$.
+  - Bloque 2D: e.g. $32 \times 32 = 1024$.
+  - Bloque 3D: e.g. $16 \times 16 \times 4 = 1024$.
+
+Ojo: Es fácil pasarse del límite y **es un error difícil de detectar** (más sobre esto en un momento).
 
 ---
 
@@ -389,7 +399,7 @@ dim3 grid(gx, gy);
 
 Ejemplo 4: [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 
-@include[cuda]{static/code/intro/mostrarIndices.cu:1-10}
+@include[cuda]{static/code/intro/mostrarIndices.cu:1-9}
 
 Cada *thread* imprime sus coordenadas y las dimensiones del *grid* y del bloque.
 
@@ -397,15 +407,8 @@ Cada *thread* imprime sus coordenadas y las dimensiones del *grid* y del bloque.
 
 ## **Índices de los threads: el lanzamiento**
 
-@include[cuda]{static/code/intro/mostrarIndices.cu:12-31}
+@include[cuda]{static/code/intro/mostrarIndices.cu:13-31}
 
----
-
-## **Diseño de los kernels**
-
-- Los *kernels* siguen el modelo **SPMD** (*single program, multiple data*).
-- Un *kernel* es **código escalar** para un solo *thread*.
-- Al invocarlo, muchos *threads* realizan la misma operación definida en el *kernel*.
 
 ---
 
@@ -416,7 +419,7 @@ Cada *thread* imprime sus coordenadas y las dimensiones del *grid* y del bloque.
 - Los *threads* de un *warp* avanzan sincronizados (*lock-step*) en GPUs anteriores a Volta.
   - Desde *compute capability* $7.0$ hay que usar `__syncwarp()` para garantizarlo.
 - Cada bloque puede tener múltiples *warps*, según cuantos *threads* hay.
-- Todos los *threads* de un bloque comparten un espacio de memoria compartida.
+- Los *threads* de un bloque tienen un espacio de memoria compartida.
 - **No** hay comunicación entre *threads* de distintos bloques.
 
 ---
@@ -435,8 +438,8 @@ Una función se puede compilar para *host* y *device* combinando `__host__` y `_
 
 Descargar: [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limites.cu)
 
-- Se lanzan $4 \times 256 = 1024$ *threads*, pero $N = 1000$.
-1. Ejecutar el código tal cual. ¿El resultado parece correcto?
+- Vectores de largo $N = 1000$. Se lanzan $4 \times 256 = 1024$ *threads*.
+1. Ejecutar el código tal cual. ¿Qué problema existe?
 2. Arreglar el *kernel* con una línea.
 3. Probar ahora con $N = 1050$. ¿Qué problema hay ahora?
 
@@ -444,7 +447,7 @@ Descargar: [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_lim
 
 ## **Ejercicio: un kernel más robusto (grid-stride)**
 
-Un *grid-stride loop* hace que el *kernel* sea correcto para **cualquier** configuración de `<<<blocks, threads>>>`:
+Un *grid-stride loop* es un patrón que hace que un *kernel* sea correcto para **cualquier** configuración de `<<<blocks, threads>>>`:
 
 ```cuda
 __global__ void suma_device(int *a, int *b, int *c, int n) {
@@ -456,7 +459,7 @@ __global__ void suma_device(int *a, int *b, int *c, int n) {
 ```
 
 4. Reescribir el *kernel* así y comprobar que funciona bien con $N = 1050$ y pocos bloques (e.g. `blocks = 1`).
-
+5. ¿Como está operando el kernel en este caso?
 ---
 
 # Errores
@@ -502,17 +505,16 @@ if (err != cudaSuccess)
 
 ---
 
-# Profiling
+# Profilers
 
 ---
 
-## **Profiling (perfilación)**
+## **Profilers (perfiladores)**
 
 Los *profilers* dan información sobre la ejecución (tiempo por función, uso de memoria, etc.). Para CUDA:
 
-- **nvprof** (y **nvvp**, su interfaz gráfica): herramienta *legacy*. Funciona hasta *compute capability* $7.x$ (incluida la **T4**, CC $7.5$); **no** soporta CC $\geq 8$ y fue **eliminada** en CUDA 13. Combina métricas de recursos y trazas del API — hoy ese rol se reparte entre `ncu` y `nsys`.
-- **ncu** (Nsight Compute): análisis **por kernel** (CC $\geq 6.1$, Pascal en adelante): *occupancy*, uso de recursos, *memory workload* y modelo roofline.
-- **nsys** (Nsight Systems): análisis a nivel de **sistema**: línea de tiempo de las llamadas del API, los *kernels* y las transferencias de memoria (host ↔ device).
+- **nvprof** (y **nvvp**, su interfaz gráfica): herramienta *legacy*. Funciona hasta *compute capability* $7.x$ (incluida la **T4**, CC $7.5$).
+  - **No** soporta CC $\geq 8$ y fue **eliminada** en CUDA 13. Combina métricas de recursos y trazas del API, que hoy reparten entre `ncu` y `nsys`.
 
 ---
 
@@ -537,6 +539,14 @@ El archivo `profile.nvvp` se abre con NVVP (NVIDIA Visual Profiler).
 
 ---
 
+## **Profilers**
+
+- **ncu** (Nsight Compute): análisis **por kernel** (CC $\geq 6.1$): *occupancy*, uso de recursos, *memory workload* y modelo roofline.
+- **nsys** (Nsight Systems): análisis a nivel de **sistema**: línea de tiempo de las llamadas del API, los *kernels* y las transferencias de memoria (host <-> device).
+
+
+---
+
 ## **Profilers visuales: NSight Compute**
 
 ![w:630px](images/ncu_example.png)
@@ -549,7 +559,8 @@ ncu -o informacion ./programa.x      # guarda informacion.ncu-rep
 ncu --metrics <metrica> ./programa.x # información en pantalla
 ```
 
-Se abre el `.ncu-rep` con NSight Compute (`ncu-ui`). Métricas: `ncu --query-metrics`.
+Se abre el `.ncu-rep` con NSight Compute (`ncu-ui`). 
+- Métricas: `ncu --query-metrics`.
 
 ---
 
@@ -568,9 +579,12 @@ El `.qdrep` se abre con NSight Systems (`nsys-ui`).
 
 ## **¿Acotado por el cómputo o por la memoria?**
 
+En general, el rendimiento de un programa de cómputo científico está **limitado por una de las siguientes razones** :
+
 - **Compute bound**: el rendimiento lo limita la rapidez de las operaciones aritméticas del GPU.
 - **Memory bound**: el rendimiento lo limita la rapidez de la comunicación con la memoria del GPU.
-- Casi **siempre** los programas de cómputo científico son *memory bound*.
+
+**Casi siempre** los programas de cómputo científico son *memory bound*.
 
 En el próximo capítulo veremos cómo mejorar el uso de la memoria...
 
@@ -590,20 +604,22 @@ En el próximo capítulo veremos cómo mejorar el uso de la memoria...
   <!-- etiquetas -->
   <text x="215" y="240" fill="#35495e" font-size="16">Intensidad aritmética (FLOP/byte)</text>
   <text x="30" y="140" fill="#35495e" font-size="16" transform="rotate(-90 30 140)">Rendimiento</text>
-  <text x="120" y="135" fill="#2a7ae2" font-size="15" transform="rotate(-31 120 135)">ancho de banda</text>
+  <text x="120" y="155" fill="#2a7ae2" font-size="15" transform="rotate(-31 120 135)">ancho de banda</text>
   <text x="360" y="62" fill="#2a7ae2" font-size="15">peak de cómputo</text>
-  <text x="105" y="190" fill="#6b7785" font-size="13">memory bound</text>
+  <text x="145" y="190" fill="#6b7785" font-size="13">memory bound</text>
   <text x="390" y="190" fill="#6b7785" font-size="13">compute bound</text>
 </svg>
 
-- Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$, con $AI$ la intensidad aritmética (FLOP/byte).
+- Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$, donde $AI$ es la intensidad aritmética (FLOP/byte).
 - El **ridge point** (punto naranja) separa las regiones *memory bound* y *compute bound*.
 
 ---
 
 ## **Información del GPU en el sistema**
 
-Con el API de CUDA: `cudaGetDeviceProperties` — Ejemplo 5: [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
+Se pueden obtener detalles del GPU a través del API de CUDA: `cudaGetDeviceProperties` 
+
+- Ejemplo: [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
 ```cuda
 cudaDeviceProp deviceProp;
@@ -611,7 +627,7 @@ cudaGetDeviceProperties(&deviceProp, dev);
 printf("Device %d: \"%s\"\n", dev, deviceProp.name);
 ```
 
-En el *shell* de Linux: `nvidia-smi` o `lspci | grep NVIDIA`.
+<!-- En el *shell* de Linux: `nvidia-smi` o `lspci | grep NVIDIA`. -->
 
 Más información en la documentación sobre *device management*.
 

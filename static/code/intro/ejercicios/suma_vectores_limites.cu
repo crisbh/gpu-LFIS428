@@ -23,7 +23,7 @@ int main(void) {
   for (int idx = 0; idx < N; idx++) {
     a[idx] = idx;
     b[idx] = 2 * idx;
-    c[idx] = -1; // guardia: si queda en -1, ese slot no fue calculado
+    c[idx] = -1; // guardia: si queda en -1, ese elemento no fue calculado
   }
 
   // Device
