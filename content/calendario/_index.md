@@ -17,7 +17,7 @@ Las fechas son referenciales (ajústalas desde la planilla del curso). El materi
 | 2 | — | 🛠️ Suma de vectores host vs. device; manejo de memoria (cudaMalloc, cudaMemcpy) | [Introducción](../slides/introduccion.html#25) | |
 | 3 | — | SAXPY; reglas de kernels; organización de threads (blocks, grid); warps | [Introducción](../slides/introduccion.html#29) | |
 | 4 | — | 🛠️ Ejercicio (bug de los límites → *grid-stride*); manejo de errores | [Introducción](../slides/introduccion.html#43) | |
-| 5 | — | Profilers (Nsight); análisis de optimización; modelo roofline (con demo) | [Introducción](../slides/introduccion.html#50) | |
+| 5 | — | Profilers (Nsight); análisis de optimización; modelo roofline (con demo) | [Introducción](../slides/introduccion.html#52) | |
 | 6 | — | 🛠️ Taller de ejercicios | | |
 | 7 | — | **Quiz 1** (contenidos de las clases 1–6) | | Quiz 1 |
 | 8 | — | Receso Fiestas Patrias | | |

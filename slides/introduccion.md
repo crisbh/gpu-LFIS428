@@ -469,12 +469,47 @@ __global__ void suma_device(int *a, int *b, int *c, int n) {
 ## **Manejando errores**
 
 - Siempre hay errores cuando estamos implementando un programa... y en CUDA son un poco difíciles de detectar.
-- Las funciones del API de CUDA devuelven un `enum` (`cudaError_t`) con el tipo de error.
+- **Todas** las funciones del API de CUDA devuelven un `enum` (`cudaError_t`) con el tipo de error.
 
+Ejemplo:
 ```cuda
 cudaError_t err = cudaMemcpy(...);
 cudaGetErrorString(err);
 ```
+
+- Notar que funciones como `cudaMemcpy` no necesitan retornar nada.
+
+---
+
+## **Nota: punteros dobles**
+
+- Dado que el valor de retorno del API está reservado para `cudaError_t`: ¿Qué pasa con las funciones que necesitan retornar algo?
+- Por ejemplo: `cudaMalloc` necesita retornar la **dirección** de la memoria asignada en el *device*. Según la documentación del API de CUDA:
+
+```cuda
+cudaError_t cudaMalloc(void **devPtr, size_t size);
+```
+
+- Es decir, pasamos la **dirección** del puntero: un *puntero a puntero*.
+- Recordar que en C los argumentos se pasan **por valor**. 
+  - Para que la función pueda modificar nuestro puntero `d_a`, le pasamos su dirección `&d_a` (**pasar por referencia**).
+
+---
+
+## **Nota: punteros dobles**
+
+```cuda
+int *d_a;                          // puntero (aún sin dirección válida)
+cudaMalloc((void **)&d_a, size);   // pasamos la dirección de d_a para ser escrita
+```
+
+- En la práctica, gracias a C++ *overloading* y *templates*, es equivalente escribir:
+
+```cuda
+cudaMalloc(&d_a, size)
+```
+
+- Luego el compilador hace el *cast* del doble puntero a `(void **)` automáticamente para respetar la sintaxis.
 
 ---
 
