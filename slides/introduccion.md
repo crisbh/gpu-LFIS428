@@ -468,7 +468,7 @@ __global__ void suma_device(int *a, int *b, int *c, int n) {
 
 ## **Manejando errores**
 
-- Siempre hay errores en un programa... y en CUDA son un poco difíciles de detectar.
+- Siempre hay errores cuando estamos implementando un programa... y en CUDA son un poco difíciles de detectar.
 - Las funciones del API de CUDA devuelven un `enum` (`cudaError_t`) con el tipo de error.
 
 ```cuda
@@ -480,7 +480,7 @@ cudaGetErrorString(err);
 
 ## **Manejando errores: un macro útil**
 
-Una forma conveniente es usar un *macro* — Ejemplo completo: [errores.cu](../code/intro/errores.cu)
+Una forma conveniente es usar un *macro*:
 
 @include[cuda]{static/code/intro/errores.cu:4-13}
 
@@ -501,7 +501,7 @@ if (err != cudaSuccess)
 ```
 
 - Usamos `cudaGetLastError` para capturar el error. 
-- El ejemplo completo con el macro `CHECK` está en [errores.cu](../code/intro/errores.cu).
+- Revisar el ejemplo completo [errores.cu](../code/intro/errores.cu).
 
 ---
 
@@ -511,7 +511,9 @@ if (err != cudaSuccess)
 
 ## **Profilers (perfiladores)**
 
-Los *profilers* dan información sobre la ejecución (tiempo por función, uso de memoria, etc.). Para CUDA:
+- Una vez que nuestro programa funciona *correctamente*, queremos **optimizarlo**.
+
+- Los *profilers* son herramientas que dan información sobre la ejecución (tiempo por función, uso de memoria, etc.). Para CUDA:
 
 - **nvprof** (y **nvvp**, su interfaz gráfica): herramienta *legacy*. Funciona hasta *compute capability* $7.x$ (incluida la **T4**, CC $7.5$).
   - **No** soporta CC $\geq 8$ y fue **eliminada** en CUDA 13. Combina métricas de recursos y trazas del API, que hoy reparten entre `ncu` y `nsys`.
@@ -617,7 +619,11 @@ En el próximo capítulo veremos cómo mejorar el uso de la memoria...
 
 ## **Información del GPU en el sistema**
 
-Se pueden obtener detalles del GPU a través del API de CUDA: `cudaGetDeviceProperties` 
+- Luego, la optimización involucra ambas cosas:
+  - Nuestro programa (intensidad aritmética, uso de memoria).
+  - Las características del GPU (número de *threads*, ancho de banda).
+
+- Se pueden obtener detalles del GPU a través del API de CUDA: `cudaGetDeviceProperties` 
 
 - Ejemplo: [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
@@ -635,4 +641,4 @@ Más información en la documentación sobre *device management*.
 
 ## Fin capítulo 1
 
-Próxima clase: el uso de la memoria del GPU
+Próximo capítulo: el uso de la memoria del GPU
