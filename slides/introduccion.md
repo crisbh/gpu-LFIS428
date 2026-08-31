@@ -551,7 +551,6 @@ if (err != cudaSuccess)
 - Los *profilers* son herramientas que dan información sobre la ejecución (tiempo por función, uso de memoria, etc.). Para CUDA:
 
 - **nvprof** (y **nvvp**, su interfaz gráfica): herramienta *legacy*. Funciona hasta *compute capability* $7.x$ (incluida la **T4**, CC $7.5$).
-  - **No** soporta CC $\geq 8$ y fue **eliminada** en CUDA 13. Combina métricas de recursos y trazas del API, que hoy reparten entre `ncu` y `nsys`.
 
 ---
 
@@ -564,9 +563,25 @@ if (err != cudaSuccess)
 
 ---
 
+## **Ejemplo: perfilar SAXPY con nvprof**
+
+Podemos utilizar `nvprof` para ver un resumen rápido de **dónde se gasta el tiempo**:
+
+```sh
+!nvcc -arch=sm_75 saxpy.cu -o saxpy.x
+!nvprof ./saxpy.x
+```
+
+- **GPU activities**: tiempo del *kernel* `saxpy` vs. las copias `[CUDA memcpy HtoD]` / `[DtoH]`.
+- **API calls**: tiempo en `cudaMalloc`, `cudaMemcpy`, etc.
+
+¿Qué domina: el *kernel* o las transferencias de memoria?
+
+---
+
 ## **Profilers visuales: NVVP**
 
-![w:630px](images/nvvp.png)
+![w:500px](images/nvvp.png)
 
 ```sh
 nvprof --export-profile profile.nvvp --analysis-metrics ./programa
@@ -574,13 +589,20 @@ nvprof --export-profile profile.nvvp --analysis-metrics ./programa
 
 El archivo `profile.nvvp` se abre con NVVP (NVIDIA Visual Profiler).
 
+**No disponible en Colab (requiere interfaz gráfica)** 
+
 ---
 
-## **Profilers**
+## **Profilers: más allá de nvprof**
 
-- **ncu** (Nsight Compute): análisis **por kernel** (CC $\geq 6.1$): *occupancy*, uso de recursos, *memory workload* y modelo roofline.
-- **nsys** (Nsight Systems): análisis a nivel de **sistema**: línea de tiempo de las llamadas del API, los *kernels* y las transferencias de memoria (host <-> device).
+Para GPUs más modernos, se suele usar las herramientas de **Nsight**:
 
+- **ncu** (Nsight Compute): análisis **por kernel** (CC $\geq 6.1$). 
+  - *Occupancy*, uso de recursos, *memory workload*.
+  - Modelo *roofline*.
+- **nsys** (Nsight Systems): análisis a nivel de **sistema**.
+  - Línea de tiempo de las llamadas del API y *kernels*.
+  - Transferencias de memoria (host <-> device).
 
 ---
 
@@ -614,6 +636,36 @@ El `.qdrep` se abre con NSight Systems (`nsys-ui`).
 
 ---
 
+## **Profiling en Colab (sin interfaz gráfica)**
+
+- Dado que en Colab no disponemos de GUI para visualizar los archivos `.ncu-rep` / `.nsys-rep`, preferimos usar la terminal.
+
+- En Colab están `nvprof` (clásico) y `ncu`; `nsys` normalmente **no**.
+- `nvprof ./prog.x` → resumen de tiempos (*kernel*, copias de memoria, llamadas del API).
+- `ncu --set basic ./prog.x` → métricas **por kernel** (*Speed Of Light*, *occupancy*, uso de recursos, etc.).
+
+También es posible descargar el `.ncu-rep` y abrirlo con `ncu-ui` localmente con GUI.
+
+---
+
+## **Ejemplo: perfilar SAXPY con ncu**
+
+Usar [saxpy.cu](../code/intro/saxpy.cu) en Colab:
+
+```sh
+!nvcc -arch=sm_75 saxpy.cu -o saxpy.x
+!ncu --set basic ./saxpy.x
+```
+
+Ver la sección **GPU Speed Of Light Throughput**: mide qué fracción del **máximo teórico** del hardware ("límite físico") alcanza el *kernel*:
+
+- **Memory Throughput [%]**: % del *peak* de ancho de banda de memoria.
+- **Compute (SM) Throughput [%]**: % del *peak* de cómputo.
+
+El **mayor** de los dos indica el **cuello de botella** del *kernel*.
+
+---
+
 ## **¿Acotado por el cómputo o por la memoria?**
 
 En general, el rendimiento de un programa de cómputo científico está **limitado por una de las siguientes razones** :
@@ -621,15 +673,15 @@ En general, el rendimiento de un programa de cómputo científico está **limita
 - **Compute bound**: el rendimiento lo limita la rapidez de las operaciones aritméticas del GPU.
 - **Memory bound**: el rendimiento lo limita la rapidez de la comunicación con la memoria del GPU.
 
-**Casi siempre** los programas de cómputo científico son *memory bound*.
+**La mayoría** de los programas de cómputo científico son *memory bound*.
 
-En el próximo capítulo veremos cómo mejorar el uso de la memoria...
+En el próximo Capítulo veremos cómo mejorar el uso de la memoria.
 
 ---
 
-## **Modelo Roofline**
+## **El Modelo Roofline**
 
-<svg viewBox="0 0 620 250" style="width:52%" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 620 250" style="width:52%; display:block; margin:0 auto;" xmlns="http://www.w3.org/2000/svg">
   <!-- ejes -->
   <line x1="70" y1="205" x2="590" y2="205" stroke="#8895a7" stroke-width="2"/>
   <line x1="70" y1="205" x2="70" y2="25" stroke="#8895a7" stroke-width="2"/>
@@ -671,6 +723,15 @@ printf("Device %d: \"%s\"\n", dev, deviceProp.name);
 <!-- En el *shell* de Linux: `nvidia-smi` o `lspci | grep NVIDIA`. -->
 
 Más información en la documentación sobre *device management*.
+
+---
+
+## **Ejercicio: ¿compute o memory bound?**
+
+1. Perfila SAXPY con `ncu`. En **GPU Speed Of Light**, compara **Compute (SM) [%]** con **Memory [%]**.
+2. Calcula la **intensidad aritmética** de SAXPY: $2$ FLOP por cada $3$ accesos a memoria ($2$ lecturas $+\ 1$ escritura de `float` $= 12$ bytes) → $AI \approx 0.17$ FLOP/byte.
+3. ¿Es SAXPY *compute* o *memory bound*? Compáralo con el modelo roofline (recién visto).
+ Cambiar $N$ y observar cómo cambian los porcentajes.
 
 ---
 
