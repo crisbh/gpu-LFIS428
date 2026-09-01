@@ -204,6 +204,12 @@ Fermi tiene $16$ KB o $48$ KB de memoria compartida.
 - Si el *kernel* está limitado por el *bandwidth* (*bandwidth bound*).
 - Si el *bandwidth* logrado es mucho menor que el *peak*.
 
+Recordar el **modelo roofline** (Capítulo 1): un *kernel* con $AI$ bajo cae en la región *memory bound*, y su techo es $AI \times$ ancho de banda.
+
+Más *warps* activos $\Rightarrow$ más accesos a memoria en vuelo $\Rightarrow$ se oculta la *latency* y el *kernel* se acerca a ese techo.
+
+Si el *kernel* ya alcanza el techo, o si es *compute bound*, subir el *occupancy* no ayuda.
+
 ---
 
 ## **Occupancy: ejemplo**

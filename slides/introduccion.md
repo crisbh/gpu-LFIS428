@@ -670,12 +670,28 @@ El **mayor** de los dos indica el **cuello de botella** del *kernel*.
 
 En general, el rendimiento de un programa de cómputo científico está **limitado por una de las siguientes razones** :
 
-- **Compute bound**: el rendimiento lo limita la rapidez de las operaciones aritméticas del GPU.
+- **Compute bound**: el rendimiento lo limita la rapidez de las operaciones aritméticas del GPU (*FLOPS*: floating point operations).
 - **Memory bound**: el rendimiento lo limita la rapidez de la comunicación con la memoria del GPU.
 
 **La mayoría** de los programas de cómputo científico son *memory bound*.
 
 En el próximo Capítulo veremos cómo mejorar el uso de la memoria.
+
+---
+
+## **La intensidad aritmética (AI)**
+
+**Cómputo** realizado por cada **byte** movido desde/hacia la memoria global:
+
+$$AI = \frac{\text{FLOP realizadas}}{\text{bytes leídos} + \text{bytes escritos}}$$
+
+Se cuenta **por elemento** (el cuociente no depende de $N$):
+- **FLOP**: cada `+`, `-`, `*` cuenta como $1$ operación.
+- **Bytes**: número de accesos $\times$ el tamaño del tipo (`float` $=4$ bytes).
+
+**Ejemplo** — `c[i] = a[i] + b[i]`: $1$ FLOP y $12$ bytes, luego $AI \approx 0.08$.
+
+Un $AI$ bajo: el *kernel* calcula poco y mueve muchos datos.
 
 ---
 
@@ -692,14 +708,16 @@ En el próximo Capítulo veremos cómo mejorar el uso de la memoria.
   <circle cx="285" cy="75" r="6" fill="#e8603c"/>
   <!-- etiquetas -->
   <text x="215" y="240" fill="#35495e" font-size="16">Intensidad aritmética (FLOP/byte)</text>
-  <text x="30" y="140" fill="#35495e" font-size="16" transform="rotate(-90 30 140)">Rendimiento</text>
+  <text x="30" y="115" fill="#35495e" font-size="16" text-anchor="middle" transform="rotate(-90 30 115)">Rendimiento (FLOP/s)</text>
   <text x="120" y="155" fill="#2a7ae2" font-size="15" transform="rotate(-31 120 135)">ancho de banda</text>
   <text x="360" y="62" fill="#2a7ae2" font-size="15">peak de cómputo</text>
   <text x="145" y="190" fill="#6b7785" font-size="13">memory bound</text>
   <text x="390" y="190" fill="#6b7785" font-size="13">compute bound</text>
 </svg>
 
-- Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$, donde $AI$ es la intensidad aritmética (FLOP/byte).
+- Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$, en FLOP/s.
+- El **ancho de banda** se mide en bytes/s (típicamente GB/s).
+<!-- , de modo que $\frac{\text{FLOP}}{\text{byte}} \times \frac{\text{byte}}{\text{s}} = \frac{\text{FLOP}}{\text{s}}$. -->
 - El **ridge point** (punto naranja) separa las regiones *memory bound* y *compute bound*.
 
 ---
@@ -728,10 +746,10 @@ Más información en la documentación sobre *device management*.
 
 ## **Ejercicio: ¿compute o memory bound?**
 
-1. Perfila SAXPY con `ncu`. En **GPU Speed Of Light**, compara **Compute (SM) [%]** con **Memory [%]**.
-2. Calcula la **intensidad aritmética** de SAXPY: $2$ FLOP por cada $3$ accesos a memoria ($2$ lecturas $+\ 1$ escritura de `float` $= 12$ bytes) → $AI \approx 0.17$ FLOP/byte.
-3. ¿Es SAXPY *compute* o *memory bound*? Compáralo con el modelo roofline (recién visto).
- Cambiar $N$ y observar cómo cambian los porcentajes.
+1. Perfilar SAXPY con `ncu`. En **GPU Speed Of Light**: Comparar **Compute (SM) [%]** con **Memory [%]**.
+2. Calcular la **intensidad aritmética** de SAXPY (`y[i] = a*x[i] + y[i]`).
+3. ¿Es SAXPY *compute* o *memory bound*? Comparar con el modelo roofline.
+4. Estimar el **ancho de banda efectivo**: $12N$ bytes divididos por la duración del *kernel* (`Duration` en `ncu`). Comparar con el máximo del GPU y con el **Memory [%]** del punto 1.
 
 ---
 
