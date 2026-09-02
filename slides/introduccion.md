@@ -691,12 +691,11 @@ En el próximo Capítulo veremos cómo mejorar el uso de la memoria.
 $$AI = \frac{\text{FLOP realizadas}}{\text{bytes leídos} + \text{bytes escritos}}$$
 
 Se cuenta **por elemento** (el cuociente no depende de $N$):
-- **FLOP**: cada `+`, `-`, `*` cuenta como $1$ operación.
+- **FLOP**: cada `+`, `-`, `*`, `/` cuenta como $1$ operación (aunque `/` es técnicamente más costosa a nivel de hardware).
 - **Bytes**: número de accesos $\times$ el tamaño del tipo (`float` $=4$ bytes).
 
 **Ejemplo** — `c[i] = a[i] + b[i]`: $1$ FLOP y $12$ bytes, luego $AI \approx 0.08$.
-
-Un $AI$ bajo: el *kernel* calcula poco y mueve muchos datos.
+<!-- Un $AI$ bajo: el *kernel* calcula poco y mueve muchos datos. -->
 
 ---
 
