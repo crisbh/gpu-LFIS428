@@ -665,6 +665,11 @@ Ver la sección **GPU Speed Of Light Throughput**: mide qué fracción del **má
 El **mayor** de los dos indica el **cuello de botella** del *kernel*.
 
 ---
+## Actividad
+
+<p class="destacado">Actividad: Sistema Procesador + Memoria.</p>
+
+---
 
 ## **¿Acotado por el cómputo o por la memoria?**
 
@@ -718,7 +723,7 @@ Un $AI$ bajo: el *kernel* calcula poco y mueve muchos datos.
 - Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$, en FLOP/s.
 - El **ancho de banda** se mide en bytes/s (típicamente GB/s).
 <!-- , de modo que $\frac{\text{FLOP}}{\text{byte}} \times \frac{\text{byte}}{\text{s}} = \frac{\text{FLOP}}{\text{s}}$. -->
-- El **ridge point** (punto naranja) separa las regiones *memory bound* y *compute bound*.
+- El **punto de inflexión** (punto naranja, *ridge point*) separa las regiones *memory bound* y *compute bound*.
 
 ---
 
