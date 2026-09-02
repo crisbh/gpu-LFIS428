@@ -16,7 +16,7 @@ Programas de ejemplo para las clases:
 - [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 - [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limites.cu) (ejercicio)
 - [errores.cu](../code/intro/errores.cu)
-<!-- - [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu) -->
+- [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
 <!-- ###################################### -->
 <!-- ## El uso de la memoria del GPU -->
