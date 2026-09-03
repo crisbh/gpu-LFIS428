@@ -11,6 +11,15 @@ theme: curso
 
 ---
 
+## **Jerarquía de memoria**
+
+- Existen memorias de distintos tipos.
+- Por regla general:
+  - Memorias mas rápidas son más pequeñas y más cercanas al *core* de procesamiento.
+  - Memorias más lentas son más grandes y más alejadas del *core* de procesamiento.
+
+---
+
 ## **Jerarquía de memoria (host)**
 
 ![w:560px](images/memoria/figure_4_1.png)
