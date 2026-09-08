@@ -723,6 +723,7 @@ Se cuenta **por elemento** (el cuociente no depende de $N$):
 - El **ancho de banda** se mide en bytes/s (típicamente GB/s).
 <!-- , de modo que $\frac{\text{FLOP}}{\text{byte}} \times \frac{\text{byte}}{\text{s}} = \frac{\text{FLOP}}{\text{s}}$. -->
 - El **punto de inflexión** (punto naranja, *ridge point*) separa las regiones *memory bound* y *compute bound*.
+- En la **T4** de Colab: *peak* de cómputo $\approx 8.1$ TFLOP/s y ancho de banda $\approx 320$ GB/s, luego el punto de inflexión está en $8100/320 \approx 25$ FLOP/byte.
 
 ---
 
@@ -750,10 +751,85 @@ Más información en la documentación sobre *device management*.
 
 ## **Ejercicio: ¿compute o memory bound?**
 
-1. Perfilar SAXPY con `ncu`. En **GPU Speed Of Light**: Comparar **Compute (SM) [%]** con **Memory [%]**.
-2. Calcular la **intensidad aritmética** de SAXPY (`y[i] = a*x[i] + y[i]`).
+Usar [saxpy.cu](../code/intro/saxpy.cu) ($N = 2^{20}$).
+
+1. Perfilar SAXPY con `ncu --set basic`. En **GPU Speed Of Light**: comparar **Compute (SM) Throughput [%]** con **Memory Throughput [%]**.
+2. Calcular la **Intensidad Aritmética** de este kernel (`y[i] = a*x[i] + y[i]`).
 3. ¿Es SAXPY *compute* o *memory bound*? Comparar con el modelo roofline.
-4. Estimar el **ancho de banda efectivo**: $12N$ bytes divididos por la duración del *kernel* (`Duration` en `ncu`). Comparar con el máximo del GPU y con el **Memory [%]** del punto 1.
+4. Estimar el **ancho de banda efectivo** en base a los datos movidos y la duración del *kernel* (`Duration` en `ncu`).
+<!-- RESPUESTAS. -->
+<!-- 1. Medido en la T4: Memory Throughput $\approx 90$% contra Compute (SM) Throughput $\approx 5$-$15$%. El mayor de los dos es el cuello de botella, y acá gana la memoria por lejos. -->
+<!-- 2. Por elemento: 2 FLOP (un `*` y un `+`) y 12 bytes: $8N$ leídos ($x$ e $y$) y $4N$ escritos ($y$). Luego $AI = 2/12 \approx 0.17$ FLOP/byte. El total con $N = 2^{20}$ es $12N = 12.58$ MB. -->
+<!-- 3. Memory bound, y por mucho: $0.17$ está muy a la izquierda del punto de inflexión de la T4 ($\approx 25$ FLOP/byte), unas 150 veces menor. Coincide con lo observado en el punto 1. -->
+<!-- 4. Ancho de banda efectivo = $12N$ bytes / Duration. Medido en la T4: $12582912$ B / $48.86$ µs = $257.5$ GB/s, o sea $80.5$% de los 320 GB/s. El profiler mide $255.79$ GB/s por su cuenta (ejercicio siguiente): la cuenta a mano acierta dentro de un $0.7$%. -->
+<!-- OJO: ese $80.5$% NO tiene por qué coincidir con el $\approx 90$% de Memory Throughput del punto 1, y de hecho no coincide. Son dos cosas distintas y vale la pena detenerse acá. -->
+<!-- Lo que calculamos a mano es tráfico de DRAM dividido por el peak teórico de 320 GB/s. Lo que reporta Speed Of Light es el MÁXIMO sobre toda la jerarquía de memoria (L1/TEX, L2 y DRAM) y contra el peak sostenido que mide la propia herramienta, no contra el número de la ficha técnica. -->
+<!-- Y la medición del ejercicio siguiente lo zanja: `dram__bytes.sum.per_second` da $255.79$ GB/s, que es $79.9$% de 320. O sea la DRAM efectivamente va al $80$%, y el $90$% del Speed Of Light NO es la DRAM: es otra unidad del camino, casi con seguridad el pipe L1/TEX, que SAXPY castiga con 3 accesos de 32 bits por thread (dos lecturas y una escritura). -->
+<!-- Se puede confirmar en clase con: `ncu --metrics dram__throughput.avg.pct_of_peak_sustained_elapsed,l1tex__throughput.avg.pct_of_peak_sustained_elapsed,lts__throughput.avg.pct_of_peak_sustained_elapsed ./saxpy.x`. Se espera `dram__throughput` $\approx 80$% y `l1tex` $\approx 90$%. -->
+<!-- La moraleja para la clase es la que importa: un porcentaje de Speed Of Light no es un ancho de banda, y para comparar contra el roofline hay que usar los bytes absolutos. -->
+<!-- Dos trampas al dividir. Primera, la unidad: `ncu` reporta `Duration` en µs o en ns según la magnitud. -->
+<!-- Segunda, y es la que más se cobra alumnos: NO convertir los bytes a MB dividiendo por $2^{20}$. Eso da mebibytes, y los 320 GB/s de la T4 son decimales ($256$ bits $\times$ 10 Gbps $/ 8 = 320 \times 10^9$ B/s). Mezclar ambas convenciones da $245.6$ en vez de $257.5$, un $4.9$% ($= 2^{20}/10^6$) de error justo cuando se quiere comparar contra el techo. Lo correcto es dividir los bytes crudos por la duración y luego por $10^9$. -->
+
+---
+
+## **Ejercicio: ¿cuántos bytes movió en realidad?**
+
+Ahora ver **números absolutos** de memoria y compute. Usar:
+
+```sh
+!ncu --metrics dram__bytes_read.sum,dram__bytes_write.sum,dram__bytes.sum.per_second ./saxpy.x
+```
+
+5. ¿Coinciden las lecturas y escrituras medidas con los $8N$ y $4N$ bytes del punto 2?
+6. Comparar `dram__bytes.sum.per_second` con los $320$ GB/s de la T4, y con su estimación a mano del punto 4.
+
+<!-- Si `ncu` rechaza alguna métrica: `ncu --query-metrics | grep dram__bytes`. -->
+<!-- RESPUESTAS. -->
+<!-- 5. Sí, coinciden muy de cerca: $\approx 8.39$ MB leídos ($8N$) y $\approx 4.19$ MB escritos ($4N$). -->
+<!-- El "por qué" es lo interesante, y son dos razones. Primero, los accesos son perfectamente contiguos y coalescentes: cada warp pide sectores completos de 32 bytes y no se desperdicia ningún byte transferido. Segundo, `ncu` usa por defecto `--cache-control all`, es decir vacía las cachés del GPU antes de cada repetición del kernel, de modo que todo el tráfico llega efectivamente hasta la DRAM. -->
+<!-- Corolario que vale la pena decir en voz alta: fuera del profiler el mismo kernel NO tiene por qué mover esos bytes. La L2 de la T4 es de 4 MB, justo el tamaño de un arreglo, así que parte de $y$ puede seguir en caché desde el `cudaMemcpy` previo y nunca releerse desde la DRAM. El modelo de 12 bytes por elemento es una cota superior del tráfico, no una predicción exacta. -->
+<!-- 6. Medido en la T4: `dram__bytes.sum.per_second` $= 255.79$ GB/s, o sea $79.9$% de los 320. Coincide con la estimación a mano del punto 4 ($257.5$ GB/s) dentro de un $0.7$%, que es la validación que buscábamos: el modelo de $12N$ bytes describe bien el tráfico real. Si a un alumno le difiere mucho más, casi siempre es la unidad de `Duration` o la confusión MB/MiB del punto 4. -->
+<!-- Este es además el número que zanja la discusión del punto 4. `dram__bytes.sum.per_second` es un ancho de banda de DRAM en GB/s absolutos, comparable directamente con los 320 GB/s, y da $79.9$%. El Memory Throughput [%] de Speed Of Light da $\approx 90$% porque es otra cosa: el máximo sobre toda la jerarquía de memoria, no la utilización de la DRAM. Los dos números son correctos y miden cosas distintas; para el roofline sirve este, el absoluto. -->
+
+---
+
+## **Ejercicio: el Punto de inflexión**
+
+Descargar: [intensidad_variable.cu](../code/intro/ejercicios/intensidad_variable.cu)
+
+@include[cuda]{static/code/intro/ejercicios/intensidad_variable.cu:21-30}
+
+El *kernel* repite $K$ veces el mismo paso de SAXPY, pero lee y escribe la memoria global **una sola vez**: $8$ bytes y $2K$ FLOP por elemento.
+
+<!-- $K$ se pasa como argumento (y no como `#define`) justamente para que `nvcc` no pueda desenrollar el lazo ni plegar la cadena en una constante: con $K$ fijo en tiempo de compilación el ejercicio se destruye solo. -->
+
+---
+
+## **Ejercicio: el Punto de inflexión**
+
+$K$ se pasa como **argumento**, así que hay que darlo en cada corrida:
+
+```sh
+!nvcc -arch=sm_75 intensidad_variable.cu -o intensidad_variable.x
+!./intensidad_variable.x 10                  # K = 10
+!ncu --set basic ./intensidad_variable.x 10
+```
+
+7. Correr con `K = 1, 10, 100, 1000`. Anotar la duración del *kernel*.
+8. Calcular $AI(K)$ a mano. ¿Para qué $K$ se cruza el punto de inflexión de la T4 ($\approx 25$ FLOP/byte)?
+9. Perfilar cada caso. ¿Entre qué dos valores de $K$ pasa el dominante de **Memory Throughput [%]** a **Compute (SM) Throughput [%]**?
+10. Comparar con SAXPY del ejercicio anterior.
+<!-- RESPUESTAS. -->
+<!-- 8. $AI(K) = 2K/8 = K/4$ FLOP/byte. Se cruzan los 25 FLOP/byte en $K = 100$ exactamente, que es uno de los cuatro valores pedidos. -->
+<!-- 7 y 9. Lo esperable en la T4, con $N = 2^{20}$ (8.39 MB movidos, independiente de $K$): -->
+<!-- $K=1$: $AI = 0.25$, memory bound, $\approx 33$ µs ($8N$ bytes a los 257 GB/s medidos), decenas de GFLOP/s. -->
+<!-- $K=10$: $AI = 2.5$, todavía memory bound, y la duración casi no cambia respecto de $K=1$. Ese "casi no cambia" es el resultado importante: el cómputo extra sale gratis porque el kernel está esperando a la memoria. -->
+<!-- $K=100$: $AI = 25$, los dos throughputs quedan comparables. -->
+<!-- $K=1000$: $AI = 250$, claramente compute bound, $\approx 300$-$350$ µs y $\approx 6$-$7$ TFLOP/s ($75$-$90$% de Compute Throughput). De aquí en adelante la duración escala lineal con $K$. -->
+<!-- El cambio de dominante ocurre entonces entre $K=10$ y $K=100$. -->
+<!-- Matiz que conviene discutir: medido, el cruce cae un poco después de $K=100$, cerca de $K \approx 126$. La razón es que ninguno de los dos peaks se alcanza en la práctica; con el ancho de banda efectivo de $257$ GB/s medido en el ejercicio 1, el punto de inflexión alcanzable es $8100/257 \approx 31.5$ FLOP/byte y no 25. El roofline teórico predice la tendencia, no el número exacto. -->
+<!-- 10. SAXPY tiene $AI \approx 0.17$ y queda pegado al extremo izquierdo, memory bound; este kernel recorre el roofline completo según $K$ y con $K=1000$ termina en la meseta de cómputo. Es el mismo patrón de acceso a memoria en ambos: lo único que cambia es cuánto cómputo se hace por byte traído. -->
+<!-- Sobre el programa: la recurrencia $v = 0.99 v + 0.01$ converge al punto fijo $0.01/(1-0.99) = 1$, lo que evita el overflow para $K$ grande pero también debilita la verificación de `y[0]` (con $K=1000$ todo da 1.0 aunque el cálculo esté mal). La medición con `cudaEvent` no tiene lanzamiento de calentamiento, así que ante una discrepancia el número confiable es el `Duration` de `ncu`. -->
 
 ---
 
