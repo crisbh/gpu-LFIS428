@@ -811,8 +811,8 @@ Producto $y = A x$, con $A$ de $N \times N$ y un *thread* por cada **fila** de $
 ## **Ejercicio: la multiplicación matriz-vector**
 
 1. Para **un elemento de $y$**: ¿cuántos FLOP hace el *kernel* y cuántos bytes lee y escribe? Calcular la $AI$.
-2. Ahora el **mínimo inevitable** para todo el producto: $A$ se lee una vez, $x$ una vez y $y$ se escribe una vez. ¿Qué $AI$ da? ¿Depende de $N$?
-3. Repetir con $N = 2048$ y $N = 4096$ (cambiar el `#define N` y recompilar). ¿Cambia la $AI$ al crecer $N$? ¿Y la duración que reporta `ncu`?
+<!-- 2. Ahora el **mínimo inevitable** para todo el producto: $A$ se lee una vez, $x$ una vez y $y$ se escribe una vez. ¿Qué $AI$ da? ¿Depende de $N$? -->
+2. Repetir con $N = 2048$ y $N = 4096$ (cambiar el `#define N` y recompilar). ¿Cambia la $AI$ al crecer $N$? ¿Y la duración que reporta `ncu`?
 
 ---
 
