@@ -772,7 +772,7 @@ Usar [saxpy.cu](../code/intro/saxpy.cu) ($N = 2^{20}$).
 
 ---
 
-## **Ejercicio: ¿cuántos bytes movió en realidad?**
+## **Ejercicio: ¿cuántos bytes se movieron realmente?**
 
 Ahora ver **números absolutos** de memoria y compute. Usar:
 
@@ -791,45 +791,91 @@ Ahora ver **números absolutos** de memoria y compute. Usar:
 <!-- 6. Medido en la T4: `dram__bytes.sum.per_second` $= 255.79$ GB/s, o sea $79.9$% de los 320. Coincide con la estimación a mano del punto 4 ($257.5$ GB/s) dentro de un $0.7$%, que es la validación que buscábamos: el modelo de $12N$ bytes describe bien el tráfico real. Si a un alumno le difiere mucho más, casi siempre es la unidad de `Duration` o la confusión MB/MiB del punto 4. -->
 <!-- Este es además el número que zanja la discusión del punto 4. `dram__bytes.sum.per_second` es un ancho de banda de DRAM en GB/s absolutos, comparable directamente con los 320 GB/s, y da $79.9$%. El Memory Throughput [%] de Speed Of Light da $\approx 90$% porque es otra cosa: el máximo sobre toda la jerarquía de memoria, no la utilización de la DRAM. Los dos números son correctos y miden cosas distintas; para el roofline sirve este, el absoluto. -->
 
+
 ---
 
-## **Ejercicio: la multiplicación de matrices**
+## **Ejercicio: la multiplicación matriz-vector**
 
-Descargar: [matmul_roofline.cu](../code/intro/ejercicios/matmul_roofline.cu)
+Descargar: [matvec_roofline.cu](../code/intro/ejercicios/matvec_roofline.cu)
 
-Multiplicación $C = A B$ de matrices $N \times N$, un *thread* por cada elemento de $C$: cada uno recorre una fila de $A$ y una columna de $B$.
+Producto $y = A x$, con $A$ de $N \times N$ y un *thread* por cada **fila** de $A$, es decir por cada elemento de $y$.
 
-@include[cuda]{static/code/intro/ejercicios/matmul_roofline.cu:16-26}
+@include[cuda]{static/code/intro/ejercicios/matvec_roofline.cu:15-24}
 
 ```sh
-!nvcc -arch=sm_75 matmul_roofline.cu -o matmul_roofline.x && !./matmul_roofline.x
+!nvcc -arch=sm_75 matvec_roofline.cu -o matvec_roofline.x && !./matvec_roofline.x
+!ncu --set basic ./matvec_roofline.x
 ```
 
 ---
 
-## **Ejercicio: la multiplicación de matrices**
+## **Ejercicio: la multiplicación matriz-vector**
 
-1. Para **un elemento de $C$**: ¿cuántos FLOP hace el *kernel*, y cuántos bytes lee y escribe de la memoria? Calcular la $AI$. ¿Depende de $N$?
-2. Ahora no contar lo que hace el *kernel*, sino **el total obligatorio** para todo el producto: leer $A$ y $B$ una vez y escribir $C$ una vez. ¿Cuántos bytes son? Con los mismos $2N^3$ FLOP, ¿qué $AI$ da para $N = 1024$, y de qué lado del punto de inflexión queda?
-3. Correr y perfilar (`ncu --metrics dram__bytes.sum`). ¿Dónde cae el tráfico medido respecto de los dos conteos anteriores? ¿Y los GFLOP/s medidos respecto del *peak*?
-<!-- 4. El mismo algoritmo da $AI = 0.25$ y $AI = 170$. ¿Qué hace la diferencia? ¿Donde se ubicaría en el diagrama roofline? -->
-
+1. Para **un elemento de $y$**: ¿cuántos FLOP hace el *kernel* y cuántos bytes lee y escribe? Calcular la $AI$.
+2. Ahora el **mínimo inevitable** para todo el producto: $A$ se lee una vez, $x$ una vez y $y$ se escribe una vez. ¿Qué $AI$ da? ¿Depende de $N$?
+3. Repetir con $N = 2048$ y $N = 4096$ (cambiar el `#define N` y recompilar). ¿Cambia la $AI$ al crecer $N$? ¿Y la duración que reporta `ncu`?
+<!-- 4. En la multiplicación de matrices la $AI$ mínima era $N/6$ y crecía sin límite; acá se queda fija. ¿Por qué? ¿Cuánto se puede ganar optimizando este *kernel*? -->
 <!-- RESPUESTAS. -->
-<!-- 1. Atajo para verlo sin álgebra, y es el que conviene mostrar en la pizarra: mirar UNA iteración del lazo en k. Hace 1 multiplicación y 1 suma (2 FLOP) y lee dos floats (8 bytes). AI = 2/8 = 0.25. Como todas las iteraciones son iguales, el largo del lazo no cambia la razón: por eso la N se cancela. -->
-<!-- Queda justo al lado de SAXPY (0.167). -->
-<!-- 2. Cada matriz se lee o escribe una sola vez: 3 N^2 elementos = 12 N^2 bytes = 12.58 MB para N = 1024. Con 2N^3 = 2147 MFLOP eso da AI = N/6 = 170.7 FLOP/byte, casi 7 veces pasado el punto de inflexión: del lado compute bound. -->
-<!-- Lo que separa a las preguntas 1 y 2 NO es contar por elemento o contar la matriz entera: AI es una razón, así que da lo mismo (el conteo ingenuo para la matriz completa es 2N^3/(8N^3+4N^2), que también tiende a 0.25). Lo que cambia es CUÁLES bytes se cuentan: la 1 cuenta los que el kernel pide, releyendo cada fila y cada columna una y otra vez; la 2 cuenta los inevitables, tocando cada matriz una sola vez. -->
-<!-- Precisión, por si la preguntan: no es que cada elemento se lea Y se escriba una vez. A se lee una vez, B se lee una vez y C se escribe una vez, o sea 3N^2 accesos. (Una versión estilo BLAS, C = alpha*A*B + beta*C, además lee C: serían 4N^2.) -->
-<!-- El contraste con SAXPY es el punto: SAXPY mueve 12N bytes y su mínimo inevitable también es 12N. No tiene brecha, no hay nada que reusar, ya está en su techo. La multiplicación tiene una brecha de 2N/3. -->
-<!-- El cuociente entre los dos tráficos es el reuso que estamos botando: (8N^3)/(12N^2) = 2N/3, o sea 683 veces a N = 1024. El kernel ingenuo mueve 683 veces más datos que el mínimo. -->
-<!-- Vale la pena detenerse en la coincidencia: esos 12.58 MB son exactamente los mismos bytes que mueve SAXPY. Sobre los mismos bytes obligatorios, SAXPY hace 2.1 MFLOP y la multiplicación hace 2147 MFLOP: 1024 veces más aritmética. Eso es estar al otro lado del roofline. -->
-<!-- 3. ATENCIÓN, acá se rompe la receta de los ejercicios anteriores: NO se puede predecir la duración dividiendo el tráfico ingenuo por el ancho de banda. Esos 8.59 GB a 256 GB/s darían 33.6 ms, y el kernel corre en unos pocos ms. -->
-<!-- La razón es que las cachés ya están recuperando parte del reuso por su cuenta: la fila de A se reparte entre los threads del warp y buena parte de B queda en L2 entre un bloque y el siguiente. Por eso el tráfico medido cae ENTRE los dos modelos, mucho más cerca del mínimo que del conteo ingenuo. Ese "entre medio" es la respuesta buscada; el conteo ingenuo es una cota superior, no una predicción. -->
-<!-- Esperable: del orden de 1 a 4 ms, o sea unos 500 a 2000 GFLOP/s, entre el 7% y el 27% del peak. Comparar con el menos del 1% de cualquier kernel elemento a elemento del ejercicio 1: aún mal escrita, la multiplicación de matrices usa el GPU un orden de magnitud mejor. -->
-<!-- 4. La diferencia es el REUSO. Cada elemento de A hace falta para N elementos distintos de C, y el kernel ingenuo lo vuelve a leer desde la memoria global las N veces. El dato ya estuvo en el chip y lo botamos. -->
-<!-- SAXPY está condenado a la izquierda del roofline: cada dato se usa una sola vez y no hay nada que reusar. La multiplicación de matrices no: tiene reuso de sobra y sólo hay que aprovecharlo. Guardar cada dato traído y usarlo varias veces antes de soltarlo es exactamente el tema del capítulo 2. -->
-<!-- No prometer de más: esa AI ideal de 170 supone poder guardar TODO en el chip, y no se puede (12.58 MB de datos contra 4 MB de L2). Con tiles de T x T en memoria compartida lo alcanzable es AI = T/4: con T = 32 son 8 FLOP/byte, 32 veces mejor que 0.25 pero todavía a la izquierda del punto de inflexión (25). Cruzarlo pediría T = 100, o sea 78 KB de shared por bloque, y hay 64 KB. -->
-<!-- O sea: el capítulo 2 cierra la mayor parte de la brecha de 683, no la cierra entera. Las librerías tipo GEMM llegan más lejos agregando reuso también en los registros (cada thread calcula un parche de varios elementos de C, no uno solo). -->
+<!-- 1. Por elemento de y: 2N FLOP (N multiplicaciones y N sumas). El thread lee una fila entera de A (4N bytes) y TODO el vector x (4N bytes), y escribe 4: son 8N + 4 bytes. Luego AI = 2N/(8N+4) -> 0.25 FLOP/byte, otra vez independiente de N. -->
+<!-- Cómo contar las FLOP, si hay dudas: FLOP = (cuántos elementos tiene la salida) x (costo de un elemento). El ladrillo es siempre un producto punto de largo N, o sea N multiplicaciones y N sumas = 2N FLOP. Acá la salida es un vector, N elementos, luego 2N^2 FLOP en total. En la multiplicación de matrices la salida tiene N^2 elementos y por eso da 2N^3: el ladrillo es idéntico, lo único que cambia es cuántos se hacen. -->
+<!-- Detalle de las sumas: sumar N productos son estrictamente N-1 sumas, así que serían 2N-1 FLOP. Se usa 2N porque el código parte de suma = 0 y hace N sumas, porque la diferencia es 1 en 2N (0.05% a N = 1024), y sobre todo por consistencia con el techo: los 8.1 TFLOP/s de la T4 salen de 2560 cores x 2 x 1.59 GHz, y ese x2 está porque NVIDIA cuenta cada FMA (a*b+c, una sola instrucción) como 2 FLOP. -->
+<!-- 2. A se lee una vez (4N^2), x una vez (4N) y se escribe y (4N): 4N^2 + 8N bytes. Con 2N^2 FLOP eso da AI = 2N^2/(4N^2+8N) -> 0.5 FLOP/byte. -->
+<!-- Las dos AI de este ejercicio son límites, no valores exactos, y lo que se desprecia siempre es lo mismo: el vector, que es O(N), frente a la matriz, que es O(N^2). Conviene decirlo así en vez de "tomamos el límite". Valores exactos: 2N/(8N+4) para la ingenua y N/(2N+4) para la mínima. -->
+<!-- Si alguien hace la división exacta en vez del límite, a N = 1024 le va a dar 0.499 y no 0.500. El culpable es el término 8N, y es buena ocasión para mostrar cómo converge: 0.444 a N=16, 0.485 a N=64, 0.496 a N=256, 0.499 a N=1024. Sólo importa para N chico, que es justamente el que nadie perfila. -->
+<!-- (En la multiplicación de matrices, en cambio, la AI mínima N/6 es exacta.) -->
+<!-- Y acá está lo importante del ejercicio: ese 0.5 es una CONSTANTE. Aunque se programe perfecto, esta operación jamás cruza el punto de inflexión (25). Comparar con la multiplicación de matrices, cuyo mínimo era N/6 y crecía sin techo. -->
+<!-- 3. La AI no se mueve: ni la ingenua (0.25) ni la mínima (0.5) dependen de N, y por lo tanto tampoco se mueven los GFLOP/s ni los GB/s. Lo único que cambia es la duración, que crece como N^2: del orden de 16 microsegundos a N = 1024, 66 a N = 2048 y 262 a N = 4096, o sea un factor 16 entre la primera y la última. -->
+<!-- Que haya que recompilar para cambiar N es a propósito: obliga a mirar el código. Y el resultado es el que importa: agrandar el problema NO mejora la posición en el roofline, sólo hace que tarde más. -->
+<!-- (Esas duraciones salen de dividir el tráfico mínimo por los ~256 GB/s medidos en el ejercicio 1; son estimaciones, no mediciones. La duración real la da `ncu`.) -->
+<!-- 4. Es la razón entre trabajo y datos, y es una propiedad del ALGORITMO, no de quien lo programa. Matriz-vector hace O(N^2) operaciones sobre O(N^2) datos: el cuociente es fijo. Matriz-matriz hace O(N^3) operaciones sobre O(N^2) datos, y por eso su AI crece con N. Esa es la única razón por la que una puede llegar a ser compute bound y la otra no. -->
+<!-- Cuánto se gana optimizando: nada que valga la pena. La brecha entre el kernel ingenuo (0.25) y el mínimo (0.5) es de apenas 2 veces; en la multiplicación de matrices era de 2N/3, o sea 683 veces a N = 1024. -->
+<!-- El número que conviene dejar escrito en la pizarra: por el roofline, rendimiento <= AI x ancho de banda = 0.5 x 320 = 160 GFLOP/s. Ese es el techo ABSOLUTO de y = Ax en la T4, un 2% del peak de cómputo, y no hay forma de programarlo mejor para superarlo. (Es la misma cuenta de la parte (d) de la pregunta de roofline del quiz.) -->
+<!-- Sobre la columna GB/s, por si sale baja: threads consecutivos leen A[fila*n + k] con fila consecutivo, o sea direcciones separadas por 4N bytes. Ese patrón NO es coalescente y puede desperdiciar ancho de banda. Es un tema del capítulo 2 y no cambia ninguna de las conclusiones anteriores: las AI son aritmética pura y el techo de 160 GFLOP/s sigue en pie. Si acaso, es un segundo gancho hacia el capítulo 2: allá el problema de la matriz-matriz era el reuso, acá es el patrón de acceso. -->
+
+<!-- --- -->
+<!---->
+<!-- ## **Ejercicio: la multiplicación de matrices** -->
+<!---->
+<!-- Descargar: [matmul_roofline.cu](../code/intro/ejercicios/matmul_roofline.cu) -->
+<!---->
+<!-- Multiplicación $C = A B$ de matrices $N \times N$, un *thread* por cada elemento de $C$: cada uno recorre una fila de $A$ y una columna de $B$. -->
+<!---->
+<!-- @include[cuda]{static/code/intro/ejercicios/matmul_roofline.cu:16-26} -->
+<!---->
+<!-- ```sh -->
+<!-- !nvcc -arch=sm_75 matmul_roofline.cu -o matmul_roofline.x && !./matmul_roofline.x -->
+<!-- ``` -->
+<!---->
+<!-- --- -->
+
+<!-- ## **Ejercicio: la multiplicación de matrices** -->
+<!---->
+<!-- 1. Para **un elemento de $C$**: ¿cuántos FLOP hace el *kernel*, y cuántos bytes lee y escribe de la memoria? Calcular la $AI$. ¿Depende de $N$? -->
+<!-- 2. Ahora no contar lo que hace el *kernel*, sino **el total obligatorio** para todo el producto: leer $A$ y $B$ una vez y escribir $C$ una vez. ¿Cuántos bytes son? Con los mismos $2N^3$ FLOP, ¿qué $AI$ da para $N = 1024$, y de qué lado del punto de inflexión queda? -->
+<!-- 3. Correr y perfilar (`ncu --metrics dram__bytes.sum`). ¿Dónde cae el tráfico medido respecto de los dos conteos anteriores? ¿Y los GFLOP/s medidos respecto del *peak*? -->
+<!-- <!-- 4. El mismo algoritmo da $AI = 0.25$ y $AI = 170$. ¿Qué hace la diferencia? ¿Donde se ubicaría en el diagrama roofline? --> -->
+<!---->
+<!-- <!-- RESPUESTAS. --> -->
+<!-- <!-- 1. Atajo para verlo sin álgebra, y es el que conviene mostrar en la pizarra: mirar UNA iteración del lazo en k. Hace 1 multiplicación y 1 suma (2 FLOP) y lee dos floats (8 bytes). AI = 2/8 = 0.25. Como todas las iteraciones son iguales, el largo del lazo no cambia la razón: por eso la N se cancela. --> -->
+<!-- <!-- Queda justo al lado de SAXPY (0.167). --> -->
+<!-- <!-- Cómo contar las FLOP, si hay dudas: FLOP = (cuántos elementos tiene la salida) x (costo de un elemento). El ladrillo es siempre un producto punto de largo N, o sea N multiplicaciones y N sumas = 2N FLOP. Acá la salida es una matriz, N^2 elementos, luego 2N^3 FLOP en total. --> -->
+<!-- <!-- Verificación cruzada que conviene mostrar: la columna j de C es A por la columna j de B, así que una multiplicación de matrices son N multiplicaciones matriz-vector: N x 2N^2 = 2N^3. Cierra. --> -->
+<!-- <!-- Detalle de las sumas: sumar N productos son estrictamente N-1 sumas, así que el producto punto son 2N-1 FLOP y no 2N. Se usa 2N porque el código parte de suma = 0 y hace N sumas, porque la diferencia es 1 en 2N (0.05% a N = 1024), y sobre todo por consistencia con el techo: los 8.1 TFLOP/s de la T4 salen de 2560 cores x 2 x 1.59 GHz, y ese x2 está porque NVIDIA cuenta cada FMA (a*b+c, una sola instrucción) como 2 FLOP. Contando 2N, el numerador y el techo quedan en la misma vara. --> -->
+<!-- <!-- 2. Cada matriz se lee o escribe una sola vez: 3 N^2 elementos = 12 N^2 bytes = 12.58 MB para N = 1024. Con 2N^3 = 2147 MFLOP eso da AI = N/6 = 170.7 FLOP/byte, casi 7 veces pasado el punto de inflexión: del lado compute bound. --> -->
+<!-- <!-- Cuál resultado es exacto y cuál es un límite: N/6 es EXACTO, sin aproximación, porque el tráfico mínimo es exactamente 12N^2 y las FLOP exactamente 2N^3. El 0.25 de la pregunta 1, en cambio, es asintótico: el valor exacto es 2N/(8N+4), que a N = 1024 da 0.2499. Lo que se desprecia es el único byte escrito frente a los 8N leídos. --> -->
+<!-- <!-- Lo que separa a las preguntas 1 y 2 NO es contar por elemento o contar la matriz entera: AI es una razón, así que da lo mismo (el conteo ingenuo para la matriz completa es 2N^3/(8N^3+4N^2), que también tiende a 0.25). Lo que cambia es CUÁLES bytes se cuentan: la 1 cuenta los que el kernel pide, releyendo cada fila y cada columna una y otra vez; la 2 cuenta los inevitables, tocando cada matriz una sola vez. --> -->
+<!-- <!-- Precisión, por si la preguntan: no es que cada elemento se lea Y se escriba una vez. A se lee una vez, B se lee una vez y C se escribe una vez, o sea 3N^2 accesos. (Una versión estilo BLAS, C = alpha*A*B + beta*C, además lee C: serían 4N^2.) --> -->
+<!-- <!-- El contraste con SAXPY es el punto: SAXPY mueve 12N bytes y su mínimo inevitable también es 12N. No tiene brecha, no hay nada que reusar, ya está en su techo. La multiplicación tiene una brecha de 2N/3. --> -->
+<!-- <!-- El cuociente entre los dos tráficos es el reuso que estamos botando: (8N^3)/(12N^2) = 2N/3, o sea 683 veces a N = 1024. El kernel ingenuo mueve 683 veces más datos que el mínimo. --> -->
+<!-- <!-- Vale la pena detenerse en la coincidencia: esos 12.58 MB son exactamente los mismos bytes que mueve SAXPY. Sobre los mismos bytes obligatorios, SAXPY hace 2.1 MFLOP y la multiplicación hace 2147 MFLOP: 1024 veces más aritmética. Eso es estar al otro lado del roofline. --> -->
+<!-- <!-- 3. ATENCIÓN, acá se rompe la receta de los ejercicios anteriores: NO se puede predecir la duración dividiendo el tráfico ingenuo por el ancho de banda. Esos 8.59 GB a 256 GB/s darían 33.6 ms, y el kernel corre en unos pocos ms. --> -->
+<!-- <!-- La razón es que las cachés ya están recuperando parte del reuso por su cuenta: la fila de A se reparte entre los threads del warp y buena parte de B queda en L2 entre un bloque y el siguiente. Por eso el tráfico medido cae ENTRE los dos modelos, mucho más cerca del mínimo que del conteo ingenuo. Ese "entre medio" es la respuesta buscada; el conteo ingenuo es una cota superior, no una predicción. --> -->
+<!-- <!-- Esperable: del orden de 1 a 4 ms, o sea unos 500 a 2000 GFLOP/s, entre el 7% y el 27% del peak. Comparar con el menos del 1% de cualquier kernel elemento a elemento del ejercicio 1: aún mal escrita, la multiplicación de matrices usa el GPU un orden de magnitud mejor. --> -->
+<!-- <!-- 4. La diferencia es el REUSO. Cada elemento de A hace falta para N elementos distintos de C, y el kernel ingenuo lo vuelve a leer desde la memoria global las N veces. El dato ya estuvo en el chip y lo botamos. --> -->
+<!-- <!-- SAXPY está condenado a la izquierda del roofline: cada dato se usa una sola vez y no hay nada que reusar. La multiplicación de matrices no: tiene reuso de sobra y sólo hay que aprovecharlo. Guardar cada dato traído y usarlo varias veces antes de soltarlo es exactamente el tema del capítulo 2. --> -->
+<!-- <!-- No prometer de más: esa AI ideal de 170 supone poder guardar TODO en el chip, y no se puede (12.58 MB de datos contra 4 MB de L2). Con tiles de T x T en memoria compartida lo alcanzable es AI = T/4: con T = 32 son 8 FLOP/byte, 32 veces mejor que 0.25 pero todavía a la izquierda del punto de inflexión (25). Cruzarlo pediría T = 100, o sea 78 KB de shared por bloque, y hay 64 KB. --> -->
+<!-- <!-- O sea: el capítulo 2 cierra la mayor parte de la brecha de 683, no la cierra entera. Las librerías tipo GEMM llegan más lejos agregando reuso también en los registros (cada thread calcula un parche de varios elementos de C, no uno solo). --> -->
+
 
 ---
 

@@ -15,6 +15,8 @@ Programas de ejemplo para las clases:
 - [saxpy.cu](../code/intro/saxpy.cu)
 - [mostrarIndices.cu](../code/intro/mostrarIndices.cu)
 - [suma_vectores_limites.cu](../code/intro/ejercicios/suma_vectores_limites.cu) (ejercicio)
+- [matmul_roofline.cu](../code/intro/ejercicios/matmul_roofline.cu) (ejercicio)
+- [matvec_roofline.cu](../code/intro/ejercicios/matvec_roofline.cu) (ejercicio)
 - [errores.cu](../code/intro/errores.cu)
 - [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
