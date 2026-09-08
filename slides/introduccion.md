@@ -723,7 +723,7 @@ Se cuenta **por elemento** (el cuociente no depende de $N$):
 - El **ancho de banda** se mide en bytes/s (típicamente GB/s).
 <!-- , de modo que $\frac{\text{FLOP}}{\text{byte}} \times \frac{\text{byte}}{\text{s}} = \frac{\text{FLOP}}{\text{s}}$. -->
 - El **punto de inflexión** (punto naranja, *ridge point*) separa las regiones *memory bound* y *compute bound*.
-- En la **T4** de Colab: *peak* de cómputo $\approx 8.1$ TFLOP/s y ancho de banda $\approx 320$ GB/s, luego el punto de inflexión está en $8100/320 \approx 25$ FLOP/byte.
+- En la **T4** de Colab: *peak* de cómputo $\approx 8.1$ TFLOP/s y ancho de banda $\approx 300$ GB/s, luego el punto de inflexión está en $8100/300 \approx 25$ FLOP/byte.
 
 ---
 
@@ -761,14 +761,14 @@ Usar [saxpy.cu](../code/intro/saxpy.cu) ($N = 2^{20}$).
 <!-- 1. Medido en la T4: Memory Throughput $\approx 90$% contra Compute (SM) Throughput $\approx 5$-$15$%. El mayor de los dos es el cuello de botella, y acá gana la memoria por lejos. -->
 <!-- 2. Por elemento: 2 FLOP (un `*` y un `+`) y 12 bytes: $8N$ leídos ($x$ e $y$) y $4N$ escritos ($y$). Luego $AI = 2/12 \approx 0.17$ FLOP/byte. El total con $N = 2^{20}$ es $12N = 12.58$ MB. -->
 <!-- 3. Memory bound, y por mucho: $0.17$ está muy a la izquierda del punto de inflexión de la T4 ($\approx 25$ FLOP/byte), unas 150 veces menor. Coincide con lo observado en el punto 1. -->
-<!-- 4. Ancho de banda efectivo = $12N$ bytes / Duration. Medido en la T4: $12582912$ B / $48.86$ µs = $257.5$ GB/s, o sea $80.5$% de los 320 GB/s. El profiler mide $255.79$ GB/s por su cuenta (ejercicio siguiente): la cuenta a mano acierta dentro de un $0.7$%. -->
+<!-- 4. Ancho de banda efectivo = $12N$ bytes / Duration. Medido en la T4: $12582912$ B / $48.86$ µs = $257.5$ GB/s, o sea $80.5$% de los 300 GB/s. El profiler mide $255.79$ GB/s por su cuenta (ejercicio siguiente): la cuenta a mano acierta dentro de un $0.7$%. -->
 <!-- OJO: ese $80.5$% NO tiene por qué coincidir con el $\approx 90$% de Memory Throughput del punto 1, y de hecho no coincide. Son dos cosas distintas y vale la pena detenerse acá. -->
-<!-- Lo que calculamos a mano es tráfico de DRAM dividido por el peak teórico de 320 GB/s. Lo que reporta Speed Of Light es el MÁXIMO sobre toda la jerarquía de memoria (L1/TEX, L2 y DRAM) y contra el peak sostenido que mide la propia herramienta, no contra el número de la ficha técnica. -->
-<!-- Y la medición del ejercicio siguiente lo zanja: `dram__bytes.sum.per_second` da $255.79$ GB/s, que es $79.9$% de 320. O sea la DRAM efectivamente va al $80$%, y el $90$% del Speed Of Light NO es la DRAM: es otra unidad del camino, casi con seguridad el pipe L1/TEX, que SAXPY castiga con 3 accesos de 32 bits por thread (dos lecturas y una escritura). -->
+<!-- Lo que calculamos a mano es tráfico de DRAM dividido por el peak teórico de 300 GB/s. Lo que reporta Speed Of Light es el MÁXIMO sobre toda la jerarquía de memoria (L1/TEX, L2 y DRAM) y contra el peak sostenido que mide la propia herramienta, no contra el número de la ficha técnica. -->
+<!-- Y la medición del ejercicio siguiente lo zanja: `dram__bytes.sum.per_second` da $255.79$ GB/s, que es $79.9$% de 300. O sea la DRAM efectivamente va al $80$%, y el $90$% del Speed Of Light NO es la DRAM: es otra unidad del camino, casi con seguridad el pipe L1/TEX, que SAXPY castiga con 3 accesos de 32 bits por thread (dos lecturas y una escritura). -->
 <!-- Se puede confirmar en clase con: `ncu --metrics dram__throughput.avg.pct_of_peak_sustained_elapsed,l1tex__throughput.avg.pct_of_peak_sustained_elapsed,lts__throughput.avg.pct_of_peak_sustained_elapsed ./saxpy.x`. Se espera `dram__throughput` $\approx 80$% y `l1tex` $\approx 90$%. -->
 <!-- La moraleja para la clase es la que importa: un porcentaje de Speed Of Light no es un ancho de banda, y para comparar contra el roofline hay que usar los bytes absolutos. -->
 <!-- Dos trampas al dividir. Primera, la unidad: `ncu` reporta `Duration` en µs o en ns según la magnitud. -->
-<!-- Segunda, y es la que más se cobra alumnos: NO convertir los bytes a MB dividiendo por $2^{20}$. Eso da mebibytes, y los 320 GB/s de la T4 son decimales ($256$ bits $\times$ 10 Gbps $/ 8 = 320 \times 10^9$ B/s). Mezclar ambas convenciones da $245.6$ en vez de $257.5$, un $4.9$% ($= 2^{20}/10^6$) de error justo cuando se quiere comparar contra el techo. Lo correcto es dividir los bytes crudos por la duración y luego por $10^9$. -->
+<!-- Segunda, y es la que más se cobra alumnos: NO convertir los bytes a MB dividiendo por $2^{20}$. Eso da mebibytes, y los 300 GB/s de la T4 son decimales ($256$ bits $\times$ 10 Gbps $/ 8 = 300 \times 10^9$ B/s). Mezclar ambas convenciones da $245.6$ en vez de $257.5$, un $4.9$% ($= 2^{20}/10^6$) de error justo cuando se quiere comparar contra el techo. Lo correcto es dividir los bytes crudos por la duración y luego por $10^9$. -->
 
 ---
 
@@ -781,15 +781,15 @@ Ahora ver **números absolutos** de memoria y compute. Usar:
 ```
 
 5. ¿Coinciden las lecturas y escrituras medidas con los $8N$ y $4N$ bytes del punto 2?
-6. Comparar `dram__bytes.sum.per_second` con los $320$ GB/s de la T4, y con su estimación a mano del punto 4.
+6. Comparar `dram__bytes.sum.per_second` con los $300$ GB/s de la T4, y con su estimación a mano del punto 4.
 
 <!-- Si `ncu` rechaza alguna métrica: `ncu --query-metrics | grep dram__bytes`. -->
 <!-- RESPUESTAS. -->
 <!-- 5. Sí, coinciden muy de cerca: $\approx 8.39$ MB leídos ($8N$) y $\approx 4.19$ MB escritos ($4N$). -->
 <!-- El "por qué" es lo interesante, y son dos razones. Primero, los accesos son perfectamente contiguos y coalescentes: cada warp pide sectores completos de 32 bytes y no se desperdicia ningún byte transferido. Segundo, `ncu` usa por defecto `--cache-control all`, es decir vacía las cachés del GPU antes de cada repetición del kernel, de modo que todo el tráfico llega efectivamente hasta la DRAM. -->
 <!-- Corolario que vale la pena decir en voz alta: fuera del profiler el mismo kernel NO tiene por qué mover esos bytes. La L2 de la T4 es de 4 MB, justo el tamaño de un arreglo, así que parte de $y$ puede seguir en caché desde el `cudaMemcpy` previo y nunca releerse desde la DRAM. El modelo de 12 bytes por elemento es una cota superior del tráfico, no una predicción exacta. -->
-<!-- 6. Medido en la T4: `dram__bytes.sum.per_second` $= 255.79$ GB/s, o sea $79.9$% de los 320. Coincide con la estimación a mano del punto 4 ($257.5$ GB/s) dentro de un $0.7$%, que es la validación que buscábamos: el modelo de $12N$ bytes describe bien el tráfico real. Si a un alumno le difiere mucho más, casi siempre es la unidad de `Duration` o la confusión MB/MiB del punto 4. -->
-<!-- Este es además el número que zanja la discusión del punto 4. `dram__bytes.sum.per_second` es un ancho de banda de DRAM en GB/s absolutos, comparable directamente con los 320 GB/s, y da $79.9$%. El Memory Throughput [%] de Speed Of Light da $\approx 90$% porque es otra cosa: el máximo sobre toda la jerarquía de memoria, no la utilización de la DRAM. Los dos números son correctos y miden cosas distintas; para el roofline sirve este, el absoluto. -->
+<!-- 6. Medido en la T4: `dram__bytes.sum.per_second` $= 255.79$ GB/s, o sea $79.9$% de los 300. Coincide con la estimación a mano del punto 4 ($257.5$ GB/s) dentro de un $0.7$%, que es la validación que buscábamos: el modelo de $12N$ bytes describe bien el tráfico real. Si a un alumno le difiere mucho más, casi siempre es la unidad de `Duration` o la confusión MB/MiB del punto 4. -->
+<!-- Este es además el número que zanja la discusión del punto 4. `dram__bytes.sum.per_second` es un ancho de banda de DRAM en GB/s absolutos, comparable directamente con los 300 GB/s, y da $79.9$%. El Memory Throughput [%] de Speed Of Light da $\approx 90$% porque es otra cosa: el máximo sobre toda la jerarquía de memoria, no la utilización de la DRAM. Los dos números son correctos y miden cosas distintas; para el roofline sirve este, el absoluto. -->
 
 
 ---
@@ -829,7 +829,7 @@ Producto $y = A x$, con $A$ de $N \times N$ y un *thread* por cada **fila** de $
 <!-- (Esas duraciones salen de dividir el tráfico mínimo por los ~256 GB/s medidos en el ejercicio 1; son estimaciones, no mediciones. La duración real la da `ncu`.) -->
 <!-- 4. Es la razón entre trabajo y datos, y es una propiedad del ALGORITMO, no de quien lo programa. Matriz-vector hace O(N^2) operaciones sobre O(N^2) datos: el cuociente es fijo. Matriz-matriz hace O(N^3) operaciones sobre O(N^2) datos, y por eso su AI crece con N. Esa es la única razón por la que una puede llegar a ser compute bound y la otra no. -->
 <!-- Cuánto se gana optimizando: nada que valga la pena. La brecha entre el kernel ingenuo (0.25) y el mínimo (0.5) es de apenas 2 veces; en la multiplicación de matrices era de 2N/3, o sea 683 veces a N = 1024. -->
-<!-- El número que conviene dejar escrito en la pizarra: por el roofline, rendimiento <= AI x ancho de banda = 0.5 x 320 = 160 GFLOP/s. Ese es el techo ABSOLUTO de y = Ax en la T4, un 2% del peak de cómputo, y no hay forma de programarlo mejor para superarlo. (Es la misma cuenta de la parte (d) de la pregunta de roofline del quiz.) -->
+<!-- El número que conviene dejar escrito en la pizarra: por el roofline, rendimiento <= AI x ancho de banda = 0.5 x 300 = 150 GFLOP/s. Ese es el techo ABSOLUTO de y = Ax en la T4, un 2% del peak de cómputo, y no hay forma de programarlo mejor para superarlo. (Es la misma cuenta de la parte (d) de la pregunta de roofline del quiz.) -->
 <!-- Sobre la columna GB/s, por si sale baja: threads consecutivos leen A[fila*n + k] con fila consecutivo, o sea direcciones separadas por 4N bytes. Ese patrón NO es coalescente y puede desperdiciar ancho de banda. Es un tema del capítulo 2 y no cambia ninguna de las conclusiones anteriores: las AI son aritmética pura y el techo de 160 GFLOP/s sigue en pie. Si acaso, es un segundo gancho hacia el capítulo 2: allá el problema de la matriz-matriz era el reuso, acá es el patrón de acceso. -->
 
 <!-- --- -->
