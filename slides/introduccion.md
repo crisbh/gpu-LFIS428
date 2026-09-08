@@ -719,11 +719,10 @@ Se cuenta **por elemento** (el cuociente no depende de $N$):
   <text x="390" y="190" fill="#6b7785" font-size="13">compute bound</text>
 </svg>
 
-- Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$, en FLOP/s.
+- Rendimiento $\leq \min(\text{peak de cómputo},\ AI \times \text{ancho de banda})$.
 - El **ancho de banda** se mide en bytes/s (típicamente GB/s).
-<!-- , de modo que $\frac{\text{FLOP}}{\text{byte}} \times \frac{\text{byte}}{\text{s}} = \frac{\text{FLOP}}{\text{s}}$. -->
 - El **punto de inflexión** (punto naranja, *ridge point*) separa las regiones *memory bound* y *compute bound*.
-- En la **T4** de Colab: *peak* de cómputo $\approx 8.1$ TFLOP/s y ancho de banda $\approx 300$ GB/s, luego el punto de inflexión está en $8100/300 \approx 25$ FLOP/byte.
+- En la **T4** de Colab: *peak* de cómputo $\approx 8.1$ TFLOP/s y ancho de banda $\approx 300$ GB/s, luego el punto de inflexión está en $\approx 27$ FLOP/byte.
 
 ---
 
