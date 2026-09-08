@@ -2,23 +2,13 @@
 // Ejercicio: la multiplicación de matrices en el roofline
 // ============================================================
 //
-// Multiplicación ingenua C = A * B, con matrices de N x N y un thread por
+// Multiplicación 'ingenua' C = A * B, con matrices de N x N y un thread por
 // cada elemento de C. Cada thread recorre una fila de A y una columna de B.
-//
-// Contando por elemento de C:
-//   FLOP  = 2N            (N multiplicaciones y N sumas)
-//   bytes = 8N + 4        (2N lecturas de 4 bytes, más 4 escritos)
-//   AI    = 2N / (8N + 4) --> 0.25 FLOP/byte, ¡sin importar N!
 //
 // Pero el tráfico MÍNIMO indispensable es mucho menor: basta leer A y B una
 // vez y escribir C una vez, o sea 12*N*N bytes en total, lo que daría
-//   AI ideal = 2N^3 / (12 N^2) = N/6
+// AI ideal = 2N^3 / (12 N^2) = N/6
 // que para N = 1024 son 170 FLOP/byte.
-//
-// El mismo algoritmo, entonces, puede quedar a cualquiera de los dos lados
-// del roofline. La diferencia es cuántas veces se relee cada dato.
-//
-// Uso:  ./matmul_roofline.x
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +20,7 @@ __global__ void matmul(const float *A, const float *B, float *C, int n) {
   if (fila < n && col < n) {
     float suma = 0.0f;
     for (int k = 0; k < n; k++)
-      suma += A[fila * n + k] * B[k * n + col]; // 2 FLOP y 8 bytes por paso
+      suma += A[fila * n + k] * B[k * n + col];
     C[fila * n + col] = suma;
   }
 }
