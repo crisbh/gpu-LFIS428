@@ -799,7 +799,7 @@ Descargar: [matmul_roofline.cu](../code/intro/ejercicios/matmul_roofline.cu)
 
 Multiplicación $C = A B$ de matrices $N \times N$, un *thread* por cada elemento de $C$: cada uno recorre una fila de $A$ y una columna de $B$.
 
-@include[cuda]{static/code/intro/ejercicios/matmul_roofline.cu:26-36}
+@include[cuda]{static/code/intro/ejercicios/matmul_roofline.cu:16-26}
 
 ```sh
 !nvcc -arch=sm_75 matmul_roofline.cu -o matmul_roofline.x && !./matmul_roofline.x
