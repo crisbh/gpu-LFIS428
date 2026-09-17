@@ -132,25 +132,35 @@ int main(){
 
 ![w:520px](images/warps_thread_blocks.png)
 
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
+---
+
+## **Los Warps**
+
+
+![w:820px](images/warps_logical_hardware_view.png)
+
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
 ---
 
 ## **Los Warps**
 
 - En CUDA, los *threads* no ejecutan instrucciones de un código de forma independiente.
 - Las instrucciones se despachan a *warps*.
-  - Cada ciclo de reloj del GPU, un *warp* ejecuta una misma instrucción (en
-    general sobre distintos datos de la memoria):
+  - Cada ciclo de reloj del GPU, un *warp* ejecuta una misma instrucción (en general sobre distintos datos de la memoria):
 - En un programa eficiente, los *threads* de un *warp* acceden a la memoria **en bloque**.
 
 ---
 
-<!-- _class: hook -->
-
-## **Los Warps**
-
-<p class="destacado">¿Como se transfieren los datos entre procesador y memoria?</p>
-
----
+<!-- <!-- _class: hook --> -->
+<!---->
+<!-- ## **Los Warps** -->
+<!---->
+<!-- <p class="destacado">¿Como se transfieren los datos entre procesador y memoria?</p> -->
+<!---->
+<!-- --- -->
 
 ## **Memoria global: acceso eficiente**
 
@@ -267,7 +277,7 @@ Ejemplo 5a: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
 
 ## **Memoria compartida**
 
-![w:560px](images/memoria/figure_4_2.png)
+![w:460px](images/memoria/figure_4_2.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -314,7 +324,7 @@ kernel<<<grid, block, N * sizeof(int)>>>(...);
 
 Volvemos al ejemplo de la transpuesta de una matriz, pero ahora usando memoria compartida.
 
-![w:520px](images/memoria/figure_5_15.png)
+![w:920px](images/memoria/figure_5_15.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -340,7 +350,7 @@ Consideramos un ejemplo: matriz de $4 \times 4$ elementos, con bloques de $2 \ti
 
 ## **Transpuesta: memoria compartida**
 
-![w:420px](images/memoria/transpose_fig1.png)
+![w:340px](images/memoria/transpose_fig1.png)
 
 Índices globales de los *threads*:
 
@@ -353,7 +363,7 @@ iy = blockDim.y * blockIdx.y + threadIdx.y;
 
 ## **Transpuesta: memoria compartida**
 
-![w:420px](images/memoria/transpose_fig2.png)
+![w:340px](images/memoria/transpose_fig2.png)
 
 Índice lineal de los *threads*:
 
@@ -365,7 +375,7 @@ ti = iy * N + ix;
 
 ## **Transpuesta: memoria compartida**
 
-![w:420px](images/memoria/transpose_fig3.png)
+![w:340px](images/memoria/transpose_fig3.png)
 
 Índices globales después de la "transpuesta de bloques":
 
@@ -378,7 +388,7 @@ iyt = blockDim.x * blockIdx.x + threadIdx.y;
 
 ## **Transpuesta: memoria compartida**
 
-![w:420px](images/memoria/transpose_fig4.png)
+![w:340px](images/memoria/transpose_fig4.png)
 
 Índice lineal después de la "transpuesta de bloques":
 
@@ -390,9 +400,9 @@ to = iyt * N + ixt;
 
 ## **Transpuesta: memoria compartida**
 
-![w:420px](images/memoria/transpose_fig5.png)
+![w:320px](images/memoria/transpose_fig5.png)
 
-Elementos guardados en la matriz de salida después de cargar de la memoria compartida:
+Elementos guardados después de cargar de la memoria compartida:
 
 ```cuda
 tile[threadIdx.y][threadIdx.x] = entrada[ti];
@@ -404,7 +414,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Acceso a la memoria compartida**
 
-![w:520px](images/memoria/figure_5_2.png)
+![w:1020px](images/memoria/figure_5_2.png)
 
 <p class="credit">Acceso ideal — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -412,7 +422,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Acceso a la memoria compartida**
 
-![w:520px](images/memoria/figure_5_3.png)
+![w:1020px](images/memoria/figure_5_3.png)
 
 <p class="credit">Acceso desordenado, pero no problemático — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -420,7 +430,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Acceso a la memoria compartida**
 
-![w:520px](images/memoria/figure_5_4.png)
+![w:1020px](images/memoria/figure_5_4.png)
 
 <p class="credit">Potencialmente problemático... — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -428,7 +438,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Organización de la memoria compartida (bancos)**
 
-![w:520px](images/memoria/figure_5_5.png)
+![w:1020px](images/memoria/figure_5_5.png)
 
 <p class="credit">Bancos de ancho 4-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -436,7 +446,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Organización de la memoria compartida (bancos)**
 
-![w:520px](images/memoria/figure_5_6.png)
+![w:1020px](images/memoria/figure_5_6.png)
 
 <p class="credit">Bancos de ancho 8-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -444,7 +454,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Conflictos de bancos**
 
-![w:520px](images/memoria/figure_5_7.png)
+![w:1020px](images/memoria/figure_5_7.png)
 
 <p class="credit">Todo bien acá — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -452,7 +462,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Conflictos de bancos**
 
-![w:520px](images/memoria/figure_5_8.png)
+![w:1020px](images/memoria/figure_5_8.png)
 
 <p class="credit">Todo bien acá también, gracias al ancho de 8-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -460,7 +470,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Conflictos de bancos**
 
-![w:520px](images/memoria/figure_5_9.png)
+![w:1020px](images/memoria/figure_5_9.png)
 
 <p class="credit">¡Conflicto! — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -468,7 +478,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Conflictos de bancos**
 
-![w:520px](images/memoria/figure_5_10.png)
+![w:1020px](images/memoria/figure_5_10.png)
 
 <p class="credit">¡Conflicto! — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -476,7 +486,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ## **Solución: *padding***
 
-![w:520px](images/memoria/figure_5_11.png)
+![w:920px](images/memoria/figure_5_11.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -547,7 +557,7 @@ Ejemplo 7: [memoria_constante.cu](../code/memoria/memoria_constante.cu).
 
 ## **Memoria *pinned***
 
-- La memoria en el *host* es, por defecto, *pageable*.
+- La memoria en el *host* es, por defecto, *paginable*.
 - Está organizada en páginas que el sistema operativo puede mover a la memoria virtual (en el disco duro).
 - Cuando el sistema requiere datos que están en el disco, ocurre un *page fault* y los datos se copian del disco al RAM. El GPU no controla el movimiento de las páginas.
 - Transferir datos del *host* al *device* implica asignar memoria *page-locked* o *pinned* en el *host*: los datos se transfieren de *pageable* a *pinned* y después al *device*.
@@ -556,7 +566,7 @@ Ejemplo 7: [memoria_constante.cu](../code/memoria/memoria_constante.cu).
 
 ## **Memoria *pinned***
 
-![w:560px](images/memoria/figure_4_4.png)
+![w:760px](images/memoria/figure_4_4.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -580,6 +590,10 @@ Ejemplo 8: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
 - Desde CUDA 6.0, *Unified Memory* permite acceder a la memoria usando un **solo espacio de direcciones** para el GPU y el CPU. UM se encarga de la transferencia de datos automáticamente.
 - Basada en *Unified Virtual Addressing* (CUDA 4.0), que unificó el espacio de direcciones en memoria.
 - Declaración estática (a veces llamada *managed*): `__device__ __managed__ int y;`
+
+---
+
+## **Memoria unificada**
 - Asignación dinámica:
 
 ```cuda
@@ -596,6 +610,6 @@ Ejemplo 9: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu).
 
 ---
 
-# ¡Gracias!
+# Fin Capítulo 2
 
-## Próxima clase: control de los threads
+## Próxima capítulo: control de los threads
