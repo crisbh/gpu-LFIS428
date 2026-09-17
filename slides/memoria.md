@@ -11,9 +11,18 @@ theme: curso
 
 ---
 
+## **Memoria y optimización**
+
+- La mayoría de los programas gastan mucho tiempo moviendo los datos desde la memoria del *device* a su unidad de procesamiento
+  (GPU).
+- Es **esencial** minimizar dicho tiempo para optimizar el rendimiento.
+
+---
+
 ## **Jerarquía de memoria**
 
-- Existen memorias de distintos tipos.
+- Tanto en el *host* como en el *device*, existen distintos tipos de memorias.
+
 - Por regla general:
   - Memorias mas rápidas son más pequeñas y más cercanas al *core* de procesamiento.
   - Memorias más lentas son más grandes y más alejadas del *core* de procesamiento.
@@ -24,31 +33,31 @@ theme: curso
 
 ![w:560px](images/memoria/figure_4_1.png)
 
-No se puede programar los registros y *caches*.
-
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
+<!-- Los registros y *caches* no son programables. -->
 
 ---
 
 ## **Jerarquía de memoria (GPU)**
 
-![w:560px](images/memoria/figure_4_2.png)
-
-Se puede programar cualquier espacio de memoria que no sea *cache*.
+![w:460px](images/memoria/figure_4_2.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
----
+<!-- Se puede programar cualquier espacio de memoria que no sea *cache*. -->
 
-## **Códigos**
-
-Los códigos de esta clase están disponibles para descargar:
-
-- [variableGlobal.cu](../code/memoria/variableGlobal.cu), [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu)
-- [copiarFila.cu](../code/memoria/copiarFila.cu), [copiarColumna.cu](../code/memoria/copiarColumna.cu)
-- [transpuesta.cu](../code/memoria/transpuesta.cu), [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
-- [aos.cu](../code/memoria/aos.cu), [soa.cu](../code/memoria/soa.cu), [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
-- [memoria_constante.cu](../code/memoria/memoria_constante.cu), [memoriaPinned.cu](../code/memoria/memoriaPinned.cu), [memoria_unificada.cu](../code/memoria/memoria_unificada.cu)
+<!-- --- -->
+<!---->
+<!-- ## **Códigos** -->
+<!---->
+<!-- Los códigos de esta clase están disponibles para descargar: -->
+<!---->
+<!-- - [variableGlobal.cu](../code/memoria/variableGlobal.cu), [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu) -->
+<!-- - [copiarFila.cu](../code/memoria/copiarFila.cu), [copiarColumna.cu](../code/memoria/copiarColumna.cu) -->
+<!-- - [transpuesta.cu](../code/memoria/transpuesta.cu), [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) -->
+<!-- - [aos.cu](../code/memoria/aos.cu), [soa.cu](../code/memoria/soa.cu), [alineamiento_datos.c](../code/memoria/alineamiento_datos.c) -->
+<!-- - [memoria_constante.cu](../code/memoria/memoria_constante.cu), [memoriaPinned.cu](../code/memoria/memoriaPinned.cu), [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) -->
 
 ---
 
@@ -58,16 +67,18 @@ Los códigos de esta clase están disponibles para descargar:
 
 ## **Memoria global**
 
-- La memoria principal del GPU: *latency* alto, *bandwidth* bajo.
+- La memoria principal del GPU.
+  - *Latency*: alto.
+  - *Bandwidth*: bajo.
 - Se puede asignar memoria global de forma **dinámica** con `cudaMalloc`.
 - Se puede asignar memoria global de forma **estática** en el *device* con `__device__`.
-- El uso eficiente de la memoria global es muy importante para optimizar un código de CUDA.
 
 ---
 
 ## **Memoria global: declaración estática**
 
-Ejemplo 1: [variableGlobal.cu](../code/memoria/variableGlobal.cu) — declaramos una variable global en la memoria global del *device*.
+Ejemplo 1: [variableGlobal.cu](../code/memoria/variableGlobal.cu).
+Declaramos una variable global en la memoria global del *device*.
 
 ```cuda
 #define N 10
@@ -86,7 +97,8 @@ int main(){
 
 ## **Memoria global: declaración dinámica**
 
-Ejemplo 2: [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu) — el mismo programa, pero con declaración dinámica (ya no tiene *global scope*).
+Ejemplo 2: [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu).
+El mismo programa, pero con declaración dinámica (ya no tiene *global scope*).
 
 ```cuda
 #define N 10
@@ -103,19 +115,56 @@ int main(){
 
 ---
 
-## **Memoria global: acceso eficiente**
+## **Memoria global**
 
-La mejor forma de acceder a la memoria global es con acceso **alineado** y **contiguo**.
+- Dado que la latencia de la memoria global es alta, la idea central es **minimizar su uso** durante la ejecución de un programa para mejorar su rendimiento.
+- En general queremos:
+  - Minimizar los accesos.
+  - Cuando necesitamos acceder y cargar datos, hacerlo en bloque.
 
-![w:520px](images/memoria/aligned_coalesced.png)
+- A continuación veremos algunas técnicas para optimizar el uso de la memoria global.
 
-<p class="credit">Alineado y contiguo — Fuente: <em>Professional CUDA C Programming</em></p>
+---
+
+## **Los Warps**
+
+- Para entender la interacción entre GPU y la memoria del *device*, es necesario hablar en más detalle de los *warps*.
+
+![w:520px](images/warps_thread_blocks.png)
+
+---
+
+## **Los Warps**
+
+- En CUDA, los *threads* no ejecutan instrucciones de un código de forma independiente.
+- Las instrucciones se despachan a *warps*.
+  - Cada ciclo de reloj del GPU, un *warp* ejecuta una misma instrucción (en
+    general sobre distintos datos de la memoria):
+- En un programa eficiente, los *threads* de un *warp* acceden a la memoria **en bloque**.
+
+---
+
+<!-- _class: hook -->
+
+## **Los Warps**
+
+<p class="destacado">¿Como se transfieren los datos entre procesador y memoria?</p>
 
 ---
 
 ## **Memoria global: acceso eficiente**
 
-![w:520px](images/memoria/non_coalesced.png)
+La mejor forma de acceder a la memoria global es con acceso **alineado** y **contiguo**.
+
+![w:1020px](images/memoria/aligned_coalesced.png)
+
+<p class="credit">Alineado y contiguo — Fuente: <em>Professional CUDA C Programming</em></p>
+
+---
+
+## **Memoria global: acceso ineficiente**
+
+![w:1020px](images/memoria/non_coalesced.png)
 
 <p class="credit">No alineado ni contiguo — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -157,7 +206,7 @@ Eficiencia load/store para `copiarFila` de $100\%$. Para `copiarColumna` la efic
 
 ## **Transpuesta de una matriz**
 
-![w:520px](images/memoria/row_column.png)
+![w:820px](images/memoria/row_column.png)
 
 <p class="credit">Cargar por fila, guardar por columna — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -165,7 +214,7 @@ Eficiencia load/store para `copiarFila` de $100\%$. Para `copiarColumna` la efic
 
 ## **Transpuesta de una matriz**
 
-![w:520px](images/memoria/column_row.png)
+![w:820px](images/memoria/column_row.png)
 
 <p class="credit">Cargar por columna, guardar por fila — Fuente: <em>Professional CUDA C Programming</em></p>
 
