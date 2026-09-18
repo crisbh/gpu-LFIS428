@@ -122,7 +122,7 @@ int main(){
   - Minimizar los accesos.
   - Cuando necesitamos acceder y cargar datos, hacerlo en bloque.
 
-- A continuación veremos algunas técnicas para optimizar el uso de la memoria global.
+- Antes de ver las técnicas de optimización, recordemos cómo los *threads* acceden a la memoria.
 
 ---
 
@@ -149,18 +149,17 @@ int main(){
 
 - En CUDA, los *threads* no ejecutan instrucciones de un código de forma independiente.
 - Las instrucciones se despachan a *warps*.
-  - Cada ciclo de reloj del GPU, un *warp* ejecuta una misma instrucción (en general sobre distintos datos de la memoria):
+  - Cada ciclo de reloj del GPU, un *warp* ejecuta una misma instrucción, en general sobre distintos datos de la memoria.
 - En un programa eficiente, los *threads* de un *warp* acceden a la memoria **en bloque**.
 
 ---
 
-<!-- <!-- _class: hook --> -->
-<!---->
-<!-- ## **Los Warps** -->
-<!---->
-<!-- <p class="destacado">¿Como se transfieren los datos entre procesador y memoria?</p> -->
-<!---->
-<!-- --- -->
+<!--
+Diapositiva "hook" en pausa (reactivar quitando este comentario):
+_class: hook
+## **Los Warps**
+<p class="destacado">¿Cómo se transfieren los datos entre procesador y memoria?</p>
+-->
 
 ## **Memoria global: acceso eficiente**
 
@@ -247,27 +246,71 @@ La versión que carga por columnas es más rápida... ¿por qué?
 
 ## **Opciones para estructuras de datos**
 
-![w:640px](images/memoria/figure_4_22.png)
+![w:420px](images/memoria/figure_4_22.png)
+
+- **SoA**: cada *thread* lee **un campo** de muchos elementos → el *warp* accede a datos contiguos.
+- **AoS**: cada *thread* usa **todos los campos** de su elemento; funciona bien si el *struct* está alineado ($8$ o $16$ bytes, como `float4`).
+
+Ejemplo 5: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 
-## **Opciones para estructuras de datos**
+## **Alineamiento de estructuras**
 
-Ejemplo 5: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
+La organización de los elementos en una estructura tiene consecuencias para el uso de la memoria: los mismos campos, en otro orden, ocupan otro tamaño.
 
-Normalmente se prefiere **SoA** (*structure of arrays*) en programación paralela: da acceso contiguo en el GPU.
+Ejemplo 5a: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
+
+- En CUDA los tipos vectoriales (`float2`, `float4`) ya vienen alineados a $8$ y $16$ bytes.
+- Por eso el capítulo de aplicaciones usa `float4` para las posiciones en el código de n-cuerpos, y `float3` sólo para variables locales.
 
 ---
 
-## **Alineamiento de estructuras**
+# Ejercicios
 
-Paréntesis importante (relevante para la programación en general):
+---
 
-La organización de los elementos en una estructura tiene consecuencias para el uso de la memoria.
+## **Ejercicio 1: eficiencia de acceso global**
 
-Ejemplo 5a: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
+Descargar: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu)
+
+1. Compilar y ejecutar ambos programas. ¿Qué *bandwidth* efectivo reporta cada uno?
+2. Medir la eficiencia de *load* y de *store* con el profiler.
+3. Contrastar lo medido con los valores vistos en clase ($100\%$ para `copiarFila`; $25\%$ y $12.5\%$ para `copiarColumna`).
+
+```bash
+nvcc -arch=sm_75 copiarFila.cu -o copiarFila.x && ./copiarFila.x
+```
+
+---
+
+## **Ejercicio 1: métricas**
+
+En `nvprof`:
+- `gld_efficiency`, `gst_efficiency`
+
+En `ncu`:
+
+```bash
+ncu --metrics \
+  smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct,\
+  smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct \
+  ./copiarFila.x
+```
+
+¿Por qué la eficiencia de *store* es aún peor que la de *load*?
+
+---
+
+## **Ejercicio 2: ¿por qué gana cargar por columnas?**
+
+Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu)
+
+1. Ejecutar y comparar el *bandwidth* efectivo de `transpuestaCargarFilas` y `transpuestaCargarColumnas`.
+2. ¿Cuál de los dos es más rápido?
+3. Explicar el resultado: ¿qué operación alcanza a aprovechar el *cache* y cuál no?
 
 ---
 
@@ -332,11 +375,12 @@ Volvemos al ejemplo de la transpuesta de una matriz, pero ahora usando memoria c
 
 ## **Transpuesta: memoria compartida**
 
-Ejemplo 6: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu). Hay tres *kernels*:
+Ejemplo 6: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu). Hay cuatro *kernels*:
 
-- El *kernel* para la transpuesta con memoria global.
-- Un *kernel* que utiliza memoria compartida **estática**.
-- Otro que utiliza memoria compartida **dinámica**.
+- `transpuestaGlobal`: la transpuesta con memoria global.
+- `transpuestaComp`: memoria compartida **estática**.
+- `transpuestaCompDin`: memoria compartida **dinámica**.
+- `transpuestaCompPad`: memoria compartida estática con ***padding*** (volveremos a este).
 
 ---
 
@@ -449,6 +493,43 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 ![w:1020px](images/memoria/figure_5_6.png)
 
 <p class="credit">Bancos de ancho 8-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
+
+---
+
+# Ejercicios
+
+---
+
+## **Ejercicio 3: ¿ayuda la memoria compartida?**
+
+Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
+
+El programa reporta el tiempo de cada *kernel*. Por ahora nos interesan tres:
+
+- `transpuestaGlobal` · `transpuestaComp` · `transpuestaCompDin`
+
+1. Ordenarlos de más lento a más rápido. ¿Cuánto se gana con memoria compartida?
+2. ¿La declaración dinámica cuesta más que la estática?
+3. ¿Qué pasaría si borráramos el `__syncthreads()`?
+
+---
+
+## **Ejercicio 3: los índices en papel**
+
+Repetir el desarrollo de las diapositivas anteriores para una matriz de $8 \times 8$ con bloques de $4 \times 4$.
+
+Para el *thread* `threadIdx = (1,2)` del bloque `blockIdx = (1,0)`, calcular:
+
+```cuda
+ix, iy      // índices globales
+ti          // índice lineal de entrada
+ixt, iyt    // índices tras la "transpuesta de bloques"
+to          // índice lineal de salida
+```
+
+---
+
+# Conflictos de bancos
 
 ---
 
@@ -607,6 +688,81 @@ El puntero `devPtr` es válido tanto en el *device* como en el *host*.
 ## **Memoria unificada**
 
 Ejemplo 9: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu).
+
+---
+
+# Ejercicios
+
+---
+
+## **Ejercicio 4: conflictos de bancos y *padding***
+
+Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
+
+En el ejercicio 3 ya comparamos los tres primeros *kernels*. Falta el cuarto: `transpuestaCompPad`.
+
+1. `transpuestaComp` y `transpuestaCompPad` difieren en **un carácter**: `tile[BDIM][BDIM]` contra `tile[BDIM][BDIM+1]`. ¿Cuánto cambia el tiempo?
+2. ¿Dónde queda `transpuestaCompPad` en el ranking del ejercicio 3?
+
+---
+
+## **Ejercicio 4: métricas**
+
+En `nvprof`:
+- `shared_load_transactions_per_request`
+- `shared_store_transactions_per_request`
+
+En `ncu`:
+- `l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum`
+- `l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum`
+
+3. Medir los conflictos de bancos en `transpuestaComp` y en `transpuestaCompPad`. ¿El número explica la diferencia de tiempo?
+
+---
+
+## **Ejercicio 5: ¿sirve la memoria constante?**
+
+Descargar: [memoria_constante.cu](../code/memoria/memoria_constante.cu)
+
+El programa ejecuta dos *kernels* que hacen exactamente el mismo cálculo:
+
+- `kernel_device`: lee los $360$ ángulos desde la **memoria global**.
+- `kernel_constante`: los lee desde la **memoria constante**.
+
+1. El programa no imprime nada: hay que medirlo con el profiler.
+2. Comparar la duración de ambos *kernels*.
+
+```bash
+nvcc -arch=sm_75 memoria_constante.cu -o memoria_constante.x
+nvprof ./memoria_constante.x
+```
+
+---
+
+## **Ejercicio 5: ¿por qué?**
+
+3. Todos los *threads* leen **el mismo** ángulo en cada iteración del ciclo. ¿Por qué esto favorece a la memoria constante?
+4. ¿Qué pasaría si cada *thread* leyera un ángulo **distinto**?
+
+El programa invoca un tercer *kernel* (`kernel_inicial`) antes de medir. ¿Para qué sirve?
+
+---
+
+## **Ejercicio 6: *pinned* contra *pageable***
+
+Descargar: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu)
+
+1. Medir el tiempo de las dos transferencias (*host* a *device* y de vuelta).
+2. Reemplazar `cudaMallocHost`/`cudaFreeHost` por `malloc`/`free`: la memoria del *host* vuelve a ser *pageable*.
+3. Medir de nuevo y comparar.
+
+```bash
+nvprof ./memoriaPinned.x
+```
+
+`nvprof` reporta las copias como `[CUDA memcpy HtoD]` y `[CUDA memcpy DtoH]`.
+
+4. Si la memoria *pinned* es más rápida, ¿por qué no asignar **toda** la memoria del *host* así?
 
 ---
 

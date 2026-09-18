@@ -50,7 +50,6 @@ void calculoComplicado() {
   cudaFree(d_x.hue);
   cudaFree(d_x.saturation);
   cudaFree(d_x.maxVal);
-  cudaFree(d_x.maxVal);
   cudaFree(d_x.minVal);
   cudaFree(d_x.finalVal);
 }

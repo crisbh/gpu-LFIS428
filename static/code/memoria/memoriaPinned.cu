@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 int main() {
 
   // cantidad de datos
