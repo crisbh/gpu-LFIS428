@@ -15,7 +15,8 @@ theme: curso
 
 - La mayoría de los programas gastan mucho tiempo moviendo los datos desde la memoria del *device* a su unidad de procesamiento
   (GPU).
-- Es **esencial** minimizar dicho tiempo para optimizar el rendimiento.
+
+Optimizar los accesos a la memoria $\implies$ optimizar el rendimiento
 
 ---
 
@@ -26,6 +27,8 @@ theme: curso
 - Por regla general:
   - Memorias mas rápidas son más pequeñas y más cercanas al *core* de procesamiento.
   - Memorias más lentas son más grandes y más alejadas del *core* de procesamiento.
+
+TODO: give a factor of how much faster can the difference be.
 
 ---
 
@@ -39,7 +42,7 @@ theme: curso
 
 ---
 
-## **Jerarquía de memoria (GPU)**
+## **Jerarquía de memoria (device)**
 
 ![w:460px](images/memoria/figure_4_2.png)
 
@@ -67,7 +70,7 @@ theme: curso
 
 ## **Memoria global**
 
-- La memoria principal del GPU.
+- La memoria principal del device.
   - *Latency*: alto.
   - *Bandwidth*: bajo.
 - Se puede asignar memoria global de forma **dinámica** con `cudaMalloc`.
@@ -117,18 +120,18 @@ int main(){
 
 ## **Memoria global**
 
-- Dado que la latencia de la memoria global es alta, la idea central es **minimizar su uso** durante la ejecución de un programa para mejorar su rendimiento.
+- Dado que la latencia de la memoria global es alta, la idea central es **optimizar su uso** durante la ejecución de un programa para mejorar su rendimiento.
 - En general queremos:
   - Minimizar los accesos.
   - Cuando necesitamos acceder y cargar datos, hacerlo en bloque.
 
-- Antes de ver las técnicas de optimización, recordemos cómo los *threads* acceden a la memoria.
+<!-- - Antes de ver las técnicas de optimización, recordemos cómo los *threads* acceden a la memoria. -->
+
+Para entender la interacción entre GPU y la memoria del *device*, es necesario hablar en más detalle de los *warps*.
 
 ---
 
 ## **Los Warps**
-
-- Para entender la interacción entre GPU y la memoria del *device*, es necesario hablar en más detalle de los *warps*.
 
 ![w:520px](images/warps_thread_blocks.png)
 
@@ -147,12 +150,12 @@ int main(){
 
 ## **Los Warps**
 
-- En CUDA, los *threads* no ejecutan instrucciones de un código de forma independiente.
+- En CUDA, los *threads* no ejecutan las instrucciones de un código de forma independiente.
 - Las instrucciones se despachan a *warps*.
   - Cada ciclo de reloj del GPU, un *warp* ejecuta una misma instrucción, en general sobre distintos datos de la memoria.
 - En un programa eficiente, los *threads* de un *warp* acceden a la memoria **en bloque**.
 
----
+<!-- --- -->
 
 <!--
 Diapositiva "hook" en pausa (reactivar quitando este comentario):
@@ -161,11 +164,37 @@ _class: hook
 <p class="destacado">¿Cómo se transfieren los datos entre procesador y memoria?</p>
 -->
 
+---
+
+## **Transacciones de memoria**
+
+- Los accesos de memoria también son hechos en términos de *warps*.
+- Todos los accesos a la memoria global (DRAM) pasan por cache L2 (algunos también por L1).
+- Las transacciones de memoria (lectura/escritura) están cuantizadas.
+  - DRAM: 128 bytes (*segmento de memoria*).
+  - Cache L1: 128 bytes (*línea de cache*).
+  - Cache L2: 32 bytes (*línea de cache*).
+
+
+---
+
+## **Acceso a la memoria**
+
+![w:1020px](images/memoria/figure_4_6.png)
+
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
+---
+
 ## **Memoria global: acceso eficiente**
 
-La mejor forma de acceder a la memoria global es con acceso **alineado** y **contiguo**.
+La mejor forma (**patrón**) de acceder a la memoria global es con acceso **alineado** y **contiguo**.
 
-![w:1020px](images/memoria/aligned_coalesced.png)
+- Alineado: primera dirección de memoria es múltiplo de 32 o 128 bytes.
+- Contiguo: todos los *threads* del *warp* acceden a un bloque contiguo.
+
+![w:1000px](images/memoria/figure_4_7.png)
+<!-- ![w:1020px](images/memoria/aligned_coalesced.png) -->
 
 <p class="credit">Alineado y contiguo — Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -173,15 +202,23 @@ La mejor forma de acceder a la memoria global es con acceso **alineado** y **con
 
 ## **Memoria global: acceso ineficiente**
 
-![w:1020px](images/memoria/non_coalesced.png)
+![w:1000px](images/memoria/figure_4_12.png)
 
 <p class="credit">No alineado ni contiguo — Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 
-## **Memoria global: acceso eficiente**
+## **Memoria global: acceso ineficiente (extremo)**
+
+![w:1020px](images/memoria/non_coalesced.png)
+
+<p class="credit">No alineado ni contiguo — Fuente: <em>Professional CUDA C Programming</em></p>
 
 El acceso alineado no es tan importante comparado con el acceso **contiguo**.
+
+---
+
+## **Memoria global: acceso eficiente**
 
 Ejemplo 3: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu).
 
@@ -240,7 +277,23 @@ La versión que carga por columnas es más rápida... ¿por qué?
 
 ---
 
+# **Ejercicio: ¿por qué gana cargar por columnas?**
+
+Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu)
+
+1. Ejecutar y comparar el *bandwidth* efectivo de `transpuestaCargarFilas` y `transpuestaCargarColumnas`.
+2. ¿Cuál de los dos es más rápido?
+3. Explicar el resultado: ¿qué operación alcanza a aprovechar el *cache* y cuál no?
+
+---
+
 # AoS vs. SoA
+
+---
+
+## **Estructuras de datos**
+
+TODO: add recap of structs. Use a particle struct as example (x, y coordinates). Then mention arrays of structs as an option to represent a particle ensemble.
 
 ---
 
@@ -251,7 +304,7 @@ La versión que carga por columnas es más rápida... ¿por qué?
 - **SoA**: cada *thread* lee **un campo** de muchos elementos → el *warp* accede a datos contiguos.
 - **AoS**: cada *thread* usa **todos los campos** de su elemento; funciona bien si el *struct* está alineado ($8$ o $16$ bytes, como `float4`).
 
-Ejemplo 5: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
+Ejemplo: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -261,56 +314,10 @@ Ejemplo 5: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
 
 La organización de los elementos en una estructura tiene consecuencias para el uso de la memoria: los mismos campos, en otro orden, ocupan otro tamaño.
 
-Ejemplo 5a: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
+Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
 
 - En CUDA los tipos vectoriales (`float2`, `float4`) ya vienen alineados a $8$ y $16$ bytes.
 - Por eso el capítulo de aplicaciones usa `float4` para las posiciones en el código de n-cuerpos, y `float3` sólo para variables locales.
-
----
-
-# Ejercicios
-
----
-
-## **Ejercicio 1: eficiencia de acceso global**
-
-Descargar: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu)
-
-1. Compilar y ejecutar ambos programas. ¿Qué *bandwidth* efectivo reporta cada uno?
-2. Medir la eficiencia de *load* y de *store* con el profiler.
-3. Contrastar lo medido con los valores vistos en clase ($100\%$ para `copiarFila`; $25\%$ y $12.5\%$ para `copiarColumna`).
-
-```bash
-nvcc -arch=sm_75 copiarFila.cu -o copiarFila.x && ./copiarFila.x
-```
-
----
-
-## **Ejercicio 1: métricas**
-
-En `nvprof`:
-- `gld_efficiency`, `gst_efficiency`
-
-En `ncu`:
-
-```bash
-ncu --metrics \
-  smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct,\
-  smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct \
-  ./copiarFila.x
-```
-
-¿Por qué la eficiencia de *store* es aún peor que la de *load*?
-
----
-
-## **Ejercicio 2: ¿por qué gana cargar por columnas?**
-
-Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu)
-
-1. Ejecutar y comparar el *bandwidth* efectivo de `transpuestaCargarFilas` y `transpuestaCargarColumnas`.
-2. ¿Cuál de los dos es más rápido?
-3. Explicar el resultado: ¿qué operación alcanza a aprovechar el *cache* y cuál no?
 
 ---
 
