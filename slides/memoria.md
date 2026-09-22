@@ -227,26 +227,30 @@ El acceso alineado no es tan importante comparado con el **acceso contiguo**.
 
 - Supongamos que utilizamos un grid con bloques 2D.
 
-<!-- --- -->
-<!---->
-<!-- ## **Acceso eficiente a matrices** -->
-<!---->
-<!---->
-<!-- ![w:620px](images/memoria/row_column.png) -->
-<!---->
-<!-- <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p> -->
+---
+
+## **El índice lineal**
+
+![w:220px](images/memoria/transpose_fig2.png)
+
+<p class="credit">Ejemplo: matriz 4×4 con bloques de 2×2 (líneas rojas)</p>
+
+- La matriz (cuadrada, `nx` $=$ `ny`) se guarda por filas, así que cada elemento tiene una **posición fija** en memoria.
+- Un *thread* `(ix, iy)` puede calcular su **índice lineal** de dos formas:
+
+```cuda
+ti = iy * nx + ix; // por filas:    (fila iy, columna ix)
+ti = ix * ny + iy; // por columnas: (fila ix, columna iy)
+```
 
 ---
 
 ## **Acceso eficiente a matrices**
 
+Cada opción de `ti` define **qué elemento** le toca a cada *thread* al acceder a `matriz[ti]`.
 
-- Si tenemos los índices globales de los threads `ix` e `iy`, hay dos opciones para acceder a la matriz:
-
-```cuda
-matriz[iy * nx + ix]; // threads contiguos (ix) recorren una fila
-matriz[ix * ny + iy]; // threads contiguos (ix) recorren una columna
-```
+- Por filas: `ti` $= 0, 1, 2, 3$ → posiciones **contiguas**.
+- Por columnas: `ti` $= 0, 4, 8, 12$ → saltos de `ny` (una fila entera).
 
 ![w:520px](images/memoria/row_column.png)
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
@@ -276,8 +280,6 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 
 <!-- Resultados esperados: copiarFila 100% load y store; copiarColumna 25% load y store (bloques 16x16). El material original (2026-06) decía 12.5% para el store de copiarColumna, pero la cuenta da 25% para ambos, ya que usan el mismo índice: confirmar con ncu en la T4. -->
 
-<!-- Respuestas de la lista: (1) 2048/16 = 128 bloques por dimensión, 128x128 = 16384 en total. (2) el warp son 16 threads en x por 2 filas en y. (3) una fila son 2048*4 = 8 KB (la matriz completa, 16 MiB). (4) por filas el salto entre ix e ix+1 es de 4 B; por columnas es de una fila entera, 8 KB. (5) 32*4 = 128 B útiles. (6) por filas: dos tramos contiguos de 64 B = 4 sectores; por columnas: 16 direcciones dispersas (iy e iy+1 comparten sector) = 16 sectores. (7) 128/(4*32) = 100% y 128/(16*32) = 25%. -->
-
 ---
 
 ## **Preguntas:**
@@ -289,6 +291,20 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 5. ¿Cuántos bytes *útiles* requiere cada *warp* para operar?
 6. ¿Cuántos sectores debe solicitar el *warp* para acceder a ellos, en cada caso?
 7. Con la definición de eficiencia, ¿qué porcentaje predicen? ¿Coincide con lo medido?
+
+<!-- 1. La matriz es de 2048x2048 y los bloques de 16x16: 2048/16 = 128 bloques por dimensión, o sea 128x128 = 16384 bloques en total. -->
+
+<!-- 2. El warp son los primeros 32 threads del bloque: 16 threads en x (threadIdx.x = 0..15) por 2 filas en y (threadIdx.y = 0 y 1). -->
+
+<!-- 3. Una fila son 2048 floats x 4 B = 8192 B = 8 KB. La matriz completa son 2048x8 KB = 16 MiB. -->
+
+<!-- 4. Por filas (iy*nx+ix), ix e ix+1 son vecinos en memoria: 4 B. Por columnas (ix*ny+iy), ix e ix+1 quedan separados por una fila entera: 8 KB. -->
+
+<!-- 5. Los 32 threads del warp piden un float cada uno: 32 x 4 B = 128 B útiles, igual al leer y al escribir. -->
+
+<!-- 6. Por filas: cada una de las dos filas del warp es un tramo contiguo de 16x4 = 64 B, o sea 2 sectores de 32 B cada una; 4 sectores en total. Por columnas: los 16 valores de ix caen en 16 sectores distintos (iy e iy+1, separados por 4 B, sí comparten sector); 16 sectores en total. -->
+
+<!-- 7. Por filas: 128/(4x32) = 128/128 = 100%. Por columnas: 128/(16x32) = 128/512 = 25%. Ambos valen para load y store, porque los dos kernels usan el mismo índice. Ojo: el material original (2026-06) daba 12.5% para el store de copiarColumna; esa cifra no se explica con este modelo y está sin confirmar en la T4. -->
 
 ---
 
@@ -308,6 +324,12 @@ Un *warp* pide $32 \times 4 = 128$ bytes útiles de `float`; el índice es el mi
 
 ## **Transpuesta de una matriz**
 
+- En un código que calcula la transpuesta de una matriz, necesariamente utilizaremos ambos accesos: por filas y columnas.
+- Pero podemos elegir cuál utilizar para la matriz original (load) o al momento de guardar la transpuesta (store).
+
+---
+
+## **Transpuesta de una matriz**
 ![w:820px](images/memoria/row_column.png)
 
 <p class="credit">Cargar por fila, guardar por columna — Fuente: <em>Professional CUDA C Programming</em></p>
@@ -372,8 +394,8 @@ struct Particulas { float x[N]; float y[N]; };  // SoA: particulas.x[i]
 ![w:620px](images/memoria/figure_4_22.png)
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
-- **SoA**: cada *thread* lee **un campo** de muchos elementos → el *warp* accede a datos contiguos.
 - **AoS**: cada *thread* usa **todos los campos** de su elemento; funciona bien si el *struct* está alineado ($8$ o $16$ bytes, como `float4`).
+- **SoA**: cada *thread* lee **un campo** de muchos elementos → el *warp* accede a datos contiguos.
 
 Ejemplo: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
 
@@ -382,12 +404,13 @@ Ejemplo: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
 
 ## **Alineamiento de estructuras**
 
-La organización de los elementos en una estructura tiene consecuencias para el uso de la memoria: los mismos campos, en otro orden, ocupan otro tamaño.
+- La organización de los elementos en una estructura tiene consecuencias para el uso de la memoria.
+- Los mismos campos, en distinto orden, ocupan distinto espacio.
 
 Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
 
 - En CUDA los tipos vectoriales (`float2`, `float4`) ya vienen alineados a $8$ y $16$ bytes.
-- Por eso el capítulo de aplicaciones usa `float4` para las posiciones en el código de n-cuerpos, y `float3` sólo para variables locales.
+<!-- - Por eso el capítulo de aplicaciones usa `float4` para las posiciones en el código de n-cuerpos, y `float3` sólo para variables locales. -->
 
 ---
 
@@ -405,10 +428,13 @@ Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
 
 ## **Memoria compartida**
 
-- Variables declaradas en el *kernel* con `__shared__` se guardan en memoria compartida.
-- Esta memoria está *on-chip*: *bandwidth* alto, *latency* bajo.
-- Cada SM tiene una cantidad limitada de memoria compartida, dividida entre los bloques de *threads*. Si usamos demasiada, el número de *warps* activos se reduce.
-- Permite **comunicación entre los *threads*** (dentro de un bloque).
+- Esta memoria es compartida por todos los *threads* de cada bloque.
+  - Permite **comunicación entre los *threads*** (dentro de un bloque).
+- Variables declaradas en el *kernel* con `__shared__` se guardan en memoria compartida (*shared*).
+- Esta memoria está *on-chip*:
+  - *bandwidth* alto, *latency* bajo.
+
+Cada SM tiene una cantidad limitada de memoria compartida, dividida entre los bloques de *threads*. Si usamos demasiada, el número de *warps* activos se reduce.
 
 ---
 
@@ -430,7 +456,7 @@ extern __shared__ int tile[];
 ```
 
 - Tiene que ser declarada dentro de un *kernel*.
-- El tamaño del *array* se define al invocar el *kernel*, con el tercer argumento de la configuración:
+- El tamaño del *array* se define al invocar el *kernel*, con el tercer argumento de la configuración (que hasta ahora habíamos omitido):
 
 ```cuda
 kernel<<<grid, block, N * sizeof(int)>>>(...);
@@ -457,15 +483,18 @@ Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu).
 - `transpuestaGlobal`: la transpuesta con memoria global.
 - `transpuestaComp`: memoria compartida **estática**.
 - `transpuestaCompDin`: memoria compartida **dinámica**.
-- `transpuestaCompPad`: memoria compartida estática con ***padding*** (volveremos a este).
+- `transpuestaCompPad`: memoria compartida estática con ***padding*** (volveremos a este pronto).
 
 ---
 
 ## **Transpuesta: memoria compartida**
 
-Consideramos un ejemplo: matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
+Consideremos un ejemplo: matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
 
-`blockDim.x`, `blockDim.y` son iguales a $2$; hay $2$ bloques en cada dimensión.
+`blockDim.x=2` 
+`blockDim.y=2` 
+
+Es decir, hay $2$ bloques en cada dirección.
 
 ---
 
@@ -577,7 +606,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ---
 
-## **Ejercicio 3: ¿ayuda la memoria compartida?**
+## **Ejercicio 1: ¿ayuda la memoria compartida?**
 
 Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
 
@@ -591,7 +620,7 @@ El programa reporta el tiempo de cada *kernel*. Por ahora nos interesan tres:
 
 ---
 
-## **Ejercicio 3: los índices en papel**
+## **Ejercicio 1: los índices en papel**
 
 Repetir el desarrollo de las diapositivas anteriores para una matriz de $8 \times 8$ con bloques de $4 \times 4$.
 
@@ -718,7 +747,7 @@ Ejemplo: [memoria_constante.cu](../code/memoria/memoria_constante.cu).
 - La memoria en el *host* es, por defecto, *paginable*.
 - Está organizada en páginas que el sistema operativo puede mover a la memoria virtual (en el disco duro).
 - Cuando el sistema requiere datos que están en el disco, ocurre un *page fault* y los datos se copian del disco al RAM. El GPU no controla el movimiento de las páginas.
-- Transferir datos del *host* al *device* implica asignar memoria *page-locked* o *pinned* en el *host*: los datos se transfieren de *pageable* a *pinned* y después al *device*.
+- Transferir datos del *host* al *device* implica asignar memoria *page-locked* o *pinned* en el *host*: los datos se transfieren de *paginable* a *pinned* y después al *device*.
 
 ---
 
@@ -737,7 +766,7 @@ cudaError_t cudaMallocHost(void **devPtr, size_t count);
 cudaError_t cudaFreeHost(void *ptr);
 ```
 
-El uso de demasiada memoria *pinned* puede afectar el rendimiento del sistema entero, ya que reduce la cantidad de memoria *pageable* disponible.
+El uso de demasiada memoria *pinned* puede afectar el rendimiento del sistema entero, ya que reduce la cantidad de memoria *paginable* disponible.
 
 Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
 
@@ -745,7 +774,8 @@ Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
 
 ## **Memoria unificada**
 
-- Desde CUDA 6.0, *Unified Memory* permite acceder a la memoria usando un **solo espacio de direcciones** para el GPU y el CPU. UM se encarga de la transferencia de datos automáticamente.
+- Desde CUDA 6.0, *Unified Memory* (UM) permite acceder a la memoria usando un **solo espacio de direcciones** para el GPU y el CPU. 
+  - UM se encarga de la transferencia de datos automáticamente.
 - Basada en *Unified Virtual Addressing* (CUDA 4.0), que unificó el espacio de direcciones en memoria.
 - Declaración estática (a veces llamada *managed*): `__device__ __managed__ int y;`
 
@@ -772,18 +802,18 @@ Ejemplo: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu).
 
 ---
 
-## **Ejercicio 4: conflictos de bancos y *padding***
+## **Ejercicio 2: conflictos de bancos y *padding***
 
 Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
 
-En el ejercicio 3 ya comparamos los tres primeros *kernels*. Falta el cuarto: `transpuestaCompPad`.
+En el ejercicio 1 ya comparamos los tres primeros *kernels*. Falta el cuarto: `transpuestaCompPad`.
 
 1. `transpuestaComp` y `transpuestaCompPad` difieren en **un carácter**: `tile[BDIM][BDIM]` contra `tile[BDIM][BDIM+1]`. ¿Cuánto cambia el tiempo?
-2. ¿Dónde queda `transpuestaCompPad` en el ranking del ejercicio 3?
+2. ¿Dónde queda `transpuestaCompPad` en el ranking del ejercicio 1?
 
 ---
 
-## **Ejercicio 4: métricas**
+## **Ejercicio 2: métricas**
 
 En `nvprof`:
 - `shared_load_transactions_per_request`
@@ -797,7 +827,7 @@ En `ncu`:
 
 ---
 
-## **Ejercicio 5: ¿sirve la memoria constante?**
+## **Ejercicio 3: ¿sirve la memoria constante?**
 
 Descargar: [memoria_constante.cu](../code/memoria/memoria_constante.cu)
 
@@ -816,7 +846,7 @@ nvprof ./memoria_constante.x
 
 ---
 
-## **Ejercicio 5: ¿por qué?**
+## **Ejercicio 3: ¿por qué?**
 
 3. Todos los *threads* leen **el mismo** ángulo en cada iteración del ciclo. ¿Por qué esto favorece a la memoria constante?
 4. ¿Qué pasaría si cada *thread* leyera un ángulo **distinto**?
@@ -825,12 +855,12 @@ El programa invoca un tercer *kernel* (`kernel_inicial`) antes de medir. ¿Para 
 
 ---
 
-## **Ejercicio 6: *pinned* contra *pageable***
+## **Ejercicio 4: *pinned* contra *paginable***
 
 Descargar: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu)
 
 1. Medir el tiempo de las dos transferencias (*host* a *device* y de vuelta).
-2. Reemplazar `cudaMallocHost`/`cudaFreeHost` por `malloc`/`free`: la memoria del *host* vuelve a ser *pageable*.
+2. Reemplazar `cudaMallocHost`/`cudaFreeHost` por `malloc`/`free`: la memoria del *host* vuelve a ser *paginable*.
 3. Medir de nuevo y comparar.
 
 ```bash
