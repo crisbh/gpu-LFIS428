@@ -21,14 +21,14 @@ Programas de ejemplo para las clases:
 - [simpleDeviceQuery.cu](../code/intro/simpleDeviceQuery.cu)
 
 <!-- ###################################### -->
-<!-- ## El uso de la memoria del GPU -->
-<!---->
-<!-- - [variableGlobal.cu](../code/memoria/variableGlobal.cu) · [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu) -->
-<!-- - [copiarFila.cu](../code/memoria/copiarFila.cu) · [copiarColumna.cu](../code/memoria/copiarColumna.cu) -->
-<!-- - [transpuesta.cu](../code/memoria/transpuesta.cu) · [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) -->
-<!-- - [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c) -->
+## 2. El uso de la memoria del GPU
+
+- [common.h](../code/memoria/common.h)
+- [variableGlobal.cu](../code/memoria/variableGlobal.cu) · [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu)
+- [copiarFila.cu](../code/memoria/copiarFila.cu) · [copiarColumna.cu](../code/memoria/copiarColumna.cu)
+- [transpuesta.cu](../code/memoria/transpuesta.cu) · [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
+- [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
 <!-- - [memoria_constante.cu](../code/memoria/memoria_constante.cu) · [memoriaPinned.cu](../code/memoria/memoriaPinned.cu) · [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) -->
-<!-- - [common.h](../code/memoria/common.h) -->
 
 <!-- ###################################### -->
 <!-- ## Control de los threads -->
