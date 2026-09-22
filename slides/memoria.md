@@ -218,9 +218,19 @@ El acceso alineado no es tan importante comparado con el **acceso contiguo**.
 
 ---
 
-## **Memoria global: acceso eficiente**
+## **Memoria global: acceso eficiente a matrices**
 
-Ejemplo: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu).
+![w:320px](images/memoria/figure_4_23.png)
+
+- Supongamos que almacenamos la matriz en forma de un arreglo 1D.
+
+![w:420px](images/memoria/figure_4_24.png)
+
+- Notar que los valores de cada fila son contiguos.
+
+---
+
+## **Memoria global: acceso eficiente a matrices**
 
 ![w:820px](images/memoria/row_column.png)
 
@@ -229,6 +239,11 @@ Ejemplo: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../
 ---
 
 ## **Memoria global: acceso eficiente**
+
+Ejemplo: [copiarfila.cu](../code/memoria/copiarfila.cu) y [copiarcolumna.cu](../code/memoria/copiarcolumna.cu).
+
+- Matrices de $2048\times 2048$ elementos.
+- Bloques 2D: $16\times 16$ threads.
 
 Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 - `smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct`
@@ -249,15 +264,16 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 <!---->
 <!-- **Conclusión importante:** el uso de la memoria global es mucho más eficiente con **acceso contiguo**. -->
 
+
 ---
 
-## **Memoria global: ¿por qué contiguo?**
+## **Memoria global: acceder por filas vs columnas**
 
 Un *warp* pide $32 \times 4 = 128$ bytes útiles de `float`.
 
 - **Por fila (contiguo)**: caben en $4$ segmentos de $32$ bytes. 
   - Eficiencia $128 / 128 = 100\%$.
-- **Por columnas**: cada *thread* cae en un segmento distinto. Hasta $32$ segmentos, $1024$ bytes movidos por $128$ útiles: $12.5\%$.
+- **Por columnas**: cada *thread* cae en un segmento distinto. Hasta $32$ segmentos, $32 \times 32 = 1024$ bytes movidos por $128$ útiles: $12.5\%$.
   - Con bloques `16x16`, las dos filas del *warp* son vecinas y comparten segmento: $16$ segmentos, $25\%$.
 
 <!-- El ancho de banda **efectivo** cae en ese mismo factor: la DRAM trabaja igual, pero la mayoría de los bytes que mueve no se usan. -->
