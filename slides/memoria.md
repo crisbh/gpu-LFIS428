@@ -23,12 +23,11 @@ Optimizar los accesos a la memoria $\implies$ optimizar el rendimiento
 ## **Jerarquía de memoria**
 
 - Tanto en el *host* como en el *device*, existen distintos tipos de memorias.
+- Por regla general: las memorias más rápidas son más pequeñas y más cercanas al *core*; las más lentas, más grandes y más alejadas.
+- ¿Cuánto más lentas? Latencia en la T4: registros $\sim 4$ ciclos · L1 / compartida $\sim 30$ · L2 $\sim 200$ · DRAM $\sim 300$–$600$: **dos órdenes de magnitud**.
+- En ancho de banda: DRAM $\approx 300$ GB/s contra $\approx 16$ GB/s del PCIe hacia el *host* ($\sim 20\times$).
 
-- Por regla general:
-  - Memorias mas rápidas son más pequeñas y más cercanas al *core* de procesamiento.
-  - Memorias más lentas son más grandes y más alejadas del *core* de procesamiento.
-
-TODO: give a factor of how much faster can the difference be.
+<p class="credit">Latencias: Jia et al., <em>Dissecting the NVidia Turing T4 GPU via Microbenchmarking</em> (2019)</p>
 
 ---
 
@@ -80,7 +79,7 @@ TODO: give a factor of how much faster can the difference be.
 
 ## **Memoria global: declaración estática**
 
-Ejemplo 1: [variableGlobal.cu](../code/memoria/variableGlobal.cu).
+Ejemplo: [variableGlobal.cu](../code/memoria/variableGlobal.cu).
 Declaramos una variable global en la memoria global del *device*.
 
 ```cuda
@@ -100,7 +99,7 @@ int main(){
 
 ## **Memoria global: declaración dinámica**
 
-Ejemplo 2: [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu).
+Ejemplo: [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu).
 El mismo programa, pero con declaración dinámica (ya no tiene *global scope*).
 
 ```cuda
@@ -210,19 +209,20 @@ La mejor forma (**patrón**) de acceder a la memoria global es con acceso **alin
 
 ## **Memoria global: acceso ineficiente (extremo)**
 
-![w:1020px](images/memoria/non_coalesced.png)
+![w:1000px](images/memoria/non_coalesced.png)
 
 <p class="credit">No alineado ni contiguo — Fuente: <em>Professional CUDA C Programming</em></p>
 
-El acceso alineado no es tan importante comparado con el acceso **contiguo**.
+
+El acceso alineado no es tan importante comparado con el **acceso contiguo**.
 
 ---
 
 ## **Memoria global: acceso eficiente**
 
-Ejemplo 3: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu).
+Ejemplo: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu).
 
-![w:520px](images/memoria/row_column.png)
+![w:820px](images/memoria/row_column.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -230,21 +230,37 @@ Ejemplo 3: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](.
 
 ## **Memoria global: acceso eficiente**
 
-Métricas en `nvprof`:
-- `gld_efficiency`, `gst_efficiency`
-
-En `ncu`:
+Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 - `smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct`
 - `smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct`
 
-Eficiencia load/store para `copiarFila` de $100\%$. Para `copiarColumna` la eficiencia de load es $25\%$, y de store es $12.5\%$.
+<!-- - Eficiencia load/store para `copiarFila` de $100\%$. -->
+<!-- - Para `copiarColumna` la eficiencia de load es $25\%$, y de store es $12.5\%$. -->
+
+<!-- --- -->
+<!---->
+<!-- ## **Memoria global: acceso eficiente** -->
+<!---->
+<!-- - Todo acceso a la memoria global pasa por L2, en líneas de $32$ bytes. -->
+<!-- - Los **loads** además pueden quedar en L1. -->
+<!--   - Una línea de $128$ bytes que un *warp* trajo puede servir cargas posteriores. -->
+<!-- - Los **stores** no aprovechan L1 (*write-through*). -->
+<!--   - Se resuelven en L2, sin reutilización posible. -->
+<!---->
+<!-- **Conclusión importante:** el uso de la memoria global es mucho más eficiente con **acceso contiguo**. -->
 
 ---
 
-## **Memoria global: acceso eficiente**
+## **Memoria global: ¿por qué contiguo?**
 
-- Las operaciones de **load** pasan por un *cache*.
-- Pero las operaciones de **store** no pasan por *cache*, así que la eficiencia es menor para guardar valores.
+Un *warp* pide $32 \times 4 = 128$ bytes útiles de `float`.
+
+- **Por fila (contiguo)**: caben en $4$ segmentos de $32$ bytes. 
+  - Eficiencia $128 / 128 = 100\%$.
+- **Por columnas**: cada *thread* cae en un segmento distinto. Hasta $32$ segmentos, $1024$ bytes movidos por $128$ útiles: $12.5\%$.
+  - Con bloques `16x16`, las dos filas del *warp* son vecinas y comparten segmento: $16$ segmentos, $25\%$.
+
+<!-- El ancho de banda **efectivo** cae en ese mismo factor: la DRAM trabaja igual, pero la mayoría de los bytes que mueve no se usan. -->
 
 **Conclusión importante:** el uso de la memoria global es mucho más eficiente con **acceso contiguo**.
 
@@ -268,12 +284,12 @@ Eficiencia load/store para `copiarFila` de $100\%$. Para `copiarColumna` la efic
 
 ## **Transpuesta de una matriz**
 
-Ejemplo 4: [transpuesta.cu](../code/memoria/transpuesta.cu).
+Ejemplo: [transpuesta.cu](../code/memoria/transpuesta.cu).
 
 La versión que carga por columnas es más rápida... ¿por qué?
 
-- Las cargas de datos pasan por el *cache*, mientras que la operación de guardar datos no utiliza ningún *cache*.
-- Es mejor tener acceso contiguo para **guardar**, ya que no podemos aprovechar el *cache* en ese caso.
+- Las cargas por columna pasan por L1: la línea que trae un *thread* la reutilizan sus vecinos.
+- Los *stores* no aprovechan L1, así que conviene que el acceso **contiguo** sea el de **guardar**.
 
 ---
 
@@ -293,7 +309,21 @@ Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu)
 
 ## **Estructuras de datos**
 
-TODO: add recap of structs. Use a particle struct as example (x, y coordinates). Then mention arrays of structs as an option to represent a particle ensemble.
+Un `struct` agrupa campos bajo un solo nombre; se acceden con `.`:
+
+```cuda
+struct Particula { float x; float y; };
+Particula p;  p.x = 1.0f;  p.y = 2.0f;
+```
+
+Para $N$ partículas hay dos formas de organizar los mismos datos:
+
+```cuda
+Particula particulas[N];                        // AoS: particulas[i].x
+struct Particulas { float x[N]; float y[N]; };  // SoA: particulas.x[i]
+```
+
+**AoS** (arreglo de estructuras) intercala `x y x y ...`; **SoA** (estructura de arreglos) separa `x x ... y y ...`. Para el *warp*, eso decide si el acceso es contiguo.
 
 ---
 
@@ -382,7 +412,7 @@ Volvemos al ejemplo de la transpuesta de una matriz, pero ahora usando memoria c
 
 ## **Transpuesta: memoria compartida**
 
-Ejemplo 6: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu). Hay cuatro *kernels*:
+Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu). Hay cuatro *kernels*:
 
 - `transpuestaGlobal`: la transpuesta con memoria global.
 - `transpuestaComp`: memoria compartida **estática**.
@@ -627,7 +657,7 @@ cudaError_t cudaMemcpyToSymbol(const void* simbolo, const void* src, size_t coun
 
 ## **Memoria constante**
 
-Ejemplo 7: [memoria_constante.cu](../code/memoria/memoria_constante.cu).
+Ejemplo: [memoria_constante.cu](../code/memoria/memoria_constante.cu).
 
 ---
 
@@ -669,7 +699,7 @@ cudaError_t cudaFreeHost(void *ptr);
 
 El uso de demasiada memoria *pinned* puede afectar el rendimiento del sistema entero, ya que reduce la cantidad de memoria *pageable* disponible.
 
-Ejemplo 8: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
+Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
 
 ---
 
@@ -694,7 +724,7 @@ El puntero `devPtr` es válido tanto en el *device* como en el *host*.
 
 ## **Memoria unificada**
 
-Ejemplo 9: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu).
+Ejemplo: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu).
 
 ---
 
