@@ -218,29 +218,60 @@ El acceso alineado no es tan importante comparado con el **acceso contiguo**.
 
 ---
 
-## **Memoria global: acceso eficiente a matrices**
+## **Acceso eficiente a matrices**
 
 ![w:320px](images/memoria/figure_4_23.png)
 
-- Supongamos que almacenamos la matriz en forma de un arreglo 1D.
+- En memoria, la matriz se almacena en forma 1D **por filas**.
 
 ![w:420px](images/memoria/figure_4_24.png)
 
-- Notar que los valores de cada fila son contiguos.
+- Supongamos que utilizamos un grid con bloques 2D.
+
+<!-- --- -->
+<!---->
+<!-- ## **Acceso eficiente a matrices** -->
+<!---->
+<!---->
+<!-- ![w:620px](images/memoria/row_column.png) -->
+<!---->
+<!-- <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p> -->
 
 ---
 
-## **Memoria global: acceso eficiente a matrices**
+## **Acceso eficiente a matrices**
 
-![w:820px](images/memoria/row_column.png)
 
+- Si tenemos los índices globales de los threads `ix` e `iy`, hay dos opciones para acceder a la matriz:
+
+```cuda
+matriz[iy * nx + ix]; // ix: filas   , iy: columnas
+matriz[ix * ny + iy]; // ix: columnas, iy: filas
+```
+
+![w:520px](images/memoria/row_column.png)
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
+<!-- Con bloques `16x16`, un *warp* son dos filas del bloque: `threadIdx.x = 0..15` con `threadIdx.y = 0` y con `threadIdx.y = 1`. -->
+<!---->
+<!-- - `copiarFila`: los 16 *threads* de cada fila tocan 16 `float` **consecutivos**: dos tramos contiguos de $64$ bytes. -->
+<!-- - `copiarColumna`: *threads* consecutivos en `x` están a `ny` elementos ($8$ KB): 16 direcciones **dispersas**. Solo `iy` e `iy+1` son vecinos. -->
+
 ---
 
-## **Memoria global: acceso eficiente**
+## **Eficiencia del acceso**
 
-Ejemplo: [copiarfila.cu](../code/memoria/copiarfila.cu) y [copiarcolumna.cu](../code/memoria/copiarcolumna.cu).
+- Recordar que los accesos de memoria no se solicitan individualmente para cada thread, si no que se realizan en términos de *warps*.
+- A su vez, cada acceso de un *warp* se sirve en **sectores de $32$ bytes** (las líneas de L2).
+- La **eficiencia** del acceso es la fracción de lo movido que realmente se usa:
+
+$$\text{eficiencia} = \frac{\text{bytes útiles}}{32 \times \text{sectores tocados}}$$
+
+---
+
+## **Ejemplo: filas vs columnas**
+
+Ejemplo: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu).
 
 - Matrices de $2048\times 2048$ elementos.
 - Bloques 2D: $16\times 16$ threads.
@@ -249,32 +280,31 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 - `smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct`
 - `smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct`
 
-<!-- - Eficiencia load/store para `copiarFila` de $100\%$. -->
-<!-- - Para `copiarColumna` la eficiencia de load es $25\%$, y de store es $12.5\%$. -->
-
-<!-- --- -->
-<!---->
-<!-- ## **Memoria global: acceso eficiente** -->
-<!---->
-<!-- - Todo acceso a la memoria global pasa por L2, en líneas de $32$ bytes. -->
-<!-- - Los **loads** además pueden quedar en L1. -->
-<!--   - Una línea de $128$ bytes que un *warp* trajo puede servir cargas posteriores. -->
-<!-- - Los **stores** no aprovechan L1 (*write-through*). -->
-<!--   - Se resuelven en L2, sin reutilización posible. -->
-<!---->
-<!-- **Conclusión importante:** el uso de la memoria global es mucho más eficiente con **acceso contiguo**. -->
-
+<!-- Resultados esperados: copiarFila 100% load y store; copiarColumna 25% load y store (bloques 16x16). El material original (2026-06) decía 12.5% para el store de copiarColumna, pero la cuenta da 25% para ambos, ya que usan el mismo índice: confirmar con ncu en la T4. -->
 
 ---
 
-## **Memoria global: acceder por filas vs columnas**
+## **Ejemplo: filas vs columnas **
 
-Un *warp* pide $32 \times 4 = 128$ bytes útiles de `float`.
+Para interpretar los resultados:
 
-- **Por fila (contiguo)**: caben en $4$ segmentos de $32$ bytes. 
-  - Eficiencia $128 / 128 = 100\%$.
-- **Por columnas**: cada *thread* cae en un segmento distinto. Hasta $32$ segmentos, $32 \times 32 = 1024$ bytes movidos por $128$ útiles: $12.5\%$.
-  - Con bloques `16x16`, las dos filas del *warp* son vecinas y comparten segmento: $16$ segmentos, $25\%$.
+1. Cuantos bloques son necesarios para cubrir la matriz?
+2. En cada warp de cada bloque, cuantos threads hay por fila y por columna?
+3. Cuanto ocupa la matriz completa en memoria, considerando que contiene valores
+   tipo `float`?
+4. Cuantos bytes requiere cada warp para operar (*útiles*)?
+5. Cuantos sectores de memoria necesita solicitar cada warp para acceder a sus
+   bytes *útiles* en cada caso?
+
+---
+
+## **Acceder por filas vs columnas**
+
+Un *warp* pide $32 \times 4 = 128$ bytes útiles de `float`; el índice es el mismo al leer y al escribir, así que *load* y *store* rinden igual.
+
+- **Por fila (contiguo)**: caben en $4$ sectores de $32$ bytes: $128 / 128 = 100\%$.
+- **Por columnas**: cada *thread* cae en un sector distinto. Hasta $32$ sectores, $32 \times 32 = 1024$ bytes movidos por $128$ útiles: $12.5\%$.
+  - Con bloques `16x16`, las dos filas del *warp* son vecinas y comparten sector: $16$ sectores, $128 / 512 = 25\%$.
 
 <!-- El ancho de banda **efectivo** cae en ese mismo factor: la DRAM trabaja igual, pero la mayoría de los bytes que mueve no se usan. -->
 
