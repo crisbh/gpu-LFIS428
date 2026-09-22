@@ -280,7 +280,7 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 
 ---
 
-## **Interpretar los resultados**
+## **Preguntas:**
 
 1. ¿Cuántos bloques son necesarios para cubrir la matriz?
 2. En cada *warp*, ¿cuántos *threads* hay por fila y por columna del bloque?
