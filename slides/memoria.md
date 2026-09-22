@@ -24,10 +24,9 @@ Optimizar los accesos a la memoria $\implies$ optimizar el rendimiento
 
 - Tanto en el *host* como en el *device*, existen distintos tipos de memorias.
 - Por regla general: las memorias más rápidas son más pequeñas y más cercanas al *core*; las más lentas, más grandes y más alejadas.
-- ¿Cuánto más lentas? Latencia en la T4: registros $\sim 4$ ciclos · L1 / compartida $\sim 30$ · L2 $\sim 200$ · DRAM $\sim 300$–$600$: **dos órdenes de magnitud**.
-- En ancho de banda: DRAM $\approx 300$ GB/s contra $\approx 16$ GB/s del PCIe hacia el *host* ($\sim 20\times$).
-
-<p class="credit">Latencias: Jia et al., <em>Dissecting the NVidia Turing T4 GPU via Microbenchmarking</em> (2019)</p>
+  - La diferencia puede ser entre uno y dos ordenes de magnitud en latencia.
+<!-- - ¿Cuánto más lentas? Latencia en la T4: registros $\sim 4$ ciclos · L1 / compartida $\sim 30$ · L2 $\sim 200$ · DRAM $\sim 300$–$600$: **dos órdenes de magnitud**. -->
+<!-- - En ancho de banda: DRAM $\approx 300$ GB/s contra $\approx 16$ GB/s del PCIe hacia el *host* ($\sim 20\times$). -->
 
 ---
 
@@ -245,17 +244,12 @@ El acceso alineado no es tan importante comparado con el **acceso contiguo**.
 - Si tenemos los índices globales de los threads `ix` e `iy`, hay dos opciones para acceder a la matriz:
 
 ```cuda
-matriz[iy * nx + ix]; // ix: filas   , iy: columnas
-matriz[ix * ny + iy]; // ix: columnas, iy: filas
+matriz[iy * nx + ix]; // threads contiguos (ix) recorren una fila
+matriz[ix * ny + iy]; // threads contiguos (ix) recorren una columna
 ```
 
 ![w:520px](images/memoria/row_column.png)
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
-
-<!-- Con bloques `16x16`, un *warp* son dos filas del bloque: `threadIdx.x = 0..15` con `threadIdx.y = 0` y con `threadIdx.y = 1`. -->
-<!---->
-<!-- - `copiarFila`: los 16 *threads* de cada fila tocan 16 `float` **consecutivos**: dos tramos contiguos de $64$ bytes. -->
-<!-- - `copiarColumna`: *threads* consecutivos en `x` están a `ny` elementos ($8$ KB): 16 direcciones **dispersas**. Solo `iy` e `iy+1` son vecinos. -->
 
 ---
 
@@ -282,19 +276,19 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 
 <!-- Resultados esperados: copiarFila 100% load y store; copiarColumna 25% load y store (bloques 16x16). El material original (2026-06) decía 12.5% para el store de copiarColumna, pero la cuenta da 25% para ambos, ya que usan el mismo índice: confirmar con ncu en la T4. -->
 
+<!-- Respuestas de la lista: (1) 2048/16 = 128 bloques por dimensión, 128x128 = 16384 en total. (2) el warp son 16 threads en x por 2 filas en y. (3) una fila son 2048*4 = 8 KB (la matriz completa, 16 MiB). (4) por filas el salto entre ix e ix+1 es de 4 B; por columnas es de una fila entera, 8 KB. (5) 32*4 = 128 B útiles. (6) por filas: dos tramos contiguos de 64 B = 4 sectores; por columnas: 16 direcciones dispersas (iy e iy+1 comparten sector) = 16 sectores. (7) 128/(4*32) = 100% y 128/(16*32) = 25%. -->
+
 ---
 
-## **Ejemplo: filas vs columnas **
+## **Interpretar los resultados**
 
-Para interpretar los resultados:
-
-1. Cuantos bloques son necesarios para cubrir la matriz?
-2. En cada warp de cada bloque, cuantos threads hay por fila y por columna?
-3. Cuanto ocupa la matriz completa en memoria, considerando que contiene valores
-   tipo `float`?
-4. Cuantos bytes requiere cada warp para operar (*útiles*)?
-5. Cuantos sectores de memoria necesita solicitar cada warp para acceder a sus
-   bytes *útiles* en cada caso?
+1. ¿Cuántos bloques son necesarios para cubrir la matriz?
+2. En cada *warp*, ¿cuántos *threads* hay por fila y por columna del bloque?
+3. ¿Cuánto ocupa una fila de la matriz, si contiene valores tipo `float`?
+4. ¿A qué distancia en memoria quedan dos *threads* contiguos en `ix`, en cada caso?
+5. ¿Cuántos bytes *útiles* requiere cada *warp* para operar?
+6. ¿Cuántos sectores debe solicitar el *warp* para acceder a ellos, en cada caso?
+7. Con la definición de eficiencia, ¿qué porcentaje predicen? ¿Coincide con lo medido?
 
 ---
 
@@ -339,7 +333,7 @@ La versión que carga por columnas es más rápida... ¿por qué?
 
 ---
 
-# **Ejercicio: ¿por qué gana cargar por columnas?**
+## **Ejercicio: ¿por qué gana cargar por columnas?**
 
 Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu)
 
@@ -375,14 +369,14 @@ struct Particulas { float x[N]; float y[N]; };  // SoA: particulas.x[i]
 
 ## **Opciones para estructuras de datos**
 
-![w:420px](images/memoria/figure_4_22.png)
+![w:620px](images/memoria/figure_4_22.png)
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 - **SoA**: cada *thread* lee **un campo** de muchos elementos → el *warp* accede a datos contiguos.
 - **AoS**: cada *thread* usa **todos los campos** de su elemento; funciona bien si el *struct* está alineado ($8$ o $16$ bytes, como `float4`).
 
 Ejemplo: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
 
-<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
 
