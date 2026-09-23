@@ -57,7 +57,6 @@ Optimizar los accesos a la memoria $\implies$ optimizar el rendimiento
 <!-- - [variableGlobal.cu](../code/memoria/variableGlobal.cu), [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu) -->
 <!-- - [copiarFila.cu](../code/memoria/copiarFila.cu), [copiarColumna.cu](../code/memoria/copiarColumna.cu) -->
 <!-- - [transpuesta.cu](../code/memoria/transpuesta.cu), [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) -->
-<!-- - [aos.cu](../code/memoria/aos.cu), [soa.cu](../code/memoria/soa.cu), [alineamiento_datos.c](../code/memoria/alineamiento_datos.c) -->
 <!-- - [memoria_constante.cu](../code/memoria/memoria_constante.cu), [memoriaPinned.cu](../code/memoria/memoriaPinned.cu), [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) -->
 
 ---
@@ -269,7 +268,7 @@ $$\text{eficiencia} = \frac{\text{bytes útiles}}{32 \times \text{sectores tocad
 
 ## **Ejemplo: filas vs columnas**
 
-Ejemplo: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu).
+Ejemplo: [copiarFila.cu](../code/memoria/copiarFila.cu) y [copiarColumna.cu](../code/memoria/copiarColumna.cu) (los dos necesitan [common.h](../code/memoria/common.h)).
 
 - Matrices de $2048\times 2048$ elementos.
 - Bloques 2D: $16\times 16$ threads.
@@ -282,7 +281,7 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 
 ---
 
-## **Preguntas:**
+## **Ejercicio:**
 
 1. ¿Cuántos bloques son necesarios para cubrir la matriz?
 2. En cada *warp*, ¿cuántos *threads* hay por fila y por columna del bloque?
@@ -324,7 +323,7 @@ Un *warp* pide $32 \times 4 = 128$ bytes útiles de `float`; el índice es el mi
 
 ## **Ejercicio: tamaño del bloque**
 
-#### Ejercicio
+#### Ejercicio (propuesto)
 Cambiar (`blockx`, `blocky`), manteniendo $256$ *threads* por bloque:
 
 a) `32x8` · b) `16x16` · c) `8x32` · d) `4x64`
@@ -369,7 +368,7 @@ a) `32x8` · b) `16x16` · c) `8x32` · d) `4x64`
 
 ## **Transpuesta de una matriz**
 
-Ejemplo: [transpuesta.cu](../code/memoria/transpuesta.cu).
+Ejemplo: [transpuesta.cu](../code/memoria/transpuesta.cu) (necesita [common.h](../code/memoria/common.h)).
 
 La versión que carga por columnas es más rápida... ¿por qué?
 
@@ -377,66 +376,6 @@ La versión que carga por columnas es más rápida... ¿por qué?
   - A pesar de que un *thread* traiga una línea con elementos que no utilice el mismo, la reutilizan sus vecinos del *warp*.
 - Los *stores* no aprovechan L1, así que conviene que el acceso **contiguo** sea el de **guardar**.
 
----
-
-<!-- ## **Ejercicio: ¿por qué gana cargar por columnas?** -->
-<!---->
-<!-- Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu) -->
-<!---->
-<!-- 1. Ejecutar y comparar el *bandwidth* efectivo de `transpuestaCargarFilas` y `transpuestaCargarColumnas`. -->
-<!-- 2. ¿Cuál de los dos es más rápido? -->
-<!-- 3. Explicar el resultado: ¿qué operación alcanza a aprovechar el *cache* y cuál no? -->
-<!---->
-<!-- --- -->
-
-# AoS vs. SoA
-
----
-
-## **Estructuras de datos**
-
-Un `struct` agrupa campos bajo un solo nombre. Se acceden con `.`:
-
-```cuda
-struct Particula { float x; float y; };
-Particula p;  p.x = 1.0f;  p.y = 2.0f;
-```
-
-Para $N$ partículas hay dos formas de organizar los mismos datos:
-
-```cuda
-Particula particulas[N];                        // AoS: particulas[i].x
-struct Particulas { float x[N]; float y[N]; };  // SoA: particulas.x[i]
-```
-
-- **AoS** (arreglo de estructuras) intercala `x y x y ...`.
-- **SoA** (estructura de arreglos) separa `x x ... y y ...`.
-<!-- Para el *warp*, eso decide si el acceso es contiguo. -->
-
----
-
-## **Opciones para estructuras de datos**
-
-![w:720px](images/memoria/figure_4_22.png)
-<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
-
-- **AoS**: cada *thread* usa **todos los campos** de su elemento; funciona bien si el *struct* está alineado ($8$ o $16$ bytes, como `float4`).
-- **SoA**: cada *thread* lee **un campo** de muchos elementos → el *warp* accede a datos contiguos.
-
-Ejemplo: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu).
-
-
----
-
-## **Alineamiento de estructuras**
-
-- La organización de los elementos en una estructura tiene consecuencias para el uso de la memoria.
-- Los mismos campos, en distinto orden, ocupan distinto espacio.
-
-Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
-
-- En CUDA los tipos vectoriales (`float2`, `float4`) ya vienen alineados a $8$ y $16$ bytes.
-<!-- - Por eso el capítulo de aplicaciones usa `float4` para las posiciones en el código de n-cuerpos, y `float3` sólo para variables locales. -->
 
 ---
 
@@ -498,7 +437,7 @@ extern __shared__ int tile[];
 kernel<<<grid, block, N * sizeof(int)>>>(...);
 ```
 
-- Para declaración dinámica, solo se pueden declarar *arrays* unidimensionales.
+- Para declaración dinámica, solo se pueden declarar **arrays 1D**.
 
 ---
 
@@ -517,29 +456,49 @@ kernel<<<grid, block, N * sizeof(int)>>>(...);
 
 ## **Transpuesta: memoria compartida**
 
-Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu). 
-
-Hay cuatro *kernels*:
-
-- `transpuestaGlobal`: la transpuesta con memoria global.
-- `transpuestaComp`: memoria compartida **estática**.
-- `transpuestaCompDin`: memoria compartida **dinámica**.
-- `transpuestaCompPad`: memoria compartida estática con ***padding*** (volveremos a este pronto).
-
-<!-- NOTA — el programa usa N = 4096 y BDIM = 32, o sea bloques de 32x32 = 1024 threads. Los cuatro kernels son la misma transpuesta con distinta estrategia: transpuestaGlobal es la referencia sin memoria compartida; transpuestaComp y transpuestaCompDin son el MISMO algoritmo con declaración estática y dinámica, y deben dar tiempos casi iguales (sirve justamente para mostrar que la declaración dinámica no cuesta rendimiento, solo flexibilidad); transpuestaCompPad agrega el padding que se explica en "Conflictos de bancos". El ejercicio de esta clase compara los tres primeros; el cuarto queda para la clase siguiente. -->
-
----
-
-## **Transpuesta: memoria compartida**
-
-Consideremos un ejemplo concreto: una matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
+Consideremos un caso concreto: una matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
 
 `blockDim.x=2` 
 `blockDim.y=2` 
 
-Es decir, hay $2$ bloques en cada dirección.
+Es decir, hay $2$ bloques en cada dirección, y cada tile tiene la forma:
+
+```cuda
+__shared__ float tile[2][2];
+```
 
 <!-- NOTA — el 4x4 con bloques de 2x2 es un ejemplo de juguete, elegido para poder dibujar los 16 índices en una diapositiva. El código real usa N = 4096 con BDIM = 32. Hay una diferencia que conviene tener presente: con BDIM = 32 un warp es exactamente UNA fila del bloque (threadIdx.y fijo, threadIdx.x = 0..31), y por eso el argumento de coalescencia de las diapositivas que siguen es exacto, no aproximado. En el dibujo de 2x2 un "warp" no existe como tal; el dibujo sirve solo para seguir los índices. -->
+
+---
+
+## **Transpuesta por bloques**
+
+Transponer por bloques la matriz completa requiere **dos pasos**:
+
+$$M = \begin{pmatrix} A & B \\ C & D \end{pmatrix} \longrightarrow M^{T} = \begin{pmatrix} A^{T} & C^{T} \\ B^{T} & D^{T} \end{pmatrix}$$
+
+En este caso:
+```
+  0  1 |  2  3               0  1 |  8  9                    0  4 |  8 12
+  4  5 |  6  7               4  5 | 12 13                    1  5 |  9 13
+ ------+------              ------+------                   ------+------
+  8  9 | 10 11               2  3 | 10 11                    2  6 | 10 14
+ 12 13 | 14 15               6  7 | 14 15                    3  7 | 11 15
+
+   original               paso 1: mover bloques            paso 2 transponer
+```
+
+
+<!-- NOTA — esta es la idea que hace entendible todo el kernel. El PASO 1 mueve los bloques de lugar (B y C se intercambian) sin tocar lo que hay adentro, y lo hace la fórmula de ixt/iyt de la diapositiva siguiente. El PASO 2 transpone cada bloque por dentro, y lo hace el intercambio de índices en la memoria compartida (se escribe tile[ty][tx], se lee tile[tx][ty]). Ninguno de los dos por separado es una transpuesta. -->
+
+<!-- Los tres paneles no son dibujos nuevos: son exactamente las tres figuras de esta misma secuencia. El primero es transpose_fig2.png (la de ti, diapositiva anterior), el del medio es transpose_fig4.png (la de to, dos diapositivas más adelante) y el tercero es transpose_fig5.png (la del final). Vale la pena decirlo para que el alumno vea que las figuras que vienen son estados de este mismo diagrama. -->
+
+<!-- Analogía para decir en voz alta: cuatro fotos puestas en una grilla 2x2. Primero se REORDENAN las fotos sobre la mesa, intercambiando las dos de fuera de la diagonal. Después se DA VUELTA cada foto sobre su propia diagonal. Dos movimientos distintos, y hacen falta los dos. -->
+
+<!-- El panel del medio no hay que dibujarlo aparte: es exactamente transpose_fig4.png, la figura de "to" que viene en dos diapositivas más. No es casualidad — transponer la grilla de bloques es una involución (hacerlo dos veces es la identidad), así que "a dónde va cada bloque" y "qué bloque llega acá" son el mismo mapa. Conviene decirlo con esa figura en pantalla: la misma imagen se lee como el índice lineal al que escribe cada thread, o como la matriz con los bloques ya movidos y los tiles todavía sin transponer. -->
+
+<!-- Y por qué se separa así: el paso 1 es una permutación de TILES completos, y permutar tiles no rompe la contigüidad (dentro de un warp ixt sigue avanzando de a uno). Por eso los dos accesos globales quedan coalescidos y el único acceso con stride queda dentro de la memoria compartida, donde el costo son conflictos de bancos y no sectores desperdiciados. Ese es el canje sobre el que está construido el algoritmo. -->
+
 
 ---
 
@@ -569,35 +528,6 @@ ti = iy * N + ix;
 ```
 
 <!-- NOTA — es la misma figura del índice lineal que ya usamos en memoria global, y la misma fórmula. ti es la posición EN MEMORIA del elemento que carga el thread (ix, iy). Lo importante para lo que viene: dentro de un warp (iy fijo, ix consecutivo) los ti son consecutivos, así que el load entrada[ti] es contiguo. Ese es el primero de los dos accesos globales del kernel, y ya está bien. -->
-
----
-
-## **Transpuesta por bloques**
-
-Transponer por bloques requiere **dos pasos**:
-
-$$M = \begin{pmatrix} A & B \\ C & D \end{pmatrix} \longrightarrow M^{T} = \begin{pmatrix} A^{T} & C^{T} \\ B^{T} & D^{T} \end{pmatrix}$$
-
-En este caso:
-```
-               0  1 |  2  3        0  1 |  8  9        0  4 |  8 12
-               4  5 |  6  7        4  5 | 12 13        1  5 |  9 13
-              ------+------       ------+------       ------+------
-               8  9 | 10 11        2  3 | 10 11        2  6 | 10 14
-              12 13 | 14 15        6  7 | 14 15        3  7 | 11 15
-```
-
-original · **paso 1**: mover los bloques · **paso 2**: transponer cada *tile*
-
-<!-- NOTA — esta es la idea que hace entendible todo el kernel. El PASO 1 mueve los bloques de lugar (B y C se intercambian) sin tocar lo que hay adentro, y lo hace la fórmula de ixt/iyt de la diapositiva siguiente. El PASO 2 transpone cada bloque por dentro, y lo hace el intercambio de índices en la memoria compartida (se escribe tile[ty][tx], se lee tile[tx][ty]). Ninguno de los dos por separado es una transpuesta. -->
-
-<!-- Los tres paneles no son dibujos nuevos: son exactamente las tres figuras de esta misma secuencia. El primero es transpose_fig2.png (la de ti, diapositiva anterior), el del medio es transpose_fig4.png (la de to, dos diapositivas más adelante) y el tercero es transpose_fig5.png (la del final). Vale la pena decirlo para que el alumno vea que las figuras que vienen son estados de este mismo diagrama. -->
-
-<!-- Analogía para decir en voz alta: cuatro fotos puestas en una grilla 2x2. Primero se REORDENAN las fotos sobre la mesa, intercambiando las dos de fuera de la diagonal. Después se DA VUELTA cada foto sobre su propia diagonal. Dos movimientos distintos, y hacen falta los dos. -->
-
-<!-- El panel del medio no hay que dibujarlo aparte: es exactamente transpose_fig4.png, la figura de "to" que viene en dos diapositivas más. No es casualidad — transponer la grilla de bloques es una involución (hacerlo dos veces es la identidad), así que "a dónde va cada bloque" y "qué bloque llega acá" son el mismo mapa. Conviene decirlo con esa figura en pantalla: la misma imagen se lee como el índice lineal al que escribe cada thread, o como la matriz con los bloques ya movidos y los tiles todavía sin transponer. -->
-
-<!-- Y por qué se separa así: el paso 1 es una permutación de TILES completos, y permutar tiles no rompe la contigüidad (dentro de un warp ixt sigue avanzando de a uno). Por eso los dos accesos globales quedan coalescidos y el único acceso con stride queda dentro de la memoria compartida, donde el costo son conflictos de bancos y no sectores desperdiciados. Ese es el canje sobre el que está construido el algoritmo. -->
 
 ---
 
@@ -637,8 +567,8 @@ to = iyt * N + ixt;
 Elementos guardados después de cargar de la memoria compartida:
 
 ```cuda
-tile[threadIdx.y][threadIdx.x] = entrada[ti]; // escribe por filas
-__syncthreads();
+tile[threadIdx.y][threadIdx.x] = entrada[ti]; // escribe por filas en SMEM
+__syncthreads();                              // sincronizamos bloque
 salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
 ```
 
@@ -652,9 +582,11 @@ salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
 
 ## **Transpuesta por bloques: paso 2**
 
-- Notar el uso de `__syncthreads()` en el código anterior.
-  - Necesitamos garantizar que todos los *threads* tendrán la información
-    disponible en la memoria compartida antes de escribir `salida[to]`.
+Notar el uso de `__syncthreads()` en el código anterior.
+
+- Necesitamos garantizar que todos los *threads* en un bloque tendrán la información disponible en la memoria compartida antes de escribir `salida[to]`.
+- Esto es el mismo concepto de *barrera* que se utiliza en `openMP` o `MPI`.
+- Si no se usa, a veces el programa podría funcionar, pero no hay garantías de esto, por lo que decimos que su comportamiento es *indefinido*.
 
 <!-- NOTA — la razón precisa: el thread (tx, ty) lee tile[tx][ty], una casilla que NO escribió él sino el thread (ty, tx). Sin la barrera hay una condición de carrera, porque nada garantiza que ese otro thread ya haya hecho su escritura. __syncthreads() es una barrera a nivel de BLOQUE, no del grid, y con eso alcanza porque el tile es privado del bloque. -->
 
@@ -664,6 +596,25 @@ salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
 
 <!-- Y un detalle del código, no del algoritmo: en main, transpuestaCompPad se lanza con un tercer argumento de memoria compartida dinámica aunque declara su tile de forma estática. No es un error (la memoria dinámica queda sin usar), pero reserva BDIM*(BDIM+1)*4 bytes de más por bloque y puede bajar la ocupancia. -->
 
+---
+
+## **Ejemplo Transpuesta con memoria compartida**
+
+Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) (necesita [common.h](../code/memoria/common.h)).
+
+Hay cuatro *kernels*, y el programa **mide e imprime el tiempo de cada uno**:
+
+- `transpuestaGlobal`: la transpuesta con memoria global.
+- `transpuestaComp`: memoria compartida **estática**.
+- `transpuestaCompDin`: memoria compartida **dinámica**.
+- `transpuestaCompPad`: memoria compartida estática con ***padding*** (lo vemos en la clase siguiente, al llegar a conflictos de bancos).
+
+<!-- NOTA — el programa usa N = 4096 y BDIM = 32, o sea bloques de 32x32 = 1024 threads. Los cuatro kernels son la misma transpuesta con distinta estrategia: transpuestaGlobal es la referencia sin memoria compartida; transpuestaComp y transpuestaCompDin son el MISMO algoritmo con declaración estática y dinámica, y deben dar tiempos casi iguales (sirve justamente para mostrar que la declaración dinámica no cuesta rendimiento, solo flexibilidad); transpuestaCompPad agrega el padding que se explica en "Conflictos de bancos". El ejercicio de esta clase compara los tres primeros; el cuarto queda para la clase siguiente. -->
+
+
+---
+
+# Organización de la memoria compartida
 
 ---
 
@@ -674,6 +625,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
 <p class="credit">Acceso ideal — Fuente: <em>Professional CUDA C Programming</em></p>
 
 - La Memoria Compartida se organiza en 32 *bancos*.
+  - En principio, 1 para cada *thread* de un *warp*.
 - El patrón de acceso a los bancos también influye en el rendimiento.
 <!-- - **Regla de los bancos**: evitar que más de un *thread* acceda simultáneamente a un mismo elemento del banco. -->
 
@@ -701,13 +653,13 @@ salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
 
 <p class="credit">Bancos de ancho 4-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
 
----
-
-## **Organización de la memoria compartida (bancos)**
-
-![w:1020px](images/memoria/figure_5_6.png)
-
-<p class="credit">Bancos de ancho 8-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
+<!-- --- -->
+<!---->
+<!-- ## **Organización de la memoria compartida (bancos)** -->
+<!---->
+<!-- ![w:1020px](images/memoria/figure_5_6.png) -->
+<!---->
+<!-- <p class="credit">Bancos de ancho 8-bytes — Fuente: <em>Professional CUDA C Programming</em></p> -->
 
 ---
 
@@ -717,7 +669,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
 
 ## **Ejercicio 1: ¿ayuda la memoria compartida?**
 
-Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
+Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h)
 
 El programa reporta el tiempo de cada *kernel*. Por ahora nos interesan tres:
 
@@ -913,7 +865,7 @@ Ejemplo: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu).
 
 ## **Ejercicio 2: conflictos de bancos y *padding***
 
-Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
+Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h)
 
 En el ejercicio 1 ya comparamos los tres primeros *kernels*. Falta el cuarto: `transpuestaCompPad`.
 

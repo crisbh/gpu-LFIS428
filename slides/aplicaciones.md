@@ -18,6 +18,7 @@ N-cuerpos · OpenGL · Ray tracing
 Los códigos de esta clase están disponibles para descargar:
 
 - N-cuerpos: [nbody.cu](../code/aplicaciones/nbody.cu)
+- Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
 - OpenGL: [simpleGL.cu](../code/aplicaciones/simpleGL.cu)
 - Ray tracing (serie completa, capítulos 1–12): [ch01_rt.cu](../code/aplicaciones/ray_tracing/c01_salida_basica/ch01_rt.cu), [ch02_rt.cu](../code/aplicaciones/ray_tracing/c02_vectores/ch02_rt.cu), [ch03_rt.cu](../code/aplicaciones/ray_tracing/c03_rayos/ch03_rt.cu), [ch04_rt.cu](../code/aplicaciones/ray_tracing/c04_esferas/ch04_rt.cu), …
 
@@ -125,10 +126,74 @@ __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 
 ---
 
+## **Estructuras de datos: AoS vs. SoA**
+
+Un `struct` agrupa campos bajo un solo nombre. Se acceden con `.`:
+
+```cuda
+struct Particula { float x; float y; };
+Particula p;  p.x = 1.0f;  p.y = 2.0f;
+```
+
+Para $N$ partículas hay dos formas de organizar los mismos datos:
+
+```cuda
+Particula particulas[N];                        // AoS: particulas[i].x
+struct Particulas { float x[N]; float y[N]; };  // SoA: particulas.x[i]
+```
+
+- **AoS** (arreglo de estructuras) intercala `x y x y ...`.
+- **SoA** (estructura de arreglos) separa `x x ... y y ...`.
+
+<!-- NOTA — es la misma pregunta de la clase de memoria, pero ahora con una decisión concreta que justificar: por qué el código de N-cuerpos guarda las posiciones como float4. Para el warp, el layout decide si el acceso es contiguo o no. -->
+
+---
+
+## **Opciones para estructuras de datos**
+
+![w:720px](images/memoria/figure_4_22.png)
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
+- **SoA**: cada *thread* lee **un campo** de muchos elementos → el *warp* accede a datos contiguos.
+- **AoS**: cada *thread* usa **todos los campos** de su elemento; funciona bien si el *struct* está alineado ($8$ o $16$ bytes, como `float4`).
+
+Ejemplo: [aos.cu](../code/memoria/aos.cu) y [soa.cu](../code/memoria/soa.cu): mismo cálculo, solo cambia el *layout*. **No imprimen nada**; hay que medirlos con `ncu`.
+
+<!-- Las métricas a pedir son las mismas de la clase de memoria: smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct para la eficiencia por instrucción, y dram__bytes_read.sum para el tráfico real. En Colab sirven ncu y nvprof, nunca nsys. Los programas son 2^20 elementos de 8 campos int, 256 threads por bloque. -->
+
+<!-- NOTA — la aritmética, que es lo que hay que contar: sizeof(Datos_AOS) = 8 campos int = 32 bytes, o sea EXACTAMENTE un sector. En AoS el warp pide datos[i].r en direcciones separadas por 32 bytes, así que toca 32 sectores distintos: 1024 bytes movidos por 128 útiles, y la métrica marca 12.5%. En SoA cada campo es un arreglo aparte, el warp lee 32 int contiguos = 128 bytes = 4 sectores, y la métrica marca 100%. -->
+
+<!-- PERO — y este es el punto — esos 32 sectores de AoS contienen los 8 campos de esos 32 elementos, así que las 6 cargas siguientes pegan en L1. El tráfico real a DRAM es 1024 bytes por warp en los dos casos: el mismo. O sea, este kernel es justamente el caso FAVORABLE a AoS, porque usa todos los campos y la línea que trae se aprovecha entera. La métrica de eficiencia y el tráfico real no coinciden, y la diferencia la explica el cache: es la misma lección de la clase de memoria global, aplicada a estructuras. -->
+
+<!-- Variante para proponer: si el kernel usara UN SOLO campo, AoS movería ~8 veces más datos que SoA y ahí sí la diferencia saltaría en el tiempo, sin necesidad de profiler. -->
+
+<!-- Aviso práctico: los dos programas lanzan el kernel sobre memoria sin inicializar, así que los resultados numéricos son basura (puede haber división por cero, que en la GPU no aborta). No importa: lo único que se mide acá es el tráfico de memoria. -->
+
+---
+
+## **Alineamiento de estructuras**
+
+- La organización de los elementos en una estructura tiene consecuencias para el uso de la memoria.
+- Los mismos campos, en distinto orden, ocupan distinto espacio.
+
+Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c). Es C puro: se compila con `gcc` y corre en el *host*, sin GPU. **Predecir los dos tamaños antes de ejecutarlo.**
+
+- En CUDA los tipos vectoriales (`float2`, `float4`) ya vienen alineados a $8$ y $16$ bytes.
+
+<!-- NOTA — las respuestas: prueba1 {short s; int i; char c} ocupa 12 bytes (2 del short + 2 de relleno para que el int caiga en múltiplo de 4, + 4 del int, + 1 del char, + 3 de relleno final); prueba2 {int i; char c; short s} ocupa 8 (4 + 1 + 1 de relleno + 2). Los mismos tres campos, la mitad más de memoria por el orden. -->
+
+<!-- La regla: cada campo va en una dirección múltiplo de su tamaño, y el struct completo se redondea al tamaño de su campo más grande. De ahí que float4 (16 bytes) quede alineado a 16 y un warp que lee float4 consecutivos pida sectores completos. -->
+
+---
+
 ## **Cálculo de la fuerza entre un par de partículas**
 
 - Se usa `float4` para los datos en la memoria del *device*, para ayudar con el acceso contiguo. El valor `w` corresponde a la masa.
 - El uso de `float3` en la función es para variables locales, donde hay que reducir el espacio usado en registros.
+
+<!-- NOTA — acá se cierra el círculo con las diapositivas anteriores: float4 es un layout AoS, no SoA. Y es la elección correcta según el criterio, porque cada thread usa las tres coordenadas Y la masa del MISMO cuerpo (mira bj.x, bj.y, bj.z y bj.w en bodyBodyInteraction), y el struct está alineado a 16 bytes. Es el caso de libro para AoS. -->
+
+<!-- float3 en cambio ocupa 12 bytes y NO está alineado a 16, así que como dato en memoria global daría accesos desalineados; por eso se usa solo para variables locales, que viven en registros y no pasan por el sistema de memoria. -->
 
 ---
 
