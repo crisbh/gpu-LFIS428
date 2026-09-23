@@ -420,7 +420,18 @@ __shared__ float tile[ny][nx];
 ```
 
 - Declarada dentro de un *kernel*: *scope* local; declarada fuera de cualquier *kernel*: *scope* global.
-- Como la memoria compartida está asociada a un bloque de *threads*, típicamente `ny`, `nx` son iguales a las dimensiones de un bloque.
+- Como la memoria compartida está asociada a un bloque de *threads*, típicamente `nx` $=$ `blockDim.x` y `ny` $=$ `blockDim.y`.
+- El **último** índice es el que avanza más rápido en memoria, por eso `nx` va al final. 
+  - En otras palabras, el largo de una línea es igual al número de columnas, y vice versa.
+  - Luego se indexa de la forma `tile[threadIdx.y][threadIdx.x]` y *threads* contiguos quedan contiguos.
+
+<!-- NOTA — es la misma convención por filas de la matriz en memoria global: en tile[ny][nx] el primer índice es la fila (y) y el segundo la columna dentro de la fila (x), igual que en matriz[iy*nx + ix]. En C, tile[i][j] queda en el offset i*nx + j, así que el segundo índice es el que tiene vecinos contiguos. -->
+
+<!-- Y no es cosmético: la memoria compartida tiene 32 bancos de 4 bytes, con banco = (índice de float) módulo 32. Con tile[32][32], escribir tile[ty][tx] cae en el offset ty*32 + tx, o sea banco = tx: los 32 threads del warp usan 32 bancos distintos y la ESCRITURA no tiene conflictos. Si se declarara al revés y se escribiera tile[tx][ty], threads consecutivos quedarían a 32 floats de distancia, todos en el banco ty: conflicto de 32 vías también al escribir. -->
+
+<!-- Por eso la transpuesta deja el acceso con stride solo en la LECTURA (tile[threadIdx.x][threadIdx.y]), que es el único conflicto que después arregla transpuestaCompPad con tile[BDIM][BDIM+1]. Con el orden invertido habría conflicto en las dos puntas y el padding no alcanzaría. -->
+
+<!-- En el código real (transpuesta_compartida.cu:54) el tile es tile[BDIM][BDIM], cuadrado, así que el orden no se nota: esta diapositiva es el único lugar donde aparece la forma general [ny][nx]. -->
 
 ---
 
@@ -454,7 +465,7 @@ kernel<<<grid, block, N * sizeof(int)>>>(...);
 
 ---
 
-## **Transpuesta: memoria compartida**
+## **Transpuesta por bloques**
 
 Consideremos un caso concreto: una matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
 
@@ -502,7 +513,7 @@ En este caso:
 
 ---
 
-## **Transpuesta: memoria compartida**
+## **Transpuesta por bloques**
 
 ![w:340px](images/memoria/transpose_fig1.png)
 
@@ -535,7 +546,7 @@ ti = iy * N + ix;
 
 ![w:340px](images/memoria/transpose_fig3.png)
 
-Índices globales después del **paso 1**:
+Índices globales después del **paso 1** (transponer bloques):
 
 ```cuda
 ixt = blockDim.y * blockIdx.y + threadIdx.x;
@@ -569,8 +580,16 @@ Elementos guardados después de cargar de la memoria compartida:
 ```cuda
 tile[threadIdx.y][threadIdx.x] = entrada[ti]; // escribe por filas en SMEM
 __syncthreads();                              // sincronizamos bloque
-salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
+salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas en SMEM (paso 2)
 ```
+<!-- Ojo con los comentarios del código: dicen "en SMEM" porque cada línea toca
+DOS memorias a la vez, y lo q ue describen es solo el lado de la compartida. La
+primera línea LEE de global (entrada[ti], por filas, contig uo) y ESCRIBE en
+compartida por filas. La tercera LEE de compartida por columnas y ESCRIBE en
+global (salida[ to], por filas, contiguo). O sea: el único acceso con stride en
+todo el kernel es la lectura del tile. Si alg uien lee "por columnas" como si
+hablara de la memoria global, entiende justo lo contrario de lo que se demost ró
+en las dos diapositivas anteriores. -->
 
 <!-- NOTA — estas tres líneas son el núcleo del kernel, y el paso 2 está en el cambio de índices del tile: se ESCRIBE tile[threadIdx.y][threadIdx.x] (por filas) y se LEE tile[threadIdx.x][threadIdx.y] (por columnas). Eso es lo que da vuelta los datos, y ocurre en memoria compartida, no en la global. -->
 
