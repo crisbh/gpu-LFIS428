@@ -283,13 +283,12 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 
 ## **Ejercicio:**
 
-1. ¿Cuántos bloques son necesarios para cubrir la matriz?
+1. ¿Cuál es el tamaño del grid necesario para cubrir la matriz?
 2. En cada *warp*, ¿cuántos *threads* hay por fila y por columna del bloque?
-3. ¿Cuánto ocupa una fila de la matriz, si contiene valores tipo `float`?
-4. ¿A qué distancia en memoria quedan dos *threads* contiguos en `ix`, en cada caso?
-5. ¿Cuántos bytes *útiles* requiere cada *warp* para operar?
-6. ¿Cuántos sectores debe solicitar el *warp* para acceder a ellos, en cada caso?
-7. Con la definición de eficiencia, ¿qué porcentaje predicen? ¿Coincide con lo medido?
+3. ¿Cuánto *pesa* (en bytes) una fila de la matriz, si contiene valores tipo `float`?
+4. ¿Cuántos bytes *útiles* requiere cada *warp* para operar?
+5. ¿Cuántos sectores de memoria debe solicitar el *warp* para acceder a ellos, accediendo a la matriz por filas o por columnas?
+6. Con la definición de eficiencia de acceso, ¿cual es el porcentaje esperado? ¿Coincide con lo medido?
 
 <!-- 1. La matriz es de 2048x2048 y los bloques de 16x16: 2048/16 = 128 bloques por dimensión, o sea 128x128 = 16384 bloques en total. -->
 
@@ -297,13 +296,11 @@ Obtener las siguientes métricas con `ncu` (usando el flag `--metrics A,B`):
 
 <!-- 3. Una fila son 2048 floats x 4 B = 8192 B = 8 KB. La matriz completa son 2048x8 KB = 16 MiB. -->
 
-<!-- 4. Por filas (iy*nx+ix), ix e ix+1 son vecinos en memoria: 4 B. Por columnas (ix*ny+iy), ix e ix+1 quedan separados por una fila entera: 8 KB. -->
+<!-- 4. Los 32 threads del warp piden un float cada uno: 32 x 4 B = 128 B útiles, igual al leer y al escribir. -->
 
-<!-- 5. Los 32 threads del warp piden un float cada uno: 32 x 4 B = 128 B útiles, igual al leer y al escribir. -->
+<!-- 5. Por filas: cada una de las dos filas del warp es un tramo contiguo de 16x4 = 64 B, o sea 2 sectores de 32 B cada una; 4 sectores en total. Por columnas: los 16 valores de ix caen en 16 sectores distintos (iy e iy+1, separados por 4 B, sí comparten sector); 16 sectores en total. -->
 
-<!-- 6. Por filas: cada una de las dos filas del warp es un tramo contiguo de 16x4 = 64 B, o sea 2 sectores de 32 B cada una; 4 sectores en total. Por columnas: los 16 valores de ix caen en 16 sectores distintos (iy e iy+1, separados por 4 B, sí comparten sector); 16 sectores en total. -->
-
-<!-- 7. Por filas: 128/(4x32) = 128/128 = 100%. Por columnas: 128/(16x32) = 128/512 = 25%. Ambos valen para load y store, porque los dos kernels usan el mismo índice. Ojo: el material original (2026-06) daba 12.5% para el store de copiarColumna; esa cifra no se explica con este modelo y está sin confirmar en la T4. -->
+<!-- 6. Por filas: 128/(4x32) = 128/128 = 100%. Por columnas: 128/(16x32) = 128/512 = 25%. Ambos valen para load y store, porque los dos kernels usan el mismo índice. Ojo: el material original (2026-06) daba 12.5% para el store de copiarColumna; esa cifra no se explica con este modelo y está sin confirmar en la T4. -->
 
 ---
 
@@ -370,11 +367,24 @@ a) `32x8` · b) `16x16` · c) `8x32` · d) `4x64`
 
 Ejemplo: [transpuesta.cu](../code/memoria/transpuesta.cu) (necesita [common.h](../code/memoria/common.h)).
 
-La versión que carga por columnas es más rápida... ¿por qué?
+Cada *kernels* tiene un acceso contiguo y uno disperso.
 
-- Las cargas por columna pasan por L1.
-  - A pesar de que un *thread* traiga una línea con elementos que no utilice el mismo, la reutilizan sus vecinos del *warp*.
-- Los *stores* no aprovechan L1, así que conviene que el acceso **contiguo** sea el de **guardar**.
+- `transpuestaCargarFilas`: carga contigua, **guarda** dispersa.
+- `transpuestaCargarColumnas`: **carga** dispersa, guarda contigua.
+
+**Regla:** si hay que tener un acceso disperso, conviene que sea el de **carga** — las cargas pasan por L1 y los *stores* no.
+
+**Nota: en la T4 los tiempos son parecidos**: no es apreciable el beneficio en este caso.
+
+<!-- NOTA — la cuenta, con 2048x2048 floats y bloques 16x16 (un warp son dos filas de 16 threads): el lado contiguo son dos tramos de 16*4 = 64 bytes, o sea 4 sectores; el lado disperso son 16 valores de ix separados por 8 KB, cada uno aportando un par iy, iy+1 de 8 bytes, o sea 16 sectores. Total 4 + 16 = 20 sectores por warp en LOS DOS kernels. Mismo tráfico, mismo tiempo. Contar sectores predice el empate antes de medir. -->
+
+<!-- POR QUÉ EL LIBRO DICE QUE GANA CARGAR POR COLUMNAS — es un argumento de la época de Kepler, y ahí era cierto. En Kepler L1 traía las CARGAS en líneas de 128 bytes, mientras los stores esquivaban L1 y salían a L2 en segmentos de 32 bytes. Con esa asimetría de granularidad, poner el acceso disperso del lado de la carga movía bastante menos bytes: la línea de 128 bytes que traía un thread la reutilizaban los vecinos en iy de los otros warps del bloque. En una GPU de esa generación el ejemplo sí muestra la diferencia. -->
+
+<!-- EN LA T4 la asimetría desapareció: Jia et al. (Dissecting the NVidia Turing T4 GPU via Microbenchmarking, 2019, tabla 3.1) miden la granularidad de carga de L1 en 32 bytes, igual que el sector de L2, contra 128 bytes en el K80. O sea que una carga dispersa trae un sector de 32 bytes, exactamente como un store disperso escribe un sector de 32 bytes. Lo que queda de la regla es que las cargas igual pueden ACERTAR en L1 y los stores no se alojan ahí, pero eso afecta latencia y tasa de aciertos, no la cantidad de bytes movidos, y en un kernel limitado por ancho de banda de este tamaño no se nota. -->
+
+<!-- La regla no es falsa ni inútil: nunca puede empeorar las cosas y en hardware más viejo ayudaba mucho. Solo que en la T4 no es medible, y eso es justamente lo interesante para decir en clase. Es el tercer caso del capítulo donde una afirmación del libro atada a la arquitectura no se traslada a Turing (los otros: el flag -Xptxas -dlcm=cg y la equivalencia de tráfico entre AoS y SoA). La lección transferible es contar sectores, no memorizar reglas. -->
+
+<!-- Medición del usuario en la T4 (2026-09): los dos kernels reportan tiempos parecidos, que es lo que predice la cuenta de sectores. -->
 
 
 ---
@@ -645,6 +655,14 @@ Hay cuatro *kernels*, y el programa **mide e imprime el tiempo de cada uno**:
 
 <!-- NOTA — el programa usa N = 4096 y BDIM = 32, o sea bloques de 32x32 = 1024 threads. Los cuatro kernels son la misma transpuesta con distinta estrategia: transpuestaGlobal es la referencia sin memoria compartida; transpuestaComp y transpuestaCompDin son el MISMO algoritmo con declaración estática y dinámica, y deben dar tiempos casi iguales (sirve justamente para mostrar que la declaración dinámica no cuesta rendimiento, solo flexibilidad); transpuestaCompPad agrega el padding que se explica en "Conflictos de bancos". El ejercicio de esta clase compara los tres primeros; el cuarto queda para la clase siguiente. -->
 
+<!-- MEDICIÓN DE REFERENCIA en la T4 (2026-09), N = 4096, bloques 32x32. Ancho de banda efectivo = 2*N*N*4 bytes / tiempo: transpuestaHost 0.43 s (0.3 GB/s) · transpuestaGlobal 1.547 ms (86.8 GB/s) · transpuestaComp 1.429 ms (93.9 GB/s) · transpuestaCompDin 1.438 ms (93.3 GB/s) · transpuestaCompPad 0.766 ms (175.2 GB/s). Los números pueden variar entre corridas, pero las RELACIONES se repiten. -->
+
+<!-- Lo que hay que leer en esos números, y es más interesante de lo que parece: (1) estática y dinámica difieren en 0.6%, o sea son la misma cosa — declarar dinámico cuesta flexibilidad, no rendimiento. (2) La memoria compartida por sí sola gana apenas un 8% sobre la versión global (86.8 -> 93.9), aunque mueve MUCHO menos tráfico global. (3) El padding casi duplica: 1.87x sobre transpuestaComp y 2.02x sobre transpuestaGlobal, llegando a 175 GB/s, un 58% del peak de 300 GB/s de la T4. -->
+
+<!-- POR QUÉ la memoria compartida sola casi no gana, que es la pregunta que va a salir: con bloques de 32x32 un warp es una fila (tx = 0..31, ty fijo). transpuestaGlobal pide 32 sectores en la carga dispersa más 4 en el store contiguo = 36 sectores por warp. transpuestaComp deja los DOS accesos globales contiguos: 4 + 4 = 8 sectores por warp, o sea 4.5 veces menos tráfico global. Y sin embargo solo gana 8%. El motivo es que el cuello de botella se mudó: leer tile[threadIdx.x][threadIdx.y] con tile[32][32] da banco = (tx*32+ty)%32 = ty para los 32 threads, un conflicto de 32 vías que serializa la lectura de memoria compartida en 32 transacciones. Con tile[32][33] el banco pasa a (tx+ty)%32, todos distintos, y vuelve a ser una sola transacción: ahí aparece el 1.87x. -->
+
+<!-- Moraleja para decir en voz alta: la memoria compartida no es gratis ni automática. Mal usada, cambia un problema de coalescencia por uno de bancos y no gana nada. El ejemplo completo solo cierra con el padding de la clase siguiente. -->
+
 
 ---
 
@@ -712,6 +730,16 @@ El programa reporta el tiempo de cada *kernel*. Por ahora nos interesan tres:
 1. Ordenarlos de más lento a más rápido. ¿Cuánto se gana con memoria compartida?
 2. ¿La declaración dinámica cuesta más que la estática?
 3. ¿Qué pasaría si borráramos el `__syncthreads()`?
+
+<!-- RESPUESTAS medidas en la T4 (2026-09), N = 4096: transpuestaGlobal 86.8 GB/s, transpuestaComp 93.9 GB/s, transpuestaCompDin 93.3 GB/s. -->
+
+<!-- (1) La respuesta a "cuánto se gana" es INCÓMODA a propósito: apenas un 8%. Hay que dejar que los alumnos se lleven esa sorpresa, porque es la que motiva la clase siguiente. Si alguien pregunta por qué tan poco: los dos accesos globales quedaron contiguos (8 sectores por warp contra 36 del kernel global), pero el cuello de botella se mudó a la memoria compartida, donde leer el tile por columnas provoca un conflicto de bancos de 32 vías. El detalle está en la nota de la diapositiva del código. -->
+
+<!-- (2) No: 93.9 contra 93.3 GB/s, un 0.6% de diferencia, que es ruido. La declaración dinámica cuesta flexibilidad (hay que pasar el tamaño al lanzar, y solo arrays 1D), no rendimiento. -->
+
+<!-- (3) Condición de carrera: el thread (tx,ty) lee una casilla que escribió el thread (ty,tx). Sin la barrera el resultado es indefinido — puede "funcionar" y no hay que confiar en eso. Conviene que lo prueben: con bloques de 32x32 hay 32 warps por bloque y la corrupción se ve fácil. -->
+
+<!-- Cuando lleguen al ejercicio 2 de la clase siguiente, transpuestaCompPad da 175.2 GB/s: 1.87x sobre transpuestaComp. Ahí recién se cobra la memoria compartida. -->
 
 ---
 
@@ -905,6 +933,12 @@ En el ejercicio 1 ya comparamos los tres primeros *kernels*. Falta el cuarto: `t
 
 1. `transpuestaComp` y `transpuestaCompPad` difieren en **un carácter**: `tile[BDIM][BDIM]` contra `tile[BDIM][BDIM+1]`. ¿Cuánto cambia el tiempo?
 2. ¿Dónde queda `transpuestaCompPad` en el ranking del ejercicio 1?
+
+<!-- RESPUESTAS medidas en la T4 (2026-09), N = 4096: transpuestaCompPad 0.766 ms, 175.2 GB/s. (1) Un carácter da 1.87x sobre transpuestaComp (93.9 -> 175.2 GB/s) y 2.02x sobre transpuestaGlobal. (2) Pasa a ser el más rápido por lejos, y recién ahí la memoria compartida se paga: en el ejercicio 1 ganaba apenas 8%. -->
+
+<!-- La cuenta de bancos: leer tile[threadIdx.x][threadIdx.y] con tile[32][32] pone el elemento en el índice tx*32+ty, o sea banco (tx*32+ty)%32 = ty, el MISMO para los 32 threads del warp: conflicto de 32 vías, 32 transacciones serializadas. Con tile[32][33] el índice pasa a tx*33+ty y el banco a (tx+ty)%32, distinto para cada thread: una sola transacción. La escritura tile[ty][tx] no tiene conflicto en ninguno de los dos casos. -->
+
+<!-- Vale la pena cerrar con la perspectiva: 175 GB/s es un 58% del peak de 300 GB/s de la T4. Una transpuesta no llega al 100% porque los bloques recorren la DRAM de forma dispersa, pero pasar de 29% (global) a 58% cambiando un carácter es el mejor argumento del capítulo. -->
 
 ---
 
