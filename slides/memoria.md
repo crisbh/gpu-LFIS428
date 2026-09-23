@@ -221,7 +221,7 @@ El acceso alineado no es tan importante comparado con el **acceso contiguo**.
 
 ![w:320px](images/memoria/figure_4_23.png)
 
-- En memoria, la matriz se almacena en forma 1D **por filas**.
+- En memoria, una matriz $n_x\times n_y$ se almacena en forma 1D **por filas**.
 
 ![w:420px](images/memoria/figure_4_24.png)
 
@@ -231,11 +231,11 @@ El acceso alineado no es tan importante comparado con el **acceso contiguo**.
 
 ## **El índice lineal**
 
-![w:220px](images/memoria/transpose_fig2.png)
+![w:260px](images/memoria/transpose_fig2.png)
 
 <p class="credit">Ejemplo: matriz 4×4 con bloques de 2×2 (líneas rojas)</p>
 
-- La matriz (cuadrada, `nx` $=$ `ny`) se guarda por filas, así que cada elemento tiene una **posición fija** en memoria.
+- Cada elemento tiene una **posición fija** en memoria.
 - Un *thread* `(ix, iy)` puede calcular su **índice lineal** de dos formas:
 
 ```cuda
@@ -247,12 +247,12 @@ ti = ix * ny + iy; // por columnas: (fila ix, columna iy)
 
 ## **Acceso eficiente a matrices**
 
-Cada opción de `ti` define **qué elemento** le toca a cada *thread* al acceder a `matriz[ti]`.
+Esto define **qué elemento** le toca a cada *thread* al acceder a `matriz[ti]`.
 
 - Por filas: `ti` $= 0, 1, 2, 3$ → posiciones **contiguas**.
 - Por columnas: `ti` $= 0, 4, 8, 12$ → saltos de `ny` (una fila entera).
 
-![w:520px](images/memoria/row_column.png)
+![w:620px](images/memoria/row_column.png)
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 ---
@@ -261,7 +261,7 @@ Cada opción de `ti` define **qué elemento** le toca a cada *thread* al acceder
 
 - Recordar que los accesos de memoria no se solicitan individualmente para cada thread, si no que se realizan en términos de *warps*.
 - A su vez, cada acceso de un *warp* se sirve en **sectores de $32$ bytes** (las líneas de L2).
-- La **eficiencia** del acceso es la fracción de lo movido que realmente se usa:
+- La **eficiencia del acceso** es la fracción de lo movido que realmente se usa:
 
 $$\text{eficiencia} = \frac{\text{bytes útiles}}{32 \times \text{sectores tocados}}$$
 
@@ -322,14 +322,37 @@ Un *warp* pide $32 \times 4 = 128$ bytes útiles de `float`; el índice es el mi
 
 ---
 
-## **Transpuesta de una matriz**
+## **Ejercicio: tamaño del bloque**
 
-- En un código que calcula la transpuesta de una matriz, necesariamente utilizaremos ambos accesos: por filas y columnas.
-- Pero podemos elegir cuál utilizar para la matriz original (load) o al momento de guardar la transpuesta (store).
+#### Ejercicio
+Cambiar (`blockx`, `blocky`), manteniendo $256$ *threads* por bloque:
+
+a) `32x8` · b) `16x16` · c) `8x32` · d) `4x64`
+
+1. Antes de medir: ¿cuántos sectores de memoria pide un *warp* en cada caso?
+2. ¿Puede `copiarColumna` llegar al $100\%$?
+3. ¿El tiempo mejora en la misma proporción que la eficiencia de acceso?
+
+<!-- Un warp son 32 threads consecutivos en el orden lineal (threadIdx.y * blockDim.x + threadIdx.x), así que cubre blockDim.x valores de ix y 32/blockDim.x valores de iy. Con bx = blockDim.x: copiarFila pide (32/bx) tramos de 4*bx bytes; copiarColumna pide bx tramos de 128/bx bytes. Eficiencia = 128 / (32 * sectores): -->
+
+<!-- 32x8 → fila 4 sectores (100%), columna 32 sectores (12.5%) · 16x16 → 4 (100%) y 16 (25%) · 8x32 → 4 (100%) y 8 (50%) · 4x64 → 8 (50%) y 4 (100%). -->
+
+<!-- O sea: el caso 32x8 es justamente el límite de "hasta 32 sectores → 12.5%" de la diapositiva anterior, y con 4x64 los dos patrones se INVIERTEN: copiarColumna llega a 100% porque los 8 iy consecutivos de cada ix llenan un sector completo, y copiarFila cae a 50% porque sus tramos de 4 floats (16 B) solo llenan medio sector. La respuesta a (2) es: a costa de arruinar el acceso por filas. -->
+
+<!-- La pregunta (3) es la importante y hay que medirla, no deducirla: eficiencia y tiempo no son lo mismo. Con 4x64 el tráfico es mínimo pero los accesos siguen dispersos entre filas (8 KB de distancia), y bloques muy angostos en x pueden cambiar la ocupancia. No adelantar un resultado: que lo midan. -->
 
 ---
 
 ## **Transpuesta de una matriz**
+
+- En algunas operaciones necesariamente utilizaremos ambos accesos: por filas y columnas.
+- Ejemplo: al calcular la transpuesta de una matriz.
+- Sin embargo, podemos elegir cuál utilizar para la matriz original (load) o al momento de guardar la transpuesta (store).
+
+---
+
+## **Transpuesta de una matriz**
+
 ![w:820px](images/memoria/row_column.png)
 
 <p class="credit">Cargar por fila, guardar por columna — Fuente: <em>Professional CUDA C Programming</em></p>
@@ -350,20 +373,21 @@ Ejemplo: [transpuesta.cu](../code/memoria/transpuesta.cu).
 
 La versión que carga por columnas es más rápida... ¿por qué?
 
-- Las cargas por columna pasan por L1: la línea que trae un *thread* la reutilizan sus vecinos.
+- Las cargas por columna pasan por L1.
+  - A pesar de que un *thread* traiga una línea con elementos que no utilice el mismo, la reutilizan sus vecinos del *warp*.
 - Los *stores* no aprovechan L1, así que conviene que el acceso **contiguo** sea el de **guardar**.
 
 ---
 
-## **Ejercicio: ¿por qué gana cargar por columnas?**
-
-Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu)
-
-1. Ejecutar y comparar el *bandwidth* efectivo de `transpuestaCargarFilas` y `transpuestaCargarColumnas`.
-2. ¿Cuál de los dos es más rápido?
-3. Explicar el resultado: ¿qué operación alcanza a aprovechar el *cache* y cuál no?
-
----
+<!-- ## **Ejercicio: ¿por qué gana cargar por columnas?** -->
+<!---->
+<!-- Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu) -->
+<!---->
+<!-- 1. Ejecutar y comparar el *bandwidth* efectivo de `transpuestaCargarFilas` y `transpuestaCargarColumnas`. -->
+<!-- 2. ¿Cuál de los dos es más rápido? -->
+<!-- 3. Explicar el resultado: ¿qué operación alcanza a aprovechar el *cache* y cuál no? -->
+<!---->
+<!-- --- -->
 
 # AoS vs. SoA
 
@@ -371,7 +395,7 @@ Descargar: [transpuesta.cu](../code/memoria/transpuesta.cu)
 
 ## **Estructuras de datos**
 
-Un `struct` agrupa campos bajo un solo nombre; se acceden con `.`:
+Un `struct` agrupa campos bajo un solo nombre. Se acceden con `.`:
 
 ```cuda
 struct Particula { float x; float y; };
@@ -385,13 +409,15 @@ Particula particulas[N];                        // AoS: particulas[i].x
 struct Particulas { float x[N]; float y[N]; };  // SoA: particulas.x[i]
 ```
 
-**AoS** (arreglo de estructuras) intercala `x y x y ...`; **SoA** (estructura de arreglos) separa `x x ... y y ...`. Para el *warp*, eso decide si el acceso es contiguo.
+- **AoS** (arreglo de estructuras) intercala `x y x y ...`.
+- **SoA** (estructura de arreglos) separa `x x ... y y ...`.
+<!-- Para el *warp*, eso decide si el acceso es contiguo. -->
 
 ---
 
 ## **Opciones para estructuras de datos**
 
-![w:620px](images/memoria/figure_4_22.png)
+![w:720px](images/memoria/figure_4_22.png)
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
 - **AoS**: cada *thread* usa **todos los campos** de su elemento; funciona bien si el *struct* está alineado ($8$ o $16$ bytes, como `float4`).
@@ -418,7 +444,7 @@ Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
 
 ---
 
-## **Memoria compartida**
+## **Memoria compartida (shared memory)**
 
 ![w:460px](images/memoria/figure_4_2.png)
 
@@ -426,15 +452,25 @@ Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c).
 
 ---
 
+## **Memoria compartida (shared memory)**
+
+![w:660px](images/memoria/figure_5_1.png)
+
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
+---
+
 ## **Memoria compartida**
 
-- Esta memoria es compartida por todos los *threads* de cada bloque.
-  - Permite **comunicación entre los *threads*** (dentro de un bloque).
-- Variables declaradas en el *kernel* con `__shared__` se guardan en memoria compartida (*shared*).
-- Esta memoria está *on-chip*:
+- La Memoria Compartida (**SMEM**) está ubicada *on-chip* (en el GPU):
   - *bandwidth* alto, *latency* bajo.
 
-Cada SM tiene una cantidad limitada de memoria compartida, dividida entre los bloques de *threads*. Si usamos demasiada, el número de *warps* activos se reduce.
+- Es compartida por todos los *threads* de cada bloque.
+  - Permite **comunicación entre los *threads*** (dentro de un bloque).
+  - Variables declaradas con `__shared__` se guardan en SMEM.
+
+- Cada SM tiene una cantidad limitada de memoria compartida, dividida entre los bloques de *threads*. 
+  - Si usamos demasiada, el número de *warps* activos se reduce.
 
 ---
 
@@ -455,7 +491,7 @@ __shared__ float tile[ny][nx];
 extern __shared__ int tile[];
 ```
 
-- Tiene que ser declarada dentro de un *kernel*.
+- Esto se usa cuando no conocemos el tamaño del arreglo al momento de la compilación.
 - El tamaño del *array* se define al invocar el *kernel*, con el tercer argumento de la configuración (que hasta ahora habíamos omitido):
 
 ```cuda
@@ -468,9 +504,10 @@ kernel<<<grid, block, N * sizeof(int)>>>(...);
 
 ## **Transpuesta: memoria compartida**
 
-Volvemos al ejemplo de la transpuesta de una matriz, pero ahora usando memoria compartida.
+- Volvamos al ejemplo de la transpuesta de una matriz.
+- Usando memoria compartida, podemos optimizar los accesos de memoria.
 
-![w:920px](images/memoria/figure_5_15.png)
+![w:820px](images/memoria/figure_5_15.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -478,7 +515,9 @@ Volvemos al ejemplo de la transpuesta de una matriz, pero ahora usando memoria c
 
 ## **Transpuesta: memoria compartida**
 
-Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu). Hay cuatro *kernels*:
+Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu). 
+
+Hay cuatro *kernels*:
 
 - `transpuestaGlobal`: la transpuesta con memoria global.
 - `transpuestaComp`: memoria compartida **estática**.
@@ -489,7 +528,7 @@ Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu).
 
 ## **Transpuesta: memoria compartida**
 
-Consideremos un ejemplo: matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
+Consideremos un ejemplo concreto: una matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
 
 `blockDim.x=2` 
 `blockDim.y=2` 
@@ -562,11 +601,23 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 ---
 
+## **Transpuesta: memoria compartida**
+
+- Notar el uso de `__syncthreads()` en el código anterior.
+  - Necesitamos garantizar que todos los *threads* tendrán la información
+    disponible en la memoria compartida antes de escribir `salida[to]`.
+
+---
+
 ## **Acceso a la memoria compartida**
 
 ![w:1020px](images/memoria/figure_5_2.png)
 
 <p class="credit">Acceso ideal — Fuente: <em>Professional CUDA C Programming</em></p>
+
+- La Memoria Compartida se organiza en 32 *bancos*.
+- El patrón de acceso a los bancos también influye en el rendimiento.
+<!-- - **Regla de los bancos**: evitar que más de un *thread* acceda simultáneamente a un mismo elemento del banco. -->
 
 ---
 
