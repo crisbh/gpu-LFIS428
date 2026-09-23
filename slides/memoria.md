@@ -511,6 +511,8 @@ kernel<<<grid, block, N * sizeof(int)>>>(...);
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
+<!-- NOTA — por qué memoria compartida. En transpuestaGlobal el kernel hace salida[iy*N+ix] = entrada[ix*N+iy]: el store es contiguo, pero el load va por columnas y cada thread del warp cae en un sector distinto. Y no se puede arreglar dando vuelta el kernel: la transpuesta cambia el orden de los datos, así que en memoria global uno de los dos accesos es necesariamente disperso. La idea del tiling es sacar la transpuesta de la memoria global: traer un bloque (tile) con un acceso global contiguo, transponerlo DENTRO de la memoria compartida, y escribirlo de vuelta también con un acceso contiguo. La memoria compartida no tiene requisito de coalescencia — pero sí tiene bancos, que es el tema que viene después. -->
+
 ---
 
 ## **Transpuesta: memoria compartida**
@@ -524,6 +526,8 @@ Hay cuatro *kernels*:
 - `transpuestaCompDin`: memoria compartida **dinámica**.
 - `transpuestaCompPad`: memoria compartida estática con ***padding*** (volveremos a este pronto).
 
+<!-- NOTA — el programa usa N = 4096 y BDIM = 32, o sea bloques de 32x32 = 1024 threads. Los cuatro kernels son la misma transpuesta con distinta estrategia: transpuestaGlobal es la referencia sin memoria compartida; transpuestaComp y transpuestaCompDin son el MISMO algoritmo con declaración estática y dinámica, y deben dar tiempos casi iguales (sirve justamente para mostrar que la declaración dinámica no cuesta rendimiento, solo flexibilidad); transpuestaCompPad agrega el padding que se explica en "Conflictos de bancos". El ejercicio de esta clase compara los tres primeros; el cuarto queda para la clase siguiente. -->
+
 ---
 
 ## **Transpuesta: memoria compartida**
@@ -534,6 +538,8 @@ Consideremos un ejemplo concreto: una matriz de $4 \times 4$ elementos, con bloq
 `blockDim.y=2` 
 
 Es decir, hay $2$ bloques en cada dirección.
+
+<!-- NOTA — el 4x4 con bloques de 2x2 es un ejemplo de juguete, elegido para poder dibujar los 16 índices en una diapositiva. El código real usa N = 4096 con BDIM = 32. Hay una diferencia que conviene tener presente: con BDIM = 32 un warp es exactamente UNA fila del bloque (threadIdx.y fijo, threadIdx.x = 0..31), y por eso el argumento de coalescencia de las diapositivas que siguen es exacto, no aproximado. En el dibujo de 2x2 un "warp" no existe como tal; el dibujo sirve solo para seguir los índices. -->
 
 ---
 
@@ -548,6 +554,8 @@ ix = blockDim.x * blockIdx.x + threadIdx.x;
 iy = blockDim.y * blockIdx.y + threadIdx.y;
 ```
 
+<!-- NOTA — cada casilla de la figura es el elemento que le toca a un thread, etiquetado (ix, iy) = (columna, fila). Las líneas rojas son los límites de los bloques de 2x2. Lo que hay que hacer notar: ix avanza a lo largo de la fila y lo maneja threadIdx.x, igual que en el ejemplo de copiarFila. Hasta aquí no hay nada nuevo: es el mismo mapeo thread → elemento de la clase anterior. -->
+
 ---
 
 ## **Transpuesta: memoria compartida**
@@ -560,52 +568,102 @@ iy = blockDim.y * blockIdx.y + threadIdx.y;
 ti = iy * N + ix;
 ```
 
+<!-- NOTA — es la misma figura del índice lineal que ya usamos en memoria global, y la misma fórmula. ti es la posición EN MEMORIA del elemento que carga el thread (ix, iy). Lo importante para lo que viene: dentro de un warp (iy fijo, ix consecutivo) los ti son consecutivos, así que el load entrada[ti] es contiguo. Ese es el primero de los dos accesos globales del kernel, y ya está bien. -->
+
 ---
 
-## **Transpuesta: memoria compartida**
+## **Transpuesta por bloques**
+
+Transponer por bloques requiere **dos pasos**:
+
+$$M = \begin{pmatrix} A & B \\ C & D \end{pmatrix} \longrightarrow M^{T} = \begin{pmatrix} A^{T} & C^{T} \\ B^{T} & D^{T} \end{pmatrix}$$
+
+En este caso:
+```
+               0  1 |  2  3        0  1 |  8  9        0  4 |  8 12
+               4  5 |  6  7        4  5 | 12 13        1  5 |  9 13
+              ------+------       ------+------       ------+------
+               8  9 | 10 11        2  3 | 10 11        2  6 | 10 14
+              12 13 | 14 15        6  7 | 14 15        3  7 | 11 15
+```
+
+original · **paso 1**: mover los bloques · **paso 2**: transponer cada *tile*
+
+<!-- NOTA — esta es la idea que hace entendible todo el kernel. El PASO 1 mueve los bloques de lugar (B y C se intercambian) sin tocar lo que hay adentro, y lo hace la fórmula de ixt/iyt de la diapositiva siguiente. El PASO 2 transpone cada bloque por dentro, y lo hace el intercambio de índices en la memoria compartida (se escribe tile[ty][tx], se lee tile[tx][ty]). Ninguno de los dos por separado es una transpuesta. -->
+
+<!-- Los tres paneles no son dibujos nuevos: son exactamente las tres figuras de esta misma secuencia. El primero es transpose_fig2.png (la de ti, diapositiva anterior), el del medio es transpose_fig4.png (la de to, dos diapositivas más adelante) y el tercero es transpose_fig5.png (la del final). Vale la pena decirlo para que el alumno vea que las figuras que vienen son estados de este mismo diagrama. -->
+
+<!-- Analogía para decir en voz alta: cuatro fotos puestas en una grilla 2x2. Primero se REORDENAN las fotos sobre la mesa, intercambiando las dos de fuera de la diagonal. Después se DA VUELTA cada foto sobre su propia diagonal. Dos movimientos distintos, y hacen falta los dos. -->
+
+<!-- El panel del medio no hay que dibujarlo aparte: es exactamente transpose_fig4.png, la figura de "to" que viene en dos diapositivas más. No es casualidad — transponer la grilla de bloques es una involución (hacerlo dos veces es la identidad), así que "a dónde va cada bloque" y "qué bloque llega acá" son el mismo mapa. Conviene decirlo con esa figura en pantalla: la misma imagen se lee como el índice lineal al que escribe cada thread, o como la matriz con los bloques ya movidos y los tiles todavía sin transponer. -->
+
+<!-- Y por qué se separa así: el paso 1 es una permutación de TILES completos, y permutar tiles no rompe la contigüidad (dentro de un warp ixt sigue avanzando de a uno). Por eso los dos accesos globales quedan coalescidos y el único acceso con stride queda dentro de la memoria compartida, donde el costo son conflictos de bancos y no sectores desperdiciados. Ese es el canje sobre el que está construido el algoritmo. -->
+
+---
+
+## **Transpuesta por bloques: paso 1**
 
 ![w:340px](images/memoria/transpose_fig3.png)
 
-Índices globales después de la "transpuesta de bloques":
+Índices globales después del **paso 1**:
 
 ```cuda
 ixt = blockDim.y * blockIdx.y + threadIdx.x;
 iyt = blockDim.x * blockIdx.x + threadIdx.y;
 ```
 
+<!-- NOTA — este es el paso clave de todo el algoritmo, y conviene detenerse. Comparar con la diapositiva de ix/iy: se intercambian los índices de BLOQUE (blockIdx.x <-> blockIdx.y), pero NO los de thread — threadIdx.x sigue estando en la coordenada x. De ahí el paso 1: el bloque (bx, by) escribe en la posición de bloque (by, bx) de la salida, y dentro del bloque cada thread conserva su casilla. En la figura se ve en el bloque de arriba a la derecha (bx=1, by=0): sus etiquetas son (0,2), (1,2), (0,3), (1,3), o sea sus threads escribirán en el bloque de abajo a la izquierda. El paso 1 (mover los bloques) lo hace esta fórmula; el paso 2 (transponer dentro del bloque) lo hará la memoria compartida. -->
+
 ---
 
-## **Transpuesta: memoria compartida**
+## **Transpuesta por bloques: paso 1**
 
 ![w:340px](images/memoria/transpose_fig4.png)
 
-Índice lineal después de la "transpuesta de bloques":
+Índice lineal después del **paso 1**:
 
 ```cuda
 to = iyt * N + ixt;
 ```
 
+<!-- NOTA — lo que hay que mirar acá es qué pasa DENTRO de un warp. Con threadIdx.y fijo y threadIdx.x = 0..31: ixt = blockDim.y*blockIdx.y + threadIdx.x varía de a uno, mientras iyt queda constante. Entonces los to también son consecutivos, o sea el store salida[to] es contiguo. Junto con la diapositiva anterior (load contiguo), el resultado es que LOS DOS accesos a memoria global quedan coalescidos: ninguno de los dos hace la transpuesta. En la figura de 4x4 se ve en la primera fila: to = 0, 1, 8, 9 — dentro de cada bloque los valores son consecutivos, y el salto de 1 a 8 es el salto entre bloques, no entre threads de un warp. -->
+
 ---
 
-## **Transpuesta: memoria compartida**
+## **Transpuesta por bloques: paso 2**
 
 ![w:320px](images/memoria/transpose_fig5.png)
 
 Elementos guardados después de cargar de la memoria compartida:
 
 ```cuda
-tile[threadIdx.y][threadIdx.x] = entrada[ti];
+tile[threadIdx.y][threadIdx.x] = entrada[ti]; // escribe por filas
 __syncthreads();
-salida[to] = tile[threadIdx.x][threadIdx.y];
+salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas (paso 2)
 ```
+
+<!-- NOTA — estas tres líneas son el núcleo del kernel, y el paso 2 está en el cambio de índices del tile: se ESCRIBE tile[threadIdx.y][threadIdx.x] (por filas) y se LEE tile[threadIdx.x][threadIdx.y] (por columnas). Eso es lo que da vuelta los datos, y ocurre en memoria compartida, no en la global. -->
+
+<!-- Ejemplo concreto sobre la figura de 4x4: el thread (tx,ty) = (1,0) del bloque (0,0) carga entrada[1] en tile[0][1], y después escribe salida[1] = tile[1][0]; pero tile[1][0] lo cargó OTRO thread, el (0,1), desde entrada[4]. O sea salida[1] = entrada[4], que es exactamente lo que muestra la figura: en la posición 1 aparece un 4. Vale la pena hacer este seguimiento en vivo con un par de casillas. -->
+
+<!-- NOTA — y acá está la trampa que justifica la clase siguiente: leer el tile por columnas es precisamente lo que provoca conflictos de bancos. Con tile[32][32], el elemento tile[i][ty] queda en el índice i*32+ty, así que su banco es (i*32+ty)%32 = ty: los 32 threads del warp piden el MISMO banco, un conflicto de 32 vías. Con tile[32][33] (el padding de transpuestaCompPad) el índice pasa a i*33+ty y el banco a (i+ty)%32, que es distinto para cada thread. Por eso un solo carácter cambia tanto el tiempo. -->
 
 ---
 
-## **Transpuesta: memoria compartida**
+## **Transpuesta por bloques: paso 2**
 
 - Notar el uso de `__syncthreads()` en el código anterior.
   - Necesitamos garantizar que todos los *threads* tendrán la información
     disponible en la memoria compartida antes de escribir `salida[to]`.
+
+<!-- NOTA — la razón precisa: el thread (tx, ty) lee tile[tx][ty], una casilla que NO escribió él sino el thread (ty, tx). Sin la barrera hay una condición de carrera, porque nada garantiza que ese otro thread ya haya hecho su escritura. __syncthreads() es una barrera a nivel de BLOQUE, no del grid, y con eso alcanza porque el tile es privado del bloque. -->
+
+<!-- Si se borra, el programa igual compila y a veces "funciona", pero el resultado es indefinido: desde Volta los threads de un warp no avanzan necesariamente en lock-step (independent thread scheduling), así que no hay que confiar en el viejo argumento de sincronía dentro del warp. Con BDIM = 32 el bloque tiene 32 warps y la corrupción es fácil de observar. Ese es el punto de la pregunta 3 del ejercicio. -->
+
+<!-- Notar también que la barrera está DENTRO del if (ixt < N && iyt < N). Es correcta aquí porque N = 4096 es múltiplo de BDIM = 32 y la condición es uniforme en todo el bloque, pero si N no fuera múltiplo del bloque habría threads que no llegan a la barrera: __syncthreads() en código divergente es comportamiento indefinido. Buen detalle para mencionar si alguien pregunta. -->
+
+<!-- Y un detalle del código, no del algoritmo: en main, transpuestaCompPad se lanza con un tercer argumento de memoria compartida dinámica aunque declara su tile de forma estática. No es un error (la memoria dinámica queda sin usar), pero reserva BDIM*(BDIM+1)*4 bytes de más por bloque y puede bajar la ocupancia. -->
+
 
 ---
 
@@ -680,7 +738,7 @@ Para el *thread* `threadIdx = (1,2)` del bloque `blockIdx = (1,0)`, calcular:
 ```cuda
 ix, iy      // índices globales
 ti          // índice lineal de entrada
-ixt, iyt    // índices tras la "transpuesta de bloques"
+ixt, iyt    // índices tras el paso 1
 to          // índice lineal de salida
 ```
 
