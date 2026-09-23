@@ -262,7 +262,7 @@ Esto define **qué elemento** le toca a cada *thread* al acceder a `matriz[ti]`.
 - A su vez, cada acceso de un *warp* se sirve en **sectores de $32$ bytes** (las líneas de L2).
 - La **eficiencia del acceso** es la fracción de lo movido que realmente se usa:
 
-$$\text{eficiencia} = \frac{\text{bytes útiles}}{32 \times \text{sectores tocados}}$$
+$$\text{eficiencia de acceso} = \frac{\text{bytes útiles}}{32 \times \text{sectores tocados}}$$
 
 ---
 
@@ -546,7 +546,7 @@ ti = iy * N + ix;
 
 ![w:340px](images/memoria/transpose_fig3.png)
 
-Índices globales después del **paso 1** (transponer bloques):
+Índices globales después del **paso 1** (mover bloques):
 
 ```cuda
 ixt = blockDim.y * blockIdx.y + threadIdx.x;
@@ -575,27 +575,42 @@ to = iyt * N + ixt;
 
 ![w:320px](images/memoria/transpose_fig5.png)
 
-Elementos guardados después de cargar de la memoria compartida:
+Elementos guardados después de cargar de la memoria compartida.
 
 ```cuda
-tile[threadIdx.y][threadIdx.x] = entrada[ti]; // escribe por filas en SMEM
+tile[threadIdx.y][threadIdx.x] = entrada[ti]; // escribe por filas en SMEM (paso 1)
 __syncthreads();                              // sincronizamos bloque
-salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas en SMEM (paso 2)
+salida[to] = tile[threadIdx.x][threadIdx.y];  // lee por columnas desde SMEM (paso 2)
 ```
+
 <!-- Ojo con los comentarios del código: dicen "en SMEM" porque cada línea toca
-DOS memorias a la vez, y lo q ue describen es solo el lado de la compartida. La
-primera línea LEE de global (entrada[ti], por filas, contig uo) y ESCRIBE en
+DOS memorias a la vez, y lo que describen es solo el lado de la compartida. La
+primera línea LEE de global (entrada[ti], por filas, contiguo) y ESCRIBE en
 compartida por filas. La tercera LEE de compartida por columnas y ESCRIBE en
 global (salida[ to], por filas, contiguo). O sea: el único acceso con stride en
-todo el kernel es la lectura del tile. Si alg uien lee "por columnas" como si
-hablara de la memoria global, entiende justo lo contrario de lo que se demost ró
+todo el kernel es la lectura del tile. Si alguien lee "por columnas" como si
+hablara de la memoria global, entiende justo lo contrario de lo que se demostró
 en las dos diapositivas anteriores. -->
 
-<!-- NOTA — estas tres líneas son el núcleo del kernel, y el paso 2 está en el cambio de índices del tile: se ESCRIBE tile[threadIdx.y][threadIdx.x] (por filas) y se LEE tile[threadIdx.x][threadIdx.y] (por columnas). Eso es lo que da vuelta los datos, y ocurre en memoria compartida, no en la global. -->
+<!-- NOTA — estas tres líneas son el núcleo del kernel, y el paso 2 está en el
+cambio de índices del tile: se ESCRIBE tile[threadIdx.y][threadIdx.x] (por
+filas) y se LEE tile[threadIdx.x][threadIdx.y] (por columnas). Eso es lo que da
+vuelta los datos, y ocurre en memoria compartida, no en la global. -->
 
-<!-- Ejemplo concreto sobre la figura de 4x4: el thread (tx,ty) = (1,0) del bloque (0,0) carga entrada[1] en tile[0][1], y después escribe salida[1] = tile[1][0]; pero tile[1][0] lo cargó OTRO thread, el (0,1), desde entrada[4]. O sea salida[1] = entrada[4], que es exactamente lo que muestra la figura: en la posición 1 aparece un 4. Vale la pena hacer este seguimiento en vivo con un par de casillas. -->
+<!-- Ejemplo concreto sobre la figura de 4x4: el thread (tx,ty) = (1,0) del
+bloque (0,0) carga entrada[1] en tile[0][1], y después escribe salida[1] =
+tile[1][0]; pero tile[1][0] lo cargó OTRO thread, el (0,1), desde entrada[4]. O
+sea salida[1] = entrada[4], que es exactamente lo que muestra la figura: en la
+posición 1 aparece un 4. Vale la pena hacer este seguimiento en vivo con un par
+de casillas. -->
 
-<!-- NOTA — y acá está la trampa que justifica la clase siguiente: leer el tile por columnas es precisamente lo que provoca conflictos de bancos. Con tile[32][32], el elemento tile[i][ty] queda en el índice i*32+ty, así que su banco es (i*32+ty)%32 = ty: los 32 threads del warp piden el MISMO banco, un conflicto de 32 vías. Con tile[32][33] (el padding de transpuestaCompPad) el índice pasa a i*33+ty y el banco a (i+ty)%32, que es distinto para cada thread. Por eso un solo carácter cambia tanto el tiempo. -->
+<!-- NOTA — y acá está la trampa que justifica la clase siguiente: leer el tile
+por columnas es precisamente lo que provoca conflictos de bancos. Con
+tile[32][32], el elemento tile[i][ty] queda en el índice i*32+ty, así que su
+banco es (i*32+ty)%32 = ty: los 32 threads del warp piden el MISMO banco, un
+conflicto de 32 vías. Con tile[32][33] (el padding de transpuestaCompPad) el
+índice pasa a i*33+ty y el banco a (i+ty)%32, que es distinto para cada thread.
+Por eso un solo carácter cambia tanto el tiempo. -->
 
 ---
 
