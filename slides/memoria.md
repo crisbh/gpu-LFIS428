@@ -800,7 +800,8 @@ Cada *thread* cae en un banco distinto, aunque sea en otra fila: **1 transacció
 <tr><td>64</td><td>65</td><td>66</td><td>67</td><td class="gap">…</td><td>94</td><td>95</td></tr>
 </table>
 
-Mismo banco y **misma palabra**: *broadcast*, sin conflicto.
+Mismo banco y **misma palabra**. 
+  - *broadcast* (no existe conflicto).
 
 <!-- NOTA — t1 y t2 leen la MISMA palabra (1), igual que t30 y t31 (palabra 30). El banco entrega la palabra una vez y la reparte (broadcast): no hay conflicto. La figura original del libro mostraba aquí dos threads leyendo las dos mitades de una palabra de 8 bytes, un caso que solo existía en el modo de 8 bytes de Kepler; en la T4 el caso equivalente es este. Conflicto = palabras DISTINTAS en el mismo banco, no simplemente el mismo banco. -->
 
@@ -815,7 +816,8 @@ Mismo banco y **misma palabra**: *broadcast*, sin conflicto.
 <tr><td>64</td><td>65</td><td>66</td><td>67</td><td class="gap">…</td><td>94</td><td>95</td></tr>
 </table>
 
-Dos palabras **distintas** en el banco 1: conflicto de **2 vías**, 2 transacciones.
+Dos palabras **distintas** en el banco 1.
+  - Conflicto de **2 vías**: 2 transacciones serializadas.
 
 <!-- NOTA — 1 % 32 = 1 y 33 % 32 = 1: t1 y t2 piden palabras distintas del banco 1, y el banco entrega una por ciclo. El acceso se divide en 2 transacciones; el resto de los threads no tiene problema, pero el warp completo espera a la más lenta. -->
 
@@ -830,7 +832,10 @@ Dos palabras **distintas** en el banco 1: conflicto de **2 vías**, 2 transaccio
 <tr><td>64</td><td class="conflicto">65<small>t2</small></td><td>66</td><td>67</td><td class="gap">…</td><td>94</td><td>95</td></tr>
 </table>
 
-Tres palabras distintas en el banco 1: conflicto de **3 vías**, 3 transacciones serializadas.
+Tres palabras distintas en el banco 1.
+  - Conflicto de **3 vías**: 3 transacciones serializadas.
+
+En general, podemos tener conflictos de **$N$ vías**, donde $2\leq N\leq 32$, lo cual puede reducir el rendimiento hasta en $1/N$.
 
 <!-- NOTA — 1, 33 y 65 caen todas en el banco 1 (n % 32 = 1): conflicto de 3 vías. El caso extremo es un stride de 32 palabras, que pone a los 32 threads en el mismo banco: conflicto de 32 vías. Es exactamente lo que pasa al leer una columna de tile[32][32] en la transpuesta, dos diapositivas más adelante. -->
 
