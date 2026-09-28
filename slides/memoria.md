@@ -942,7 +942,12 @@ nvcc -arch=sm_75 memoria_constante.cu -o memoria_constante.x
 
 # Transferencias entre *host* y *device*
 
-<!-- NOTA — esta sección tiene un orden deliberado: primero la motivación (el PCIe es lento), después dos herramientas. La memoria pinned hace más rápidas las transferencias EXPLÍCITAS (cudaMemcpy); la memoria unificada las hace IMPLÍCITAS. La pinned va primero porque la unificada se apoya en las mismas ideas: páginas, fallos de página y memoria que el sistema operativo no puede mover. -->
+<!-- NOTA — esta sección tiene un orden deliberado: primero la motivación (el
+PCIe es lento), después dos herramientas. La memoria pinned hace más rápidas las
+transferencias EXPLÍCITAS (cudaMemcpy); la memoria unificada las hace
+IMPLÍCITAS. La pinned va primero porque la unificada se apoya en las mismas
+ideas: páginas, fallos de página y memoria que el sistema operativo no puede
+mover. -->
 
 ---
 
@@ -954,7 +959,14 @@ nvcc -arch=sm_75 memoria_constante.cu -o memoria_constante.x
 
 El bus PCIe es mucho más lento que la memoria del GPU: hay que transferir lo mínimo.
 
-<!-- NOTA — la figura es de una Fermi (8 GB/s de PCIe contra 144 GB/s de GDDR5). En la T4: PCIe 3.0 x16, unos 16 GB/s teóricos y unos 12 GB/s en la práctica, contra 300 GB/s de GDDR6. La brecha es de unas 20 veces, y se agranda con cada generación. Consecuencia práctica: un kernel rápido no sirve de nada si cada lanzamiento va precedido de una copia grande. Hay que dejar los datos en el GPU todo lo posible. Lo que sigue son dos herramientas para cuando SÍ hay que transferir: memoria pinned (copias explícitas más rápidas) y memoria unificada (copias implícitas). -->
+<!-- NOTA — la figura es de una Fermi (8 GB/s de PCIe contra 144 GB/s de GDDR5).
+En la T4: PCIe 3.0 x16, unos 16 GB/s teóricos y unos 12 GB/s en la práctica,
+contra 300 GB/s de GDDR6. La brecha es de unas 20 veces, y se agranda con cada
+generación. Consecuencia práctica: un kernel rápido no sirve de nada si cada
+lanzamiento va precedido de una copia grande. Hay que dejar los datos en el GPU
+todo lo posible. Lo que sigue son dos herramientas para cuando SÍ hay que
+transferir: memoria pinned (copias explícitas más rápidas) y memoria unificada
+(copias implícitas). -->
 
 ---
 
@@ -966,7 +978,13 @@ La memoria en el *host* es, por defecto, *paginable*.
   - Esto lo controla el host, no el GPU.
 - Transferir datos del *host* al *device* implica asignar memoria *page-locked* o *pinned* en el *host*: los datos se transfieren de *paginable* a *pinned* y después al *device*.
 
-<!-- NOTA — la copia por el PCIe la hace un motor DMA del GPU, que lee la RAM del host directamente, sin pasar por el CPU. Para eso necesita que las páginas no se muevan mientras copia, y el sistema operativo podría mover (o mandar al disco) una página paginable en cualquier momento. Por eso el driver no copia desde la memoria paginable: primero la copia a un buffer pinned propio y recién desde ahí la manda por el PCIe. Una transferencia desde memoria paginable son en realidad DOS copias. -->
+<!-- NOTA — la copia por el PCIe la hace un motor DMA del GPU, que lee la RAM
+del host directamente, sin pasar por el CPU. Para eso necesita que las páginas
+no se muevan mientras copia, y el sistema operativo podría mover (o mandar al
+disco) una página paginable en cualquier momento. Por eso el driver no copia
+desde la memoria paginable: primero la copia a un buffer pinned propio y recién
+desde ahí la manda por el PCIe. Una transferencia desde memoria paginable son en
+realidad DOS copias. -->
 
 ---
 
@@ -976,9 +994,7 @@ La memoria en el *host* es, por defecto, *paginable*.
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
-Paginable: **dos** copias. *Pinned*: **una**.
-
-<!-- NOTA — izquierda: los datos están en memoria paginable, el driver los copia primero a un buffer pinned (la flecha horizontal, una copia CPU a CPU) y después el DMA los manda a la DRAM del GPU. Derecha: si los datos ya están en memoria pinned, la primera copia desaparece. La ganancia depende del sistema, y en el ejercicio 4 los alumnos la miden. -->
+<!-- NOTA — izquierda: los datos están en memoria paginable, el driver los copia primero a un buffer pinned (la flecha horizontal, una copia CPU a CPU) y después el DMA los manda a la DRAM del GPU. Derecha: si los datos ya están en memoria pinned, la primera copia desaparece. La ganancia depende del sistema, y en el ejercicio 3 los alumnos la miden. -->
 
 ---
 
@@ -993,7 +1009,7 @@ El uso de demasiada memoria *pinned* puede afectar el rendimiento del sistema en
 
 Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
 
-<!-- NOTA — el costo de la memoria pinned: es RAM que el sistema operativo ya no puede mandar al disco ni reorganizar. Si se asigna demasiada, el resto del sistema se queda sin memoria y empieza a paginar todo lo demás. Por eso no se asigna TODO como pinned (es la pregunta 4 del ejercicio 4): solo los buffers que se transfieren seguido. Adelanto: en el capítulo de kernels (clase 15), cudaMemcpyAsync con streams EXIGE memoria pinned para poder solapar copias y cómputo. -->
+<!-- NOTA — el costo de la memoria pinned: es RAM que el sistema operativo ya no puede mandar al disco ni reorganizar. Si se asigna demasiada, el resto del sistema se queda sin memoria y empieza a paginar todo lo demás. Por eso no se asigna TODO como pinned (es la pregunta 4 del ejercicio 3): solo los buffers que se transfieren seguido. Adelanto: en el capítulo de kernels (clase 15), cudaMemcpyAsync con streams EXIGE memoria pinned para poder solapar copias y cómputo. -->
 
 ---
 
@@ -1003,7 +1019,7 @@ Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
   - UM se encarga de la transferencia de datos automáticamente.
 - Basada en *Unified Virtual Addressing* (CUDA 4.0), que unificó el espacio de direcciones en memoria.
 
-Esto simplifica la copia de datos entre *host*  y *device* al programar al evitarnos usar `cudaMemcpy`.
+Esto simplifica la copia de datos entre *host* y *device* al programar al evitarnos usar `cudaMemcpy` entre ambos.
 
 <!-- NOTA — la idea: un solo puntero que vale en el host y en el device, sin cudaMemcpy. Es una comodidad para programar, no magia: los bytes igual cruzan el PCIe, solo que ahora los mueve el driver en vez de nosotros. La diferencia con UVA (CUDA 4.0): UVA solo unificó las DIRECCIONES (un puntero dice si apunta al host o al device), pero no movía datos. UM además migra los datos al lado que los usa. -->
 
@@ -1066,7 +1082,7 @@ nvcc -arch=sm_75 memoria_unificada.cu -o memoria_unificada.x
 nvprof ./memoria_unificada.x
 ```
 
-<!-- NOTA — las cuatro mediciones: (1) el kernel con los datos recién inicializados en el host, así que paga los fallos de página; (2) el mismo kernel con los datos ya en el GPU; (3) cudaMemPrefetchAsync de x e y, después de volver a inicializarlos en el host (eso trae las páginas de vuelta al CPU); (4) el kernel después del prefetch. Lo esperado: (1) mucho mayor que (2), y la diferencia es la migración; (3) cerca de la velocidad del PCIe; (4) parecido a (2). nvprof agrega al final una sección "Unified Memory profiling result" con los bytes Host To Device, Device To Host y los grupos de fallos de página del GPU. Sin medir todavía en la T4: ver el ejercicio 5. -->
+<!-- NOTA — las cuatro mediciones: (1) el kernel con los datos recién inicializados en el host, así que paga los fallos de página; (2) el mismo kernel con los datos ya en el GPU; (3) cudaMemPrefetchAsync de x e y, después de volver a inicializarlos en el host (eso trae las páginas de vuelta al CPU); (4) el kernel después del prefetch. Lo esperado: (1) mucho mayor que (2), y la diferencia es la migración; (3) cerca de la velocidad del PCIe; (4) parecido a (2). nvprof agrega al final una sección "Unified Memory profiling result" con los bytes Host To Device, Device To Host y los grupos de fallos de página del GPU. Los tiempos medidos en la T4 están en la nota del ejercicio 4. -->
 
 ---
 
@@ -1074,16 +1090,16 @@ nvprof ./memoria_unificada.x
 
 ---
 
-## **Ejercicio 2: conflictos de bancos y *padding***
+## **Ejercicio 1: conflictos de bancos y *padding***
 
 Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h)
 
-En el ejercicio 1 ya comparamos los tres primeros *kernels*. Falta el cuarto: `transpuestaCompPad`.
+El programa mide los cuatro *kernels* de la transpuesta. Ahora nos interesa el cuarto: `transpuestaCompPad`.
 
 1. `transpuestaComp` y `transpuestaCompPad` difieren en **un carácter**: `tile[BDIM][BDIM]` contra `tile[BDIM][BDIM+1]`. ¿Cuánto cambia el tiempo?
-2. ¿Dónde queda `transpuestaCompPad` en el ranking del ejercicio 1?
+2. ¿Dónde queda `transpuestaCompPad` frente a los otros tres?
 
-<!-- RESPUESTAS medidas en la T4 (2026-09), N = 4096: transpuestaCompPad 0.766 ms, 175.2 GB/s. (1) Un carácter da 1.87x sobre transpuestaComp (93.9 -> 175.2 GB/s) y 2.02x sobre transpuestaGlobal. (2) Pasa a ser el más rápido por lejos, y recién ahí la memoria compartida se paga: en el ejercicio 1 ganaba apenas 8%. -->
+<!-- RESPUESTAS medidas en la T4 (2026-09), N = 4096: transpuestaCompPad 0.766 ms, 175.2 GB/s. (1) Un carácter da 1.87x sobre transpuestaComp (93.9 -> 175.2 GB/s) y 2.02x sobre transpuestaGlobal. (2) Pasa a ser el más rápido por lejos, y recién ahí la memoria compartida se paga: sin padding ganaba apenas 8% (86.8 -> 93.9 GB/s). -->
 
 <!-- La cuenta de bancos: leer tile[threadIdx.x][threadIdx.y] con tile[32][32] pone el elemento en el índice tx*32+ty, o sea banco (tx*32+ty)%32 = ty, el MISMO para los 32 threads del warp: conflicto de 32 vías, 32 transacciones serializadas. Con tile[32][33] el índice pasa a tx*33+ty y el banco a (tx+ty)%32, distinto para cada thread: una sola transacción. La escritura tile[ty][tx] no tiene conflicto en ninguno de los dos casos. -->
 
@@ -1091,7 +1107,7 @@ En el ejercicio 1 ya comparamos los tres primeros *kernels*. Falta el cuarto: `t
 
 ---
 
-## **Ejercicio 2: métricas**
+## **Ejercicio 1: métricas**
 
 En `nvprof`:
 - `shared_load_transactions_per_request`
@@ -1105,7 +1121,7 @@ En `ncu`:
 
 ---
 
-## **Ejercicio 3: ¿sirve la memoria constante?**
+## **Ejercicio 2: ¿sirve la memoria constante?**
 
 Descargar: [memoria_constante.cu](../code/memoria/memoria_constante.cu) y [common.h](../code/memoria/common.h)
 
@@ -1116,7 +1132,7 @@ El programa mide cuatro *kernels* que hacen exactamente el mismo cálculo: `glob
 
 ---
 
-## **Ejercicio 3: ¿por qué?**
+## **Ejercicio 2: ¿por qué?**
 
 3. Con acceso uniforme todos los *threads* leen **el mismo** ángulo. ¿Por qué esto favorece a la memoria constante?
 4. Con acceso disperso, ¿por qué la memoria global casi no se ve afectada y la constante sí?
@@ -1139,26 +1155,7 @@ El programa mide cuatro *kernels* que hacen exactamente el mismo cálculo: `glob
 
 ---
 
-## **Ejercicio 4: *pinned* contra *paginable***
-
-Descargar: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu)
-
-1. Medir el tiempo de las dos transferencias (*host* a *device* y de vuelta).
-2. Reemplazar `cudaMallocHost`/`cudaFreeHost` por `malloc`/`free`: la memoria del *host* vuelve a ser *paginable*.
-3. Medir de nuevo y comparar.
-
-```bash
-nvcc -arch=sm_75 memoriaPinned.cu -o memoriaPinned.x
-nvprof ./memoriaPinned.x
-```
-
-`nvprof` reporta las copias como `[CUDA memcpy HtoD]` y `[CUDA memcpy DtoH]`.
-
-4. Si la memoria *pinned* es más rápida, ¿por qué no asignar **toda** la memoria del *host* así?
-
----
-
-## **Ejercicio 5: memoria unificada**
+## **Ejercicio 3: memoria unificada**
 
 Descargar: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) y [common.h](../code/memoria/common.h)
 
@@ -1167,7 +1164,9 @@ Descargar: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) y [commo
 3. En `nvprof`, ¿cuántos bytes *Host To Device* y cuántos *GPU page faults* aparecen?
 4. ¿Cuándo conviene la memoria unificada y cuándo `cudaMemcpy` explícito?
 
-<!-- RESPUESTAS — TODO: medir en la T4 (dos corridas, por la variabilidad de los relojes) y anotar los tiempos aquí. -->
+<!-- RESPUESTAS medidas en la T4 (2026-09), varias corridas, dos arreglos de 64 MB. Corrida típica: (1) primer acceso con fallos de página 62.257 ms · (2) datos ya en el GPU 0.802 ms · (3) cudaMemPrefetchAsync de x e y 12.154 ms, 11.0 GB/s · (4) después del prefetch 0.806 ms. Algunas corridas dan (1) = 34.366 ms, con (2) 0.805, (3) 13.097 ms / 10.2 GB/s y (4) 0.800. Error máximo 0 siempre. Lo que se mantiene: el kernel con los datos en el GPU tarda 0.80 ms en todas las corridas (192 MB en 0.80 ms, unos 250 GB/s, el 84% del peak de 300 GB/s), y el prefetch rinde 10-11 GB/s, cerca de los ~12 GB/s reales del PCIe 3.0 x16. Lo que varía es SOLO la migración por fallos de página: entre 34 y 62 ms, o sea entre 4.0 y 2.2 GB/s efectivos, y entre 43 y 78 veces el kernel residente. Aun en la mejor corrida, prefetch más kernel (13.9 ms) es 2.5 veces más rápido que dejar que el kernel migre los datos (34.4 ms); en la típica, casi 5 veces. -->
+
+<!-- Por qué varía la migración por fallos y no el resto (hipótesis, sin verificar): los fallos de página del GPU los atiende el driver en el CPU, y en Colab el CPU es virtual y compartido; además el driver agrupa fallos y adelanta páginas vecinas con heurísticas que dependen de cómo llegan los fallos, y eso cambia de corrida en corrida. El prefetch, en cambio, es una sola copia grande por el DMA, y el kernel residente solo depende de la DRAM del GPU. Moraleja: la migración a pedido no solo es más lenta, también es IMPREDECIBLE. Con prefetch el tiempo es menor y además estable. -->
 
 <!-- (1) El kernel es el mismo, pero en el primer lanzamiento los 128 MB están en el host: cada página que el GPU toca provoca un fallo de página y tiene que cruzar el PCIe mientras el kernel espera. En el segundo lanzamiento los datos ya están en el GPU y solo se mide el cálculo, que para una suma es tráfico de DRAM a unos 300 GB/s. -->
 
@@ -1181,4 +1180,4 @@ Descargar: [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) y [commo
 
 # Fin Capítulo 2
 
-## Próxima capítulo: control de los threads
+## Próximo capítulo: control de los threads
