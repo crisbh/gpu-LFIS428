@@ -903,7 +903,8 @@ Ahora los elementos de una columna van a **bancos distintos**.
 
 ## **Memoria constante**
 
-- Reside en la memoria del *device*; cada SM tiene un *cache* asignado a la memoria constante.
+- Reside en la memoria del *device* (igual que la memoria global).
+  - Cada SM tiene un *cache* asignado a la memoria constante.
 - Se declara con `__constant__`. Debe tener *global scope*, fuera de cualquier *kernel*. Hay $64$ KB disponibles.
 - Útil para constantes matemáticas aplicadas por todos los *threads*.
 - Los *kernels* solo pueden **leer** de la memoria constante, así que hay que inicializarla desde el *host*:
@@ -914,9 +915,21 @@ cudaError_t cudaMemcpyToSymbol(const void* simbolo, const void* src, size_t coun
 
 ---
 
-## **Memoria constante**
+## **Memoria constante: ejemplo**
 
-Ejemplo: [memoria_constante.cu](../code/memoria/memoria_constante.cu).
+Ejemplo: [memoria_constante.cu](../code/memoria/memoria_constante.cu) (necesita [common.h](../code/memoria/common.h)).
+
+Cada *thread* suma los $360$ ángulos de una tabla. El programa mide cuatro versiones:
+
+- Tabla en memoria **global** o **constante**.
+- Acceso **uniforme** (todo el *warp* lee el mismo ángulo) o **disperso** (cada *thread* lee uno distinto).
+
+```bash
+nvcc -arch=sm_75 memoria_constante.cu -o memoria_constante.x
+./memoria_constante.x
+```
+
+<!-- NOTA — la memoria constante tiene su propio cache, que entrega UNA dirección por lectura a todo el warp (broadcast). Si el warp pide k direcciones distintas, la lectura se divide en k lecturas seriadas. El acceso uniforme es su mejor caso y el disperso el peor: 32 direcciones, 32 lecturas. La memoria global, en cambio, junta 32 floats consecutivos en un solo acceso coalescido y cacheado. Resultado esperado: con acceso uniforme la constante empata o gana; con acceso disperso pierde por mucho. En la T4 las lecturas uniformes de memoria global también quedan en el L1, así que la diferencia en el caso uniforme puede ser chica: eso también es parte de la lección. Los cuatro kernels acumulan en un registro y escriben una sola vez, para que lo único que cambie sea de dónde se leen los ángulos. -->
 
 ---
 
@@ -1025,29 +1038,35 @@ En `ncu`:
 
 ## **Ejercicio 3: ¿sirve la memoria constante?**
 
-Descargar: [memoria_constante.cu](../code/memoria/memoria_constante.cu)
+Descargar: [memoria_constante.cu](../code/memoria/memoria_constante.cu) y [common.h](../code/memoria/common.h)
 
-El programa ejecuta dos *kernels* que hacen exactamente el mismo cálculo:
+El programa mide cuatro *kernels* que hacen exactamente el mismo cálculo: `globalUniforme`, `constanteUniforme`, `globalDisperso` y `constanteDisperso`.
 
-- `kernel_device`: lee los $360$ ángulos desde la **memoria global**.
-- `kernel_constante`: los lee desde la **memoria constante**.
-
-1. El programa no imprime nada: hay que medirlo con el profiler.
-2. Comparar la duración de ambos *kernels*.
-
-```bash
-nvcc -arch=sm_75 memoria_constante.cu -o memoria_constante.x
-nvprof ./memoria_constante.x
-```
+1. Ejecutar el programa y ordenar los cuatro *kernels* de más rápido a más lento.
+2. ¿En qué caso gana la memoria constante? ¿En cuál pierde?
 
 ---
 
 ## **Ejercicio 3: ¿por qué?**
 
-3. Todos los *threads* leen **el mismo** ángulo en cada iteración del ciclo. ¿Por qué esto favorece a la memoria constante?
-4. ¿Qué pasaría si cada *thread* leyera un ángulo **distinto**?
+3. Con acceso uniforme todos los *threads* leen **el mismo** ángulo. ¿Por qué esto favorece a la memoria constante?
+4. Con acceso disperso, ¿por qué la memoria global casi no se ve afectada y la constante sí?
+5. El programa lanza cada *kernel* una vez antes de medir. ¿Para qué?
 
-El programa invoca un tercer *kernel* (`kernel_inicial`) antes de medir. ¿Para qué sirve?
+<!-- RESPUESTAS medidas en la T4 (2026-09), N = 2^20, bloques de 256, promedio de 20 lanzamientos, dos corridas en Colab. globalUniforme 0.935 / 0.383 ms · constanteUniforme 0.644 / 0.262 ms · globalDisperso 1.583 / 0.650 ms · constanteDisperso 16.365 / 12.124 ms. Los tiempos absolutos cambian mucho entre corridas (hasta 2.4x); el orden y las razones de los casos rápidos no. (1) De más rápido a más lento, en ambas corridas: constanteUniforme, globalUniforme, globalDisperso, constanteDisperso. (2) Con acceso uniforme la constante gana 1.45x sobre la global (1.45 y 1.46 en las dos corridas). Con acceso disperso pierde por lejos: entre 10x y 19x más lenta que la global dispersa, y entre 25x y 46x más lenta que ella misma con acceso uniforme, del orden de los 32x que predice serializar las 32 direcciones del warp. La global también empeora al dispersar (1.7x en ambas corridas), en parte por el módulo en cada iteración, pero nada comparable. -->
+
+<!-- (3) El cache de memoria constante hace broadcast: una sola lectura sirve a los 32 threads del warp. Además libera al L1 y al ancho de banda global para otros datos. -->
+
+<!-- (4) En el acceso disperso el warp pide 32 direcciones distintas. La memoria global las atiende como un acceso coalescido: son 32 floats consecutivos (módulo 360), 128 bytes, que además quedan en cache. La memoria constante, en cambio, sirve una dirección por vez: 32 lecturas seriadas. Regla: memoria constante solo para datos que todo el warp lee a la vez. -->
+
+<!-- (5) El primer lanzamiento de un programa CUDA paga costos únicos: inicialización del contexto, carga del código del kernel, caches fríos. Si se midiera, el primer kernel saldría injustamente lento. Por eso cada kernel se lanza una vez sin medir (calentamiento) y después se promedian 20 lanzamientos. -->
+
+<!-- (5, continuación) Un solo lanzamiento de calentamiento NO alcanza para calentar los relojes. En reposo la T4 baja a un estado de bajo consumo con relojes lentos, y tarda de decenas a cientos de milisegundos de trabajo continuo en llegar a su frecuencia máxima (boost). Cada medición de este programa dura apenas 5-20 ms, así que las primeras pueden hacerse con la GPU todavía acelerando. Eso explica las dos corridas: la segunda fue 2.4x más rápida en los tres kernels rápidos (la GPU ya venía despierta de las corridas anteriores), mientras que constanteDisperso cambió solo 1.35x porque se mide al final y dura unos 340 ms, suficiente para que el reloj suba. Las razones entre kernels medidos seguidos se mantienen (1.45x y 1.46x) porque ambos corren a un reloj parecido. -->
+
+<!-- El efecto contrario también existe: la T4 es una tarjeta de 70 W sin ventilador propio, y bajo carga sostenida puede calentarse o tocar su límite de potencia y bajar el reloj (throttling). Eso calza con la transpuesta con conflictos de bancos, donde una corrida posterior salió MÁS lenta. Otras fuentes menores de ruido: el cronómetro corre en la CPU, que en Colab es virtual y compartida, y en intervalos de pocos milisegundos cualquier pausa pesa. -->
+
+<!-- Todo esto es una hipótesis sin verificar. Para comprobarla en Colab, registrar el estado de la GPU cada 100 ms mientras corre el programa: nvidia-smi --query-gpu=timestamp,pstate,clocks.sm,clocks.mem,temperature.gpu,power.draw,clocks_throttle_reasons.active --format=csv -lms 100 > relojes.csv & ; después ./memoria_constante.x dos veces y kill %1. Si la hipótesis es correcta, clocks.sm parte bajo y sube durante la primera corrida. Moraleja para los alumnos: calentar de verdad antes de medir, repetir la medición, y comparar razones, no tiempos absolutos. -->
+
 
 ---
 
