@@ -64,6 +64,98 @@ section.hook .destacado {
   margin: auto 0;   /* absorb the free vertical space above and below */
 }
 
+/* Shared-memory bank diagram: one column per bank, one 4-byte word per cell.
+   Mark the cells a thread reads with `ok` (conflict-free) or `conflicto`,
+   put the thread ids in a <small>, and use `gap` for the "…" column:
+
+     <table class="bancos">
+     <tr><th>Banco 0</th><th class="gap">…</th><th>Banco 31</th></tr>
+     <tr><td class="ok">0<small>t0</small></td><td class="gap">…</td><td>31</td></tr>
+     </table>
+
+   Keep the table one contiguous block: a blank line ends the HTML.
+   Backgrounds are !important because gaia stripes even rows and shades
+   the header row. */
+table.bancos {
+  margin: 0.6em auto 0.2em;
+  border-collapse: collapse;
+  font-size: 0.7em;
+  background: transparent !important;
+}
+
+table.bancos th,
+table.bancos td {
+  border: 2px solid #8a7fb8;
+  padding: 0.15em 0.4em;
+  min-width: 3.6em;
+  height: 2.4em;
+  text-align: center;
+  vertical-align: middle;
+  background: #fff !important;
+  color: #333;
+}
+
+table.bancos th {
+  border: none;
+  background: transparent !important;
+  font-weight: normal;
+  font-style: italic;
+}
+
+table.bancos td.ok {
+  background: #d7ecb0 !important;
+}
+
+table.bancos td.conflicto {
+  background: #f6c1c1 !important;
+  color: #a00;
+  font-weight: bold;
+}
+
+table.bancos th.gap,
+table.bancos td.gap {
+  border: none;
+  background: transparent !important;
+  min-width: 1.5em;
+}
+
+/* Padding cell: memory that is allocated but never read. */
+table.bancos td.pad {
+  background: repeating-linear-gradient(45deg, #ddd, #ddd 4px, #f4f4f4 4px, #f4f4f4 8px) !important;
+}
+
+/* Smaller cells, for two tables side by side. */
+table.bancos.compacto th,
+table.bancos.compacto td {
+  min-width: 2.6em;
+  height: 1.7em;
+  padding: 0.05em 0.3em;
+}
+
+table.bancos.compacto th {
+  white-space: nowrap;
+  font-size: 0.75em;
+}
+
+/* Put two or more tables (or figures) next to each other:
+   <div class="lado-a-lado"> <table>…</table> <table>…</table> </div> */
+.lado-a-lado {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1.5em;
+}
+
+.lado-a-lado table.bancos {
+  margin: 0.4em 0 0.2em;
+}
+
+table.bancos small {
+  display: block;
+  font-size: 0.7em;
+  line-height: 1;
+}
+
 .video-container {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 aspect ratio */

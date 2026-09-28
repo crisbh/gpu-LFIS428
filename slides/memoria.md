@@ -372,7 +372,7 @@ Cada *kernels* tiene un acceso contiguo y uno disperso.
 - `transpuestaCargarFilas`: carga contigua, **guarda** dispersa.
 - `transpuestaCargarColumnas`: **carga** dispersa, guarda contigua.
 
-**Regla:** si hay que tener un acceso disperso, conviene que sea el de **carga** — las cargas pasan por L1 y los *stores* no.
+**Regla:** si hay que tener un acceso disperso, conviene que sea el de **carga**. Las cargas pasan por L1 y threads pueden reutilizar datos. Los *stores* no.
 
 **Nota: en la T4 los tiempos son parecidos**: no es apreciable el beneficio en este caso.
 
@@ -431,7 +431,7 @@ __shared__ float tile[ny][nx];
 
 - Declarada dentro de un *kernel*: *scope* local; declarada fuera de cualquier *kernel*: *scope* global.
 - Como la memoria compartida está asociada a un bloque de *threads*, típicamente `nx` $=$ `blockDim.x` y `ny` $=$ `blockDim.y`.
-- El **último** índice es el que avanza más rápido en memoria, por eso `nx` va al final. 
+- El **último** índice (`nx`) es el que avanza más rápido en memoria.
   - En otras palabras, el largo de una línea es igual al número de columnas, y vice versa.
   - Luego se indexa de la forma `tile[threadIdx.y][threadIdx.x]` y *threads* contiguos quedan contiguos.
 
@@ -477,6 +477,8 @@ kernel<<<grid, block, N * sizeof(int)>>>(...);
 
 ## **Transpuesta por bloques**
 
+Este método se conoce como **tiling** (*tile*: baldosa, como las del piso).
+
 Consideremos un caso concreto: una matriz de $4 \times 4$ elementos, con bloques de $2 \times 2$ (memoria compartida del mismo tamaño).
 
 `blockDim.x=2` 
@@ -487,6 +489,7 @@ Es decir, hay $2$ bloques en cada dirección, y cada tile tiene la forma:
 ```cuda
 __shared__ float tile[2][2];
 ```
+
 
 <!-- NOTA — el 4x4 con bloques de 2x2 es un ejemplo de juguete, elegido para poder dibujar los 16 índices en una diapositiva. El código real usa N = 4096 con BDIM = 32. Hay una diferencia que conviene tener presente: con BDIM = 32 un warp es exactamente UNA fila del bloque (threadIdx.y fijo, threadIdx.x = 0..31), y por eso el argumento de coalescencia de las diapositivas que siguen es exacto, no aproximado. En el dibujo de 2x2 un "warp" no existe como tal; el dibujo sirve solo para seguir los índices. -->
 
@@ -542,7 +545,7 @@ iy = blockDim.y * blockIdx.y + threadIdx.y;
 
 ![w:340px](images/memoria/transpose_fig2.png)
 
-Índice lineal de los *threads*:
+Índice lineal de los *threads* (contiguos, i.e. por filas):
 
 ```cuda
 ti = iy * N + ix;
@@ -585,7 +588,7 @@ to = iyt * N + ixt;
 
 ![w:320px](images/memoria/transpose_fig5.png)
 
-Elementos guardados después de cargar de la memoria compartida.
+Elementos de `salida` después de cargar de la memoria compartida.
 
 ```cuda
 tile[threadIdx.y][threadIdx.x] = entrada[ti]; // escribe por filas en SMEM (paso 1)
@@ -628,8 +631,8 @@ Por eso un solo carácter cambia tanto el tiempo. -->
 
 Notar el uso de `__syncthreads()` en el código anterior.
 
-- Necesitamos garantizar que todos los *threads* en un bloque tendrán la información disponible en la memoria compartida antes de escribir `salida[to]`.
-- Esto es el mismo concepto de *barrera* que se utiliza en `openMP` o `MPI`.
+- Necesitamos garantizar que todos los **threads en un bloque** tendrán la información disponible en la memoria compartida antes de escribir `salida[to]`.
+- Este es el mismo concepto de *barrera* que se utiliza en `openMP` o `MPI`.
 - Si no se usa, a veces el programa podría funcionar, pero no hay garantías de esto, por lo que decimos que su comportamiento es *indefinido*.
 
 <!-- NOTA — la razón precisa: el thread (tx, ty) lee tile[tx][ty], una casilla que NO escribió él sino el thread (ty, tx). Sin la barrera hay una condición de carrera, porque nada garantiza que ese otro thread ya haya hecho su escritura. __syncthreads() es una barrera a nivel de BLOQUE, no del grid, y con eso alcanza porque el tile es privado del bloque. -->
@@ -646,12 +649,14 @@ Notar el uso de `__syncthreads()` en el código anterior.
 
 Ejemplo: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) (necesita [common.h](../code/memoria/common.h)).
 
-Hay cuatro *kernels*, y el programa **mide e imprime el tiempo de cada uno**:
+4 cuatro *kernels*. El programa **mide e imprime el tiempo de cada uno**:
 
-- `transpuestaGlobal`: la transpuesta con memoria global.
-- `transpuestaComp`: memoria compartida **estática**.
-- `transpuestaCompDin`: memoria compartida **dinámica**.
-- `transpuestaCompPad`: memoria compartida estática con ***padding*** (lo vemos en la clase siguiente, al llegar a conflictos de bancos).
+1. `transpuestaGlobal`: la transpuesta con memoria global.
+2. `transpuestaComp`: memoria compartida **estática**.
+3. `transpuestaCompDin`: memoria compartida **dinámica**.
+4. `transpuestaCompPad`: memoria compartida estática con ***padding*** (lo vemos en la clase siguiente, al llegar a conflictos de bancos).
+
+Referencia `transpuestaHost`: la transpuesta usando solo CPU.
 
 <!-- NOTA — el programa usa N = 4096 y BDIM = 32, o sea bloques de 32x32 = 1024 threads. Los cuatro kernels son la misma transpuesta con distinta estrategia: transpuestaGlobal es la referencia sin memoria compartida; transpuestaComp y transpuestaCompDin son el MISMO algoritmo con declaración estática y dinámica, y deben dar tiempos casi iguales (sirve justamente para mostrar que la declaración dinámica no cuesta rendimiento, solo flexibilidad); transpuestaCompPad agrega el padding que se explica en "Conflictos de bancos". El ejercicio de esta clase compara los tres primeros; el cuarto queda para la clase siguiente. -->
 
@@ -666,11 +671,11 @@ Hay cuatro *kernels*, y el programa **mide e imprime el tiempo de cada uno**:
 
 ---
 
-# Organización de la memoria compartida
+# Organización de la memoria compartida (SMEM)
 
 ---
 
-## **Acceso a la memoria compartida**
+## **Acceso a la SMEM**
 
 ![w:1020px](images/memoria/figure_5_2.png)
 
@@ -683,7 +688,7 @@ Hay cuatro *kernels*, y el programa **mide e imprime el tiempo de cada uno**:
 
 ---
 
-## **Acceso a la memoria compartida**
+## **Acceso a la memoria SMEM**
 
 ![w:1020px](images/memoria/figure_5_3.png)
 
@@ -691,7 +696,7 @@ Hay cuatro *kernels*, y el programa **mide e imprime el tiempo de cada uno**:
 
 ---
 
-## **Acceso a la memoria compartida**
+## **Acceso a la SMEM**
 
 ![w:1020px](images/memoria/figure_5_4.png)
 
@@ -699,53 +704,61 @@ Hay cuatro *kernels*, y el programa **mide e imprime el tiempo de cada uno**:
 
 ---
 
-## **Organización de la memoria compartida (bancos)**
+## **Organización de la SMEM (bancos)**
 
-![w:1020px](images/memoria/figure_5_5.png)
+![w:800px](images/memoria/figure_5_5.png)
 
 <p class="credit">Bancos de ancho 4-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
 
-<!-- --- -->
-<!---->
+- Cada banco entrega **4 bytes** (1 *palabra*) por ciclo, y segmentos consecutivos van a bancos consecutivos.
+- $\text{banco} = (\text{dirección} / 4) \bmod 32$: la palabra $32$ está en el banco $0$.
+
+<!-- NOTA — 32 bancos x 4 bytes = 128 bytes por ciclo. Un warp que lee 32 floats consecutivos toca cada banco una vez: una sola transacción. Hay conflicto cuando dos threads del warp piden palabras DISTINTAS del mismo banco (p. ej. las palabras 0 y 32); si piden la MISMA palabra hay broadcast y no hay conflicto. Adelanto para la clase siguiente: leer una columna de tile[32][32] es un stride de 32 palabras, así que los 32 threads caen en el mismo banco. Este es el modo de la T4 y de toda GPU desde Maxwell. -->
+
+---
+
 <!-- ## **Organización de la memoria compartida (bancos)** -->
 <!---->
-<!-- ![w:1020px](images/memoria/figure_5_6.png) -->
+<!-- ![w:640px](images/memoria/figure_5_6.png) -->
 <!---->
 <!-- <p class="credit">Bancos de ancho 8-bytes — Fuente: <em>Professional CUDA C Programming</em></p> -->
+<!---->
+<!-- - **8 bytes** por banco y ciclo: $\text{banco} = (\text{dirección} / 8) \bmod 32$. -->
+<!-- - Solo en Kepler (CC 3.x); la T4 usa siempre bancos de 4 bytes. -->
 
----
+<!-- NOTA — la figura del libro no calza con su propia regla. Según la fórmula (y la guía de CUDA), el banco 0 contiene las palabras de 4 bytes 0 y 1 (un double completo), el banco 1 las palabras 2 y 3, etc.; la figura dibuja 0 y 32 en el banco 0. Además tiene una errata: el banco 30 dice 28/62 y debería decir 30/62. Si alguien lo nota, darle la razón: vale la fórmula. La ventaja del modo era doble: el doble de ancho de banda para datos de 8 bytes, y dos threads que leen las dos mitades del mismo double no generan conflicto. En GPUs actuales cudaDeviceSetSharedMemConfig no tiene efecto (está deprecada). -->
 
-# Ejercicios
+<!-- --- -->
 
----
+<!-- ## **Ejercicio 1: ¿ayuda la memoria compartida?** -->
+<!---->
+<!-- Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h) -->
+<!---->
+<!-- El programa reporta el tiempo de cada *kernel*. Por ahora nos interesan tres: -->
+<!---->
+<!-- - `transpuestaGlobal` · `transpuestaComp` · `transpuestaCompDin` -->
+<!---->
+<!-- 1. Ordenarlos de más lento a más rápido. ¿Cuánto se gana con memoria compartida? -->
+<!-- 2. ¿La declaración dinámica cuesta más que la estática? -->
+<!-- 3. ¿Qué pasaría si borráramos el `__syncthreads()`? -->
+<!---->
+<!-- <!-- RESPUESTAS medidas en la T4 (2026-09), N = 4096: transpuestaGlobal 86.8 GB/s, transpuestaComp 93.9 GB/s, transpuestaCompDin 93.3 GB/s. --> -->
+<!---->
+<!-- <!-- (1) La respuesta a "cuánto se gana" es INCÓMODA a propósito: apenas un 8%. Hay que dejar que los alumnos se lleven esa sorpresa, porque es la que motiva la clase siguiente. Si alguien pregunta por qué tan poco: los dos accesos globales quedaron contiguos (8 sectores por warp contra 36 del kernel global), pero el cuello de botella se mudó a la memoria compartida, donde leer el tile por columnas provoca un conflicto de bancos de 32 vías. El detalle está en la nota de la diapositiva del código. --> -->
+<!---->
+<!-- <!-- (2) No: 93.9 contra 93.3 GB/s, un 0.6% de diferencia, que es ruido. La declaración dinámica cuesta flexibilidad (hay que pasar el tamaño al lanzar, y solo arrays 1D), no rendimiento. --> -->
+<!---->
+<!-- <!-- (3) Condición de carrera: el thread (tx,ty) lee una casilla que escribió el thread (ty,tx). Sin la barrera el resultado es indefinido — puede "funcionar" y no hay que confiar en eso. Conviene que lo prueben: con bloques de 32x32 hay 32 warps por bloque y la corrupción se ve fácil. --> -->
+<!---->
+<!-- <!-- Cuando lleguen al ejercicio 2 de la clase siguiente, transpuestaCompPad da 175.2 GB/s: 1.87x sobre transpuestaComp. Ahí recién se cobra la memoria compartida. --> -->
+<!---->
+<!-- --- -->
 
-## **Ejercicio 1: ¿ayuda la memoria compartida?**
+## **Ejercicio : cálculo de los índices a mano**
 
-Descargar: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h)
+Extender el ejemplo de la matriz transpuesta para una matriz de $8 \times 8$ con bloques de $4 \times 4$.
 
-El programa reporta el tiempo de cada *kernel*. Por ahora nos interesan tres:
-
-- `transpuestaGlobal` · `transpuestaComp` · `transpuestaCompDin`
-
-1. Ordenarlos de más lento a más rápido. ¿Cuánto se gana con memoria compartida?
-2. ¿La declaración dinámica cuesta más que la estática?
-3. ¿Qué pasaría si borráramos el `__syncthreads()`?
-
-<!-- RESPUESTAS medidas en la T4 (2026-09), N = 4096: transpuestaGlobal 86.8 GB/s, transpuestaComp 93.9 GB/s, transpuestaCompDin 93.3 GB/s. -->
-
-<!-- (1) La respuesta a "cuánto se gana" es INCÓMODA a propósito: apenas un 8%. Hay que dejar que los alumnos se lleven esa sorpresa, porque es la que motiva la clase siguiente. Si alguien pregunta por qué tan poco: los dos accesos globales quedaron contiguos (8 sectores por warp contra 36 del kernel global), pero el cuello de botella se mudó a la memoria compartida, donde leer el tile por columnas provoca un conflicto de bancos de 32 vías. El detalle está en la nota de la diapositiva del código. -->
-
-<!-- (2) No: 93.9 contra 93.3 GB/s, un 0.6% de diferencia, que es ruido. La declaración dinámica cuesta flexibilidad (hay que pasar el tamaño al lanzar, y solo arrays 1D), no rendimiento. -->
-
-<!-- (3) Condición de carrera: el thread (tx,ty) lee una casilla que escribió el thread (ty,tx). Sin la barrera el resultado es indefinido — puede "funcionar" y no hay que confiar en eso. Conviene que lo prueben: con bloques de 32x32 hay 32 warps por bloque y la corrupción se ve fácil. -->
-
-<!-- Cuando lleguen al ejercicio 2 de la clase siguiente, transpuestaCompPad da 175.2 GB/s: 1.87x sobre transpuestaComp. Ahí recién se cobra la memoria compartida. -->
-
----
-
-## **Ejercicio 1: los índices en papel**
-
-Repetir el desarrollo de las diapositivas anteriores para una matriz de $8 \times 8$ con bloques de $4 \times 4$.
+Descargas: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h)
 
 Para el *thread* `threadIdx = (1,2)` del bloque `blockIdx = (1,0)`, calcular:
 
@@ -764,41 +777,90 @@ to          // índice lineal de salida
 
 ## **Conflictos de bancos**
 
-![w:1020px](images/memoria/figure_5_7.png)
+<table class="bancos">
+<tr><th>Banco 0</th><th>Banco 1</th><th>Banco 2</th><th>Banco 3</th><th class="gap">…</th><th>Banco 30</th><th>Banco 31</th></tr>
+<tr><td class="ok">0<small>t0</small></td><td>1</td><td>2</td><td class="ok">3<small>t3</small></td><td class="gap">…</td><td>30</td><td class="ok">31<small>t31</small></td></tr>
+<tr><td>32</td><td class="ok">33<small>t1</small></td><td>34</td><td>35</td><td class="gap">…</td><td>62</td><td>63</td></tr>
+<tr><td>64</td><td>65</td><td class="ok">66<small>t2</small></td><td>67</td><td class="gap">…</td><td class="ok">94<small>t30</small></td><td>95</td></tr>
+</table>
 
-<p class="credit">Todo bien acá — Fuente: <em>Professional CUDA C Programming</em></p>
 
----
+Cada *thread* cae en un banco distinto, aunque sea en otra fila: **1 transacción**.
 
-## **Conflictos de bancos**
-
-![w:1020px](images/memoria/figure_5_8.png)
-
-<p class="credit">Todo bien acá también, gracias al ancho de 8-bytes — Fuente: <em>Professional CUDA C Programming</em></p>
-
----
-
-## **Conflictos de bancos**
-
-![w:1020px](images/memoria/figure_5_9.png)
-
-<p class="credit">¡Conflicto! — Fuente: <em>Professional CUDA C Programming</em></p>
+<!-- NOTA — banco = palabra % 32: 0 -> 0, 33 -> 1, 66 -> 2, 3 -> 3, 94 -> 30, 31 -> 31. Todos distintos, así que la fila no importa: el warp se sirve en una sola transacción. Solo se dibujan algunos threads; la regla vale para los 32. -->
 
 ---
 
 ## **Conflictos de bancos**
 
-![w:1020px](images/memoria/figure_5_10.png)
+<table class="bancos">
+<tr><th>Banco 0</th><th>Banco 1</th><th>Banco 2</th><th>Banco 3</th><th class="gap">…</th><th>Banco 30</th><th>Banco 31</th></tr>
+<tr><td class="ok">0<small>t0</small></td><td class="ok">1<small>t1 t2</small></td><td>2</td><td>3</td><td class="gap">…</td><td class="ok">30<small>t30 t31</small></td><td>31</td></tr>
+<tr><td>32</td><td>33</td><td>34</td><td>35</td><td class="gap">…</td><td>62</td><td>63</td></tr>
+<tr><td>64</td><td>65</td><td>66</td><td>67</td><td class="gap">…</td><td>94</td><td>95</td></tr>
+</table>
 
-<p class="credit">¡Conflicto! — Fuente: <em>Professional CUDA C Programming</em></p>
+Mismo banco y **misma palabra**: *broadcast*, sin conflicto.
+
+<!-- NOTA — t1 y t2 leen la MISMA palabra (1), igual que t30 y t31 (palabra 30). El banco entrega la palabra una vez y la reparte (broadcast): no hay conflicto. La figura original del libro mostraba aquí dos threads leyendo las dos mitades de una palabra de 8 bytes, un caso que solo existía en el modo de 8 bytes de Kepler; en la T4 el caso equivalente es este. Conflicto = palabras DISTINTAS en el mismo banco, no simplemente el mismo banco. -->
+
+---
+
+## **Conflictos de bancos**
+
+<table class="bancos">
+<tr><th>Banco 0</th><th>Banco 1</th><th>Banco 2</th><th>Banco 3</th><th class="gap">…</th><th>Banco 30</th><th>Banco 31</th></tr>
+<tr><td class="ok">0<small>t0</small></td><td class="conflicto">1<small>t1</small></td><td>2</td><td>3</td><td class="gap">…</td><td class="ok">30<small>t30</small></td><td class="ok">31<small>t31</small></td></tr>
+<tr><td>32</td><td class="conflicto">33<small>t2</small></td><td>34</td><td>35</td><td class="gap">…</td><td>62</td><td>63</td></tr>
+<tr><td>64</td><td>65</td><td>66</td><td>67</td><td class="gap">…</td><td>94</td><td>95</td></tr>
+</table>
+
+Dos palabras **distintas** en el banco 1: conflicto de **2 vías**, 2 transacciones.
+
+<!-- NOTA — 1 % 32 = 1 y 33 % 32 = 1: t1 y t2 piden palabras distintas del banco 1, y el banco entrega una por ciclo. El acceso se divide en 2 transacciones; el resto de los threads no tiene problema, pero el warp completo espera a la más lenta. -->
+
+---
+
+## **Conflictos de bancos**
+
+<table class="bancos">
+<tr><th>Banco 0</th><th>Banco 1</th><th>Banco 2</th><th>Banco 3</th><th class="gap">…</th><th>Banco 30</th><th>Banco 31</th></tr>
+<tr><td>0</td><td class="conflicto">1<small>t0</small></td><td>2</td><td>3</td><td class="gap">…</td><td class="ok">30<small>t30</small></td><td class="ok">31<small>t31</small></td></tr>
+<tr><td>32</td><td class="conflicto">33<small>t1</small></td><td>34</td><td>35</td><td class="gap">…</td><td>62</td><td>63</td></tr>
+<tr><td>64</td><td class="conflicto">65<small>t2</small></td><td>66</td><td>67</td><td class="gap">…</td><td>94</td><td>95</td></tr>
+</table>
+
+Tres palabras distintas en el banco 1: conflicto de **3 vías**, 3 transacciones serializadas.
+
+<!-- NOTA — 1, 33 y 65 caen todas en el banco 1 (n % 32 = 1): conflicto de 3 vías. El caso extremo es un stride de 32 palabras, que pone a los 32 threads en el mismo banco: conflicto de 32 vías. Es exactamente lo que pasa al leer una columna de tile[32][32] en la transpuesta, dos diapositivas más adelante. -->
 
 ---
 
 ## **Solución: *padding***
 
-![w:920px](images/memoria/figure_5_11.png)
+<div class="lado-a-lado">
+<table class="bancos compacto">
+<tr><th>Banco 0</th><th>Banco 1</th><th>Banco 2</th><th>Banco 3</th><th>Banco 4</th><th>padding</th></tr>
+<tr><td class="conflicto">0</td><td>1</td><td>2</td><td>3</td><td>4</td><td class="pad"></td></tr>
+<tr><td class="conflicto">0</td><td>1</td><td>2</td><td>3</td><td>4</td><td class="pad"></td></tr>
+<tr><td class="conflicto">0</td><td>1</td><td>2</td><td>3</td><td>4</td><td class="pad"></td></tr>
+<tr><td class="conflicto">0</td><td>1</td><td>2</td><td>3</td><td>4</td><td class="pad"></td></tr>
+<tr><td class="conflicto">0</td><td>1</td><td>2</td><td>3</td><td>4</td><td class="pad"></td></tr>
+</table>
+<table class="bancos compacto">
+<tr><th>Banco 0</th><th>Banco 1</th><th>Banco 2</th><th>Banco 3</th><th>Banco 4</th></tr>
+<tr><td class="ok">0</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+<tr><td class="pad"></td><td class="ok">0</td><td>1</td><td>2</td><td>3</td></tr>
+<tr><td>4</td><td class="pad"></td><td class="ok">0</td><td>1</td><td>2</td></tr>
+<tr><td>3</td><td>4</td><td class="pad"></td><td class="ok">0</td><td>1</td></tr>
+<tr><td>2</td><td>3</td><td>4</td><td class="pad"></td><td class="ok">0</td></tr>
+<tr><td>1</td><td>2</td><td>3</td><td>4</td><td class="pad"></td></tr>
+</table>
+</div>
 
-<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+Una columna extra por fila desplaza cada fila un banco: la columna $0$ queda en bancos **distintos**.
+
+<!-- NOTA — modelo de juguete del libro: 5 bancos y una matriz de 5x5, cada casilla marcada con su índice de columna. Sin padding (izquierda) una fila ocupa exactamente los 5 bancos, así que toda la columna 0 cae en el banco 0: leer una columna es un conflicto de 5 vías. Con una casilla extra por fila (derecha) cada fila empieza un banco más allá, y la columna 0 queda repartida en los bancos 0, 1, 2, 3, 4: una sola transacción. La memoria de más son las casillas grises, que nunca se leen. En la transpuesta real son 32 bancos y tile[32][33]: el elemento tile[tx][ty] está en el índice tx*33+ty, banco (tx*33+ty) % 32 = (tx+ty) % 32, distinto para cada thread del warp. Es la diapositiva siguiente. -->
 
 ---
 
