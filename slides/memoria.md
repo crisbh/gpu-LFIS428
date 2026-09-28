@@ -895,6 +895,7 @@ salida[to] = tile[threadIdx.x][threadIdx.y];
 
 Ahora los elementos de una columna van a **bancos distintos**.
 
+- Esto es justamente lo que hizo más rápido el kernel `transpuestaCompPad` en el ejemplo del código [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
 ---
 
 # Memoria constante
