@@ -898,7 +898,7 @@ Referencia `transpuestaHost`: la transpuesta usando solo CPU.
 
 <!-- Si alguien pregunta por qué leer el tile por columnas y no simplemente reusar lo que el cache trae de más (como en la transpuesta global): en la versión global, el reuso de los bytes sobrantes de cada sector es accidental y depende de que sigan en el cache; aquí nada se trae de más (las dos cuentas globales son contiguas) y el reuso lo garantizan el programador y la barrera. La lectura por columnas se hace en memoria compartida porque ahí un acceso disperso no desperdicia sectores: cuesta una transacción, salvo conflictos de bancos, que es el tema de la clase siguiente. -->
 
----
+<!-- --- -->
 
 # Conflictos de bancos
 
