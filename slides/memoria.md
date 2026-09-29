@@ -874,20 +874,21 @@ Referencia `transpuestaHost`: la transpuesta usando solo CPU.
 <!---->
 <!-- --- -->
 
-## **Ejercicio : cálculo de los índices a mano**
-
-Extender el ejemplo de la matriz transpuesta para una matriz de $8 \times 8$ con bloques de $4 \times 4$.
-
-Descargas: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h)
-
-Para el *thread* `threadIdx = (1,2)` del bloque `blockIdx = (1,0)`, calcular:
-
-```cuda
-ix, iy      // índices globales
-ti          // índice lineal de entrada
-ixt, iyt    // índices tras el paso 1
-to          // índice lineal de salida
-```
+<!-- ## **Ejercicio : cálculo de los índices a mano** -->
+<!---->
+<!-- Extender el ejemplo de la matriz transpuesta para una matriz de $8 \times 8$ con bloques de $4 \times 4$. -->
+<!---->
+<!-- Descargas: [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu) y [common.h](../code/memoria/common.h) -->
+<!---->
+<!-- Para el *thread* `threadIdx = (1,2)` del bloque `blockIdx = (1,0)`, calcular: -->
+<!---->
+<!-- ```cuda -->
+<!-- ix, iy      // índices globales -->
+<!-- ti          // índice lineal de entrada -->
+<!-- ixt, iyt    // índices tras el paso 1 -->
+<!-- to          // índice lineal de salida -->
+<!-- ``` -->
+<!---->
 
 <!-- RESPUESTAS — con N = 8, blockDim = (4,4), blockIdx = (1,0), threadIdx = (1,2), y las fórmulas del kernel transpuestaComp: ix = 4*1 + 1 = 5 · iy = 4*0 + 2 = 2 · ti = iy*N + ix = 2*8 + 5 = 21 · ixt = blockDim.y*blockIdx.y + threadIdx.x = 4*0 + 1 = 1 · iyt = blockDim.x*blockIdx.x + threadIdx.y = 4*1 + 2 = 6 · to = iyt*N + ixt = 6*8 + 1 = 49. -->
 
@@ -1049,6 +1050,8 @@ Ahora los elementos de una columna van a **bancos distintos**.
 cudaError_t cudaMemcpyToSymbol(const void* simbolo, const void* src, size_t count);
 ```
 
+<!-- NOTA — conexión con lo que acabamos de ver: el cache de memoria constante sigue la misma regla que los bancos de memoria compartida. Si todo el warp pide la MISMA dirección, una sola lectura sirve a los 32 threads (broadcast, como la "misma palabra" en un banco). Si pide k direcciones distintas, la lectura se divide en k lecturas seriadas, como un conflicto de k vías. Por eso sirve para constantes que todos los threads leen a la vez, y no para tablas indexadas por thread. El ejemplo que sigue mide los dos casos. -->
+
 ---
 
 ## **Memoria constante: ejemplo**
@@ -1123,7 +1126,7 @@ realidad DOS copias. -->
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
-<!-- NOTA — izquierda: los datos están en memoria paginable, el driver los copia primero a un buffer pinned (la flecha horizontal, una copia CPU a CPU) y después el DMA los manda a la DRAM del GPU. Derecha: si los datos ya están en memoria pinned, la primera copia desaparece. La ganancia depende del sistema, y en el ejercicio 3 los alumnos la miden. -->
+<!-- NOTA — izquierda: los datos están en memoria paginable, el driver los copia primero a un buffer pinned (la flecha horizontal, una copia CPU a CPU) y después el DMA los manda a la DRAM del GPU. Derecha: si los datos ya están en memoria pinned, la primera copia desaparece. La ganancia depende del sistema: se puede medir con memoriaPinned.cu y nvprof, cambiando cudaMallocHost por malloc. -->
 
 ---
 
@@ -1138,7 +1141,7 @@ El uso de demasiada memoria *pinned* puede afectar el rendimiento del sistema en
 
 Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
 
-<!-- NOTA — el costo de la memoria pinned: es RAM que el sistema operativo ya no puede mandar al disco ni reorganizar. Si se asigna demasiada, el resto del sistema se queda sin memoria y empieza a paginar todo lo demás. Por eso no se asigna TODO como pinned (es la pregunta 4 del ejercicio 3): solo los buffers que se transfieren seguido. Adelanto: en el capítulo de kernels (clase 15), cudaMemcpyAsync con streams EXIGE memoria pinned para poder solapar copias y cómputo. -->
+<!-- NOTA — el costo de la memoria pinned: es RAM que el sistema operativo ya no puede mandar al disco ni reorganizar. Si se asigna demasiada, el resto del sistema se queda sin memoria y empieza a paginar todo lo demás. Por eso no se asigna TODO como pinned: solo los buffers que se transfieren seguido. Adelanto: en el capítulo de kernels (clase 15), cudaMemcpyAsync con streams EXIGE memoria pinned para poder solapar copias y cómputo. -->
 
 ---
 
@@ -1211,7 +1214,7 @@ nvcc -arch=sm_75 memoria_unificada.cu -o memoria_unificada.x
 nvprof ./memoria_unificada.x
 ```
 
-<!-- NOTA — las cuatro mediciones: (1) el kernel con los datos recién inicializados en el host, así que paga los fallos de página; (2) el mismo kernel con los datos ya en el GPU; (3) cudaMemPrefetchAsync de x e y, después de volver a inicializarlos en el host (eso trae las páginas de vuelta al CPU); (4) el kernel después del prefetch. Lo esperado: (1) mucho mayor que (2), y la diferencia es la migración; (3) cerca de la velocidad del PCIe; (4) parecido a (2). nvprof agrega al final una sección "Unified Memory profiling result" con los bytes Host To Device, Device To Host y los grupos de fallos de página del GPU. Los tiempos medidos en la T4 están en la nota del ejercicio 4. -->
+<!-- NOTA — las cuatro mediciones: (1) el kernel con los datos recién inicializados en el host, así que paga los fallos de página; (2) el mismo kernel con los datos ya en el GPU; (3) cudaMemPrefetchAsync de x e y, después de volver a inicializarlos en el host (eso trae las páginas de vuelta al CPU); (4) el kernel después del prefetch. Lo esperado: (1) mucho mayor que (2), y la diferencia es la migración; (3) cerca de la velocidad del PCIe; (4) parecido a (2). nvprof agrega al final una sección "Unified Memory profiling result" con los bytes Host To Device, Device To Host y los grupos de fallos de página del GPU. Los tiempos medidos en la T4 están en la nota del ejercicio 3. -->
 
 ---
 
