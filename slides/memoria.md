@@ -1155,8 +1155,6 @@ clase 15 (streams). -->
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
-Paginable: **dos** copias. *Pinned*: **una**.
-
 <!-- NOTA — izquierda: los datos están en memoria paginable, el driver los copia
 primero a un buffer pinned (la flecha horizontal, una copia CPU a CPU) y después
 el DMA los manda a la DRAM del GPU. Derecha: si los datos ya están en memoria
