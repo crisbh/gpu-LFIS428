@@ -27,8 +27,7 @@ Programas de ejemplo para las clases:
 - [variableGlobal.cu](../code/memoria/variableGlobal.cu) · [variableGlobalDin.cu](../code/memoria/variableGlobalDin.cu)
 - [copiarFila.cu](../code/memoria/copiarFila.cu) · [copiarColumna.cu](../code/memoria/copiarColumna.cu)
 - [transpuesta.cu](../code/memoria/transpuesta.cu) · [transpuesta_compartida.cu](../code/memoria/transpuesta_compartida.cu)
-- [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
-<!-- - [memoria_constante.cu](../code/memoria/memoria_constante.cu) · [memoriaPinned.cu](../code/memoria/memoriaPinned.cu) · [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) -->
+- [memoria_constante.cu](../code/memoria/memoria_constante.cu) (necesita [common.h](../code/memoria/common.h)) · [memoriaPinned.cu](../code/memoria/memoriaPinned.cu) (necesita [common.h](../code/memoria/common.h)) · [memoria_unificada.cu](../code/memoria/memoria_unificada.cu) (necesita [common.h](../code/memoria/common.h))
 
 <!-- ###################################### -->
 <!-- ## Control de los threads -->
@@ -63,6 +62,7 @@ Programas de ejemplo para las clases:
 <!-- ## Aplicaciones -->
 <!---->
 <!-- - N-cuerpos: [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) -->
+<!-- - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c) -->
 <!-- - OpenGL: [simpleGL.cu](../code/aplicaciones/simpleGL.cu) -->
 <!-- - Ray tracing (*Ray Tracing in One Weekend* en CUDA), por capítulo: -->
 <!--   - [Cap. 1 — salida básica](../code/aplicaciones/ray_tracing/c01_salida_basica/ch01_rt.cu) -->

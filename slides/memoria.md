@@ -1164,14 +1164,14 @@ que sigue la mide. -->
 | Páginas | el SO las mueve | fijas en la RAM |
 | Tamaño | limitado por SSD| limitada por la RAM física |
 | Copia al GPU | dos copias | **una** copia |
-| Costo | lo que está en disco es **lento**| le quita RAM al resto; asignarla es más cara |
+| Costo | lo que está en disco es **lento**| le quita RAM al resto del sistema |
 
 <!-- NOTA — ninguna es "mejor": son un compromiso. La paginable es flexible (el
 programa puede pedir más memoria de la que hay, y el SO reparte la RAM entre
 todos los procesos), pero paga una copia extra al transferir y es muy lenta si
 sus páginas están en el disco. La pinned transfiere más rápido, pero cada byte
-pinned es RAM que el resto del sistema pierde, y fijar las páginas se paga una
-vez al asignar (el SO tiene que bloquear cada página). Consecuencias: pinned
+pinned es RAM que el resto del sistema pierde. Fijar las páginas tiene un
+costo al asignar, pero en la T4 no se nota: ver el ejemplo. Consecuencias: pinned
 solo para los buffers que se transfieren seguido. Si se pide más memoria pinned
 de la que hay libre, cudaMallocHost falla; malloc, en cambio, casi nunca falla
 al asignar (Linux reserva direcciones sin comprometer RAM hasta que se tocan).
@@ -1211,14 +1211,20 @@ nvcc -arch=sm_75 memoriaPinned.cu -o memoriaPinned.x
 ./memoriaPinned.x
 ```
 
-<!-- NOTA — qué mirar: las copias desde memoria pinned deberían ser más rápidas
-en los dos sentidos (una copia en vez de dos), acercándose a los ~12 GB/s reales
-del PCIe 3.0 x16 de la T4. Y la columna de asignación muestra el costo: asignar
-e inicializar memoria pinned tarda más, porque el SO tiene que fijar cada
-página. Ese es el compromiso de la tabla, medido. Detalle del programa: malloc
-es "perezoso" (solo reserva direcciones y las páginas se asignan al tocarlas por
-primera vez), por eso se mide asignar MÁS inicializar en los dos casos. Sin
-medir todavía en la T4. -->
+<!-- NOTA — medido en la T4 (2026-09), una corrida, 64 MB y 10 copias: paginable 65.0
+ms para asignar+iniciar, 4.77 GB/s host->device, 4.60 GB/s device->host; pinned
+56.7 ms, 12.36 GB/s y 13.14 GB/s. Las copias: pinned es 2.6x más rápida hacia el
+GPU y 2.9x de vuelta, y llega a los ~12-13 GB/s reales del PCIe 3.0 x16 de la
+T4. La paginable se queda en menos de 5 GB/s porque cada copia son dos: primero
+al buffer pinned del driver y recién después por el PCIe. La sorpresa es la
+asignación: la pinned NO sale más cara (56.7 contra 65.0 ms). malloc es
+lazy: solo reserva direcciones, y las 16384 páginas se asignan una por una
+al inicializar, cada una con su fallo de página. cudaMallocHost fija todas las
+páginas de una vez al asignar, así que la inicialización ya no paga fallos. El
+costo de fijar existe, pero cambia de lugar y a este tamaño se compensa. El
+verdadero costo de la memoria pinned no es el tiempo sino la RAM que el resto
+del sistema pierde. Una sola corrida: los tiempos absolutos varían en Colab; las
+razones son lo que importa. -->
 
 ---
 
