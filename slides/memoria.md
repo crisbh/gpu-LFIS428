@@ -1129,15 +1129,23 @@ el host y el GPU. -->
   - El SO puede mover sus páginas o mandarlas al disco.
 - Lo **opuesto** es la memoria ***pinned*** o *page-locked* (`cudaMallocHost`)
   - Las páginas quedan fijas en la RAM física.
-- El GPU copia directo desde la RAM del host, y para eso necesita páginas que no se muevan. Desde memoria paginable, el *driver* primero copia a un buffer *pinned* propio.
+- Internamente, el GPU solo puede copiar por desde páginas fijas. 
+  - Con memoria paginable el *driver* primero copia los datos a un buffer *pinned* propio.
+  - Por eso *pinned* es **opcional**: no hace falta para copiar, pero ahorra esa copia extra.
 
-<!-- NOTA — la copia por el PCIe la hace un motor DMA del GPU, que lee la RAM
-del host directamente, sin pasar por el CPU. Para eso necesita que las páginas
-no se muevan mientras copia, y el sistema operativo podría mover (o mandar al
-disco) una página paginable en cualquier momento. Por eso el driver no copia
-desde la memoria paginable: primero la copia a un buffer pinned propio y recién
-desde ahí la manda por el PCIe. Una transferencia desde memoria paginable son en
-realidad DOS copias. -->
+<!-- NOTA — dos niveles, en este orden. Lo que usa el alumno: cudaMemcpy desde
+memoria de malloc SIEMPRE funciona; pinned es una decisión de rendimiento (en la
+T4, 2.6-2.9x más rápida según el ejemplo). Por qué la paginable es más lenta: la
+copia por el PCIe la hace un motor DMA del GPU, que lee la RAM del host sin
+pasar por el CPU, y necesita que las páginas no se muevan mientras copia; el
+sistema operativo podría mover (o mandar al disco) una página paginable en
+cualquier momento. Por eso el driver copia la memoria paginable por pedazos a un
+buffer pinned propio y recién desde ahí la manda por el PCIe: una transferencia
+desde memoria paginable son en realidad DOS copias, y eso lo hace el driver sin
+que el programa se entere. El único caso donde pinned deja de ser opcional:
+cudaMemcpyAsync solo se solapa con el cómputo si el buffer del host es pinned;
+desde memoria paginable se comporta como una copia sincrónica. Eso es de la
+clase 15 (streams). -->
 
 ---
 
