@@ -1054,23 +1054,24 @@ cudaError_t cudaMemcpyToSymbol(const void* simbolo, const void* src, size_t coun
 
 ---
 
-## **Memoria constante: ejemplo**
+<!-- ## **Memoria constante: ejemplo** -->
 
-Ejemplo: [memoria_constante.cu](../code/memoria/memoria_constante.cu) (necesita [common.h](../code/memoria/common.h)).
-
-Cada *thread* suma los $360$ ángulos de una tabla. El programa mide cuatro versiones:
-
-- Tabla en memoria **global** o **constante**.
-- Acceso **uniforme** (todo el *warp* lee el mismo ángulo) o **disperso** (cada *thread* lee uno distinto).
-
-```bash
-nvcc -arch=sm_75 memoria_constante.cu -o memoria_constante.x
-./memoria_constante.x
-```
+<!-- Ejemplo: [memoria_constante.cu](../code/memoria/memoria_constante.cu) (necesita -->
+<!-- [common.h](../code/memoria/common.h)). -->
+<!---->
+<!-- Cada *thread* suma los $360$ ángulos de una tabla. El programa mide cuatro -->
+<!-- versiones: -->
+<!---->
+<!-- - Tabla en memoria **global** o **constante**. -->
+<!-- - Acceso **uniforme** (todo el *warp* lee el mismo ángulo) o **disperso** (cada -->
+<!--   *thread* lee uno distinto). -->
+<!---->
+<!-- ```bash nvcc -arch=sm_75 memoria_constante.cu -o memoria_constante.x -->
+<!-- ./memoria_constante.x ``` -->
 
 <!-- NOTA — la memoria constante tiene su propio cache, que entrega UNA dirección por lectura a todo el warp (broadcast). Si el warp pide k direcciones distintas, la lectura se divide en k lecturas seriadas. El acceso uniforme es su mejor caso y el disperso el peor: 32 direcciones, 32 lecturas. La memoria global, en cambio, junta 32 floats consecutivos en un solo acceso coalescido y cacheado. Resultado esperado: con acceso uniforme la constante empata o gana; con acceso disperso pierde por mucho. En la T4 las lecturas uniformes de memoria global también quedan en el L1, así que la diferencia en el caso uniforme puede ser chica: eso también es parte de la lección. Los cuatro kernels acumulan en un registro y escriben una sola vez, para que lo único que cambie sea de dónde se leen los ángulos. -->
 
----
+<!-- --- -->
 
 # Transferencias entre *host* y *device*
 
@@ -1102,13 +1103,33 @@ transferir: memoria pinned (copias explícitas más rápidas) y memoria unificad
 
 ---
 
-## **Memoria *pinned***
+## **Páginas de memoria**
 
-La memoria en el *host* es, por defecto, *paginable*.
-- Está *organizada en páginas* que el sistema operativo puede mover a la memoria virtual (en el disco duro).
-- Cuando el sistema requiere datos que están en el disco, ocurre un *page fault* y los datos se copian del disco al RAM. 
-  - Esto lo controla el host, no el GPU.
-- Transferir datos del *host* al *device* implica asignar memoria *page-locked* o *pinned* en el *host*: los datos se transfieren de *paginable* a *pinned* y después al *device*.
+- Cuando ejecutamos un programa, el sistema operativo (SO) está en control de administrar la memoria.
+- La memoria que ve un programa es **virtual**: el SO la divide en bloques de tamaño fijo llamadas **páginas** (en Linux, $4$ KB).
+- Una tabla de páginas traduce cada página virtual a un lugar físico en la RAM. 
+  - Ese lugar **puede cambiar** en cualquier momento.
+- Si falta RAM, el SO manda páginas al disco (*swap*) y las trae de vuelta cuando se tocan. 
+  - Esto se denomina *page fault* (no es un error).
+
+<!-- NOTA — la página es la unidad con que el sistema operativo administra la
+memoria: no mueve bytes sueltos, mueve páginas completas. Para tener una escala:
+un buffer de 64 MB son 16384 páginas de 4 KB. Existen también páginas grandes
+(huge pages, 2 MB) para reducir el tamaño de la tabla. Lo importante para lo que
+sigue es que la dirección virtual que usa el programa NO dice dónde están
+físicamente los datos, y que ese lugar puede cambiar sin que el programa se
+entere. Esta misma idea vuelve con la memoria unificada, que migra páginas entre
+el host y el GPU. -->
+
+---
+
+## **Memoria paginable y *pinned***
+
+- Por defecto la memoria del *host* es **paginable** (`malloc`).
+  - El SO puede mover sus páginas o mandarlas al disco.
+- Lo **opuesto** es la memoria ***pinned*** o *page-locked* (`cudaMallocHost`)
+  - Las páginas quedan fijas en la RAM física.
+- El GPU copia directo desde la RAM del host, y para eso necesita páginas que no se muevan. Desde memoria paginable, el *driver* primero copia a un buffer *pinned* propio.
 
 <!-- NOTA — la copia por el PCIe la hace un motor DMA del GPU, que lee la RAM
 del host directamente, sin pasar por el CPU. Para eso necesita que las páginas
@@ -1120,13 +1141,43 @@ realidad DOS copias. -->
 
 ---
 
-## **Memoria *pinned***
+## **Memoria paginable y *pinned***
 
 ![w:760px](images/memoria/figure_4_4.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
-<!-- NOTA — izquierda: los datos están en memoria paginable, el driver los copia primero a un buffer pinned (la flecha horizontal, una copia CPU a CPU) y después el DMA los manda a la DRAM del GPU. Derecha: si los datos ya están en memoria pinned, la primera copia desaparece. La ganancia depende del sistema: se puede medir con memoriaPinned.cu y nvprof, cambiando cudaMallocHost por malloc. -->
+Paginable: **dos** copias. *Pinned*: **una**.
+
+<!-- NOTA — izquierda: los datos están en memoria paginable, el driver los copia
+primero a un buffer pinned (la flecha horizontal, una copia CPU a CPU) y después
+el DMA los manda a la DRAM del GPU. Derecha: si los datos ya están en memoria
+pinned, la primera copia desaparece. La ganancia depende del sistema; el ejemplo
+que sigue la mide. -->
+
+---
+
+## **Memoria paginable y *pinned***
+
+| | Paginable (`malloc`) | *Pinned* (`cudaMallocHost`) |
+|---|---|---|
+| Páginas | el SO las mueve | fijas en la RAM |
+| Tamaño | limitado por SSD| limitada por la RAM física |
+| Copia al GPU | dos copias | **una** copia |
+| Costo | lo que está en disco es **lento**| le quita RAM al resto; asignarla es más cara |
+
+<!-- NOTA — ninguna es "mejor": son un compromiso. La paginable es flexible (el
+programa puede pedir más memoria de la que hay, y el SO reparte la RAM entre
+todos los procesos), pero paga una copia extra al transferir y es muy lenta si
+sus páginas están en el disco. La pinned transfiere más rápido, pero cada byte
+pinned es RAM que el resto del sistema pierde, y fijar las páginas se paga una
+vez al asignar (el SO tiene que bloquear cada página). Consecuencias: pinned
+solo para los buffers que se transfieren seguido. Si se pide más memoria pinned
+de la que hay libre, cudaMallocHost falla; malloc, en cambio, casi nunca falla
+al asignar (Linux reserva direcciones sin comprometer RAM hasta que se tocan).
+Ojo en Colab: las máquinas virtuales normalmente no tienen swap, así que la
+ventaja de "superar la RAM" es teórica ahí. -->
+
 
 ---
 
@@ -1137,11 +1188,37 @@ cudaError_t cudaMallocHost(void **devPtr, size_t count);
 cudaError_t cudaFreeHost(void *ptr);
 ```
 
-El uso de demasiada memoria *pinned* puede afectar el rendimiento del sistema entero, ya que reduce la cantidad de memoria *paginable* disponible.
+- Usar demasiada memoria *pinned* puede afectar el rendimiento del sistema entero, ya que reduce la cantidad de memoria *paginable* disponible para el SO.
+- Recomendación: priorizar datos que se transfieren entre *host* y *device* frecuentemente.
 
-Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu).
+<!-- NOTA — el costo de la memoria pinned: es RAM que el sistema operativo ya no
+puede mandar al disco ni reorganizar. Si se asigna demasiada, el resto del
+sistema se queda sin memoria y empieza a paginar todo lo demás. Por eso no se
+asigna TODO como pinned: solo los buffers que se transfieren seguido. Adelanto:
+en el capítulo de kernels (clase 15), cudaMemcpyAsync con streams EXIGE memoria
+pinned para poder solapar copias y cómputo. -->
 
-<!-- NOTA — el costo de la memoria pinned: es RAM que el sistema operativo ya no puede mandar al disco ni reorganizar. Si se asigna demasiada, el resto del sistema se queda sin memoria y empieza a paginar todo lo demás. Por eso no se asigna TODO como pinned: solo los buffers que se transfieren seguido. Adelanto: en el capítulo de kernels (clase 15), cudaMemcpyAsync con streams EXIGE memoria pinned para poder solapar copias y cómputo. -->
+---
+
+## **Memoria *pinned*: ejemplo**
+
+Ejemplo: [memoriaPinned.cu](../code/memoria/memoriaPinned.cu) (necesita [common.h](../code/memoria/common.h)).
+
+El programa asigna el mismo buffer de $64$ MB como memoria **paginable** y como ***pinned***, y mide para cada uno el costo de asignarlo e inicializarlo, y la velocidad de las copias *host* → *device* y *device* → *host*.
+
+```bash
+nvcc -arch=sm_75 memoriaPinned.cu -o memoriaPinned.x
+./memoriaPinned.x
+```
+
+<!-- NOTA — qué mirar: las copias desde memoria pinned deberían ser más rápidas
+en los dos sentidos (una copia en vez de dos), acercándose a los ~12 GB/s reales
+del PCIe 3.0 x16 de la T4. Y la columna de asignación muestra el costo: asignar
+e inicializar memoria pinned tarda más, porque el SO tiene que fijar cada
+página. Ese es el compromiso de la tabla, medido. Detalle del programa: malloc
+es "perezoso" (solo reserva direcciones y las páginas se asignan al tocarlas por
+primera vez), por eso se mide asignar MÁS inicializar en los dos casos. Sin
+medir todavía en la T4. -->
 
 ---
 

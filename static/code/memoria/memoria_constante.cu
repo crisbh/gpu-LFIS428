@@ -1,7 +1,7 @@
 /* Memoria constante contra memoria global.
  *
  * Cada thread suma los 360 ángulos de una tabla. Hay cuatro versiones:
- *   - la tabla está en memoria global o en memoria constante;
+ *   - la tabla está en memoria global o en memoria constante.
  *   - el acceso es uniforme (todos los threads del warp leen el MISMO ángulo
  *     en cada iteración) o disperso (cada thread lee un ángulo distinto).
  *

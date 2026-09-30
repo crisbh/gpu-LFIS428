@@ -46,7 +46,6 @@ double medirSuma(int n, float *x, float *y) {
 }
 
 // Mover un arreglo al GPU antes de usarlo.
-// La firma de cudaMemPrefetchAsync cambió en CUDA 13.
 void prefetch(float *ptr, size_t bytes, int dispositivo) {
 #if CUDART_VERSION >= 13000
   cudaMemLocation destino;
@@ -67,7 +66,7 @@ int main(void) {
   // Crear el contexto de CUDA antes de medir nada
   CHECK(cudaFree(0));
 
-  // ¿Soporta el GPU la migración de páginas a pedido?
+  // Soporta el GPU la migración de páginas a pedido?
   int aPedido = 0;
   CHECK(cudaDeviceGetAttribute(&aPedido, cudaDevAttrConcurrentManagedAccess,
                                dispositivo));
