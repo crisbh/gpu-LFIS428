@@ -1286,7 +1286,10 @@ del PCIe, antes de lanzar. Antes de Pascal (Kepler, Maxwell) el GPU no tenía
 fallos de página: el driver copiaba TODA la memoria unificada al GPU en cada
 lanzamiento. La firma de cudaMemPrefetchAsync cambió en CUDA 13 (recibe un
 cudaMemLocation en vez del número de dispositivo); el ejemplo compila con las
-dos. -->
+dos. ¿Hace falta memoria pinned para cudaMemPrefetchAsync? No: trabaja sobre
+memoria unificada (cudaMallocManaged), que no es ni malloc ni cudaMallocHost.
+El driver fija las páginas solo mientras las migra, por eso el prefetch del
+ejemplo llega a 10-11 GB/s, cerca de la copia pinned y lejos de la paginable. -->
 
 ---
 
