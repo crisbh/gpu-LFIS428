@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-__global__ void reduccion_memoria_compartida(float *data, unsigned int N) {
+__global__ void reduccion_memoria_compartida(float *salida, const float *data,
+                                             unsigned int N) {
   unsigned int idx_x = blockIdx.x * blockDim.x + threadIdx.x;
 
   // declaramos memoria compartida
@@ -27,10 +28,11 @@ __global__ void reduccion_memoria_compartida(float *data, unsigned int N) {
     __syncthreads();
   }
 
-  // Primer thread da cada bloque actualiza el array en la memoria
-  // global, usando el índice del **bloque** para acceder al array
+  // Primer thread de cada bloque guarda el resultado del bloque en OTRO
+  // arreglo, usando el índice del **bloque**. Escribirlo en data[blockIdx.x]
+  // pisaría datos que otro bloque todavía no copia a su memoria compartida.
   if (threadIdx.x == 0)
-    data[blockIdx.x] = s_data[0];
+    salida[blockIdx.x] = s_data[0];
 }
 
 void inicializar_numeros(float *data, int size) {
@@ -54,7 +56,7 @@ float resultado_cpu(float *data, int N) {
 
 int main() {
   float *h_array;
-  float *d_array;
+  float *d_array, *d_salida;
 
   unsigned int N = 1 << 25;
   unsigned int Nt = N;
@@ -72,18 +74,25 @@ int main() {
 
   // Asignar memoria en el GPU y copiar datos
   cudaMalloc((void **)&d_array, N * sizeof(float));
+  cudaMalloc((void **)&d_salida, (N + n_threads - 1) / n_threads * sizeof(float));
   cudaMemcpy(d_array, h_array, N * sizeof(float), cudaMemcpyHostToDevice);
 
-  // Calcular reducción en el GPU
+  // Calcular reducción en el GPU: cada pasada lee de "entrada" y escribe un
+  // resultado por bloque en "salida"; después se intercambian los punteros
+  float *entrada = d_array, *salida = d_salida;
   while (N > 1) {
     int n_bloques = (N + n_threads - 1) / n_threads;
     reduccion_memoria_compartida<<<n_bloques, n_threads,
-                                   n_threads * sizeof(float), 0>>>(d_array, N);
+                                   n_threads * sizeof(float), 0>>>(salida,
+                                                                   entrada, N);
     N = n_bloques;
+    float *tmp = entrada;
+    entrada = salida;
+    salida = tmp;
   }
 
   // Copiar resultado del GPU
-  cudaMemcpy(&resultado_gpu, &d_array[0], sizeof(float),
+  cudaMemcpy(&resultado_gpu, &entrada[0], sizeof(float),
              cudaMemcpyDeviceToHost);
 
   // Calcular reducción en el CPU (secuencial)
@@ -93,6 +102,7 @@ int main() {
 
   // Liberar memoria
   cudaFree(d_array);
+  cudaFree(d_salida);
   free(h_array);
 
   return 0;

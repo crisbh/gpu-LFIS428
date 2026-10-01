@@ -12,9 +12,12 @@ __global__ void matriz_mult(const float *A, const float *B, float *C, int N,
   int col = blockIdx.x * blockDim.x + threadIdx.x;
   int fila = blockIdx.y * blockDim.y + threadIdx.y;
 
+  if (fila >= N || col >= M) // proteger contra el exceso de threads
+    return;
+
   float suma = 0.f;
   for (int i = 0; i < K; ++i) {
-    suma += A[fila * K + i] * B[i * K + col];
+    suma += A[fila * K + i] * B[i * M + col];
   }
 
   C[fila * M + col] = alpha * suma + beta * C[fila * M + col];
@@ -51,8 +54,8 @@ int main() {
 
   // copiar valores iniciales al GPU
   cudaMemcpy(d_A, A, N * K * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_B, A, K * M * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_C, A, N * M * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_B, B, K * M * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_C, C, N * M * sizeof(float), cudaMemcpyHostToDevice);
 
   // invocar kernel
   dim3 dimBlock(BLOCK_DIM_X, BLOCK_DIM_Y);

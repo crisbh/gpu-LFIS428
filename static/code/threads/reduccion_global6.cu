@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-__global__ void reduccion_memoria_global(float *data, int N) {
+__global__ void reduccion_memoria_global(float *data, float *parcial, int N) {
 
   unsigned int idx = blockIdx.x * blockDim.x * 2 + threadIdx.x;
 
@@ -28,9 +28,10 @@ __global__ void reduccion_memoria_global(float *data, int N) {
     }
   }
 
-  // guardar el resultado para este bloque en memoria global
+  // guardar el resultado de este bloque en un arreglo APARTE: escribirlo en
+  // data[blockIdx.x] pisaría datos que el bloque 0 todavía está sumando
   if (threadIdx.x == 0)
-    data[blockIdx.x] = idata[0];
+    parcial[blockIdx.x] = idata[0];
 }
 
 void inicializar_numeros(float *data, int size) {
@@ -78,16 +79,19 @@ int main() {
 
   // Asignar memoria en el GPU y copiar datos
   cudaMalloc((void **)&d_array, N * sizeof(float));
+  // resultados parciales: uno por bloque
+  float *d_parcial;
+  cudaMalloc((void **)&d_parcial, N / n_threads * sizeof(float));
   cudaMemcpy(d_array, h_array, N * sizeof(float), cudaMemcpyHostToDevice);
 
   // Calcular reducción en el GPU
   int n_bloques = (N + n_threads - 1) / n_threads;
-  reduccion_memoria_global<<<n_bloques / 2, n_threads>>>(d_array, N);
+  reduccion_memoria_global<<<n_bloques / 2, n_threads>>>(d_array, d_parcial, N);
 
   // Copiar resultado del GPU
   // Ahora copiamos los resultados parciales de cada bloque y calculamos
   // la suma final en el lado del host
-  cudaMemcpy(h_array, d_array, n_bloques / 2 * sizeof(float),
+  cudaMemcpy(h_array, d_parcial, n_bloques / 2 * sizeof(float),
              cudaMemcpyDeviceToHost);
   for (int i = 0; i < n_bloques / 2; i++)
     resultado_gpu += h_array[i];
@@ -97,6 +101,7 @@ int main() {
 
   // Liberar memoria
   cudaFree(d_array);
+  cudaFree(d_parcial);
   free(h_array);
 
   return 0;
