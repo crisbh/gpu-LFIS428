@@ -156,6 +156,45 @@ table.bancos small {
   line-height: 1;
 }
 
+/* Timeline diagram (e.g. streams pipelining): one row per engine, one column
+   per time slot. Color a busy slot by stream with s1…s4; leave idle slots
+   empty. Same contiguous-block rule as table.bancos.
+
+     <table class="timeline">
+     <tr><th>Copia H→D</th><td class="s1">1</td><td class="s2">2</td><td></td></tr>
+     </table> */
+table.timeline {
+  margin: 0.3em auto;
+  border-collapse: collapse;
+  font-size: 0.6em;
+  background: transparent !important;
+}
+
+table.timeline th,
+table.timeline td {
+  border: 1px solid #b9b2a0;
+  padding: 0.1em 0.3em;
+  min-width: 2.2em;
+  height: 1.6em;
+  text-align: center;
+  background: #fff !important;
+  color: #333;
+}
+
+table.timeline th {
+  border: none;
+  background: transparent !important;
+  font-weight: normal;
+  font-style: italic;
+  text-align: right;
+  white-space: nowrap;
+}
+
+table.timeline td.s1 { background: #a5d6a7 !important; }
+table.timeline td.s2 { background: #90caf9 !important; }
+table.timeline td.s3 { background: #ffcc80 !important; }
+table.timeline td.s4 { background: #ce93d8 !important; }
+
 .video-container {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 aspect ratio */
