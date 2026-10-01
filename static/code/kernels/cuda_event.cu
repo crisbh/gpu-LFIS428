@@ -1,109 +1,89 @@
-#include <cstdio>
-#include <helper_timer.h>
+/* Medir el tiempo de un kernel con eventos de CUDA.
+ *
+ * Un evento es una marca que se pone en la fila de un stream. El GPU anota
+ * la hora en que la fila llega a esa marca, así que la diferencia entre dos
+ * eventos mide el tiempo en el GPU, sin el ruido del lado del host.
+ *
+ * Para comparar, el mismo kernel se mide también con un cronómetro del host,
+ * que incluye el lanzamiento y la sincronización.
+ *
+ * Compilar:  nvcc -arch=sm_75 cuda_event.cu -o cuda_event.x
+ */
 
-using namespace std;
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
 
-__global__ void vecAdd_kernel(float *c, const float *a, const float *b);
-void init_buffer(float *data, const int size);
+#define BLOQUE 256
+#define ITER 2000
 
-int main(int argc, char *argv[]) {
-  float *h_a, *h_b, *h_c;
-  float *d_a, *d_b, *d_c;
-  int size = 1 << 24;
-  int bufsize = size * sizeof(float);
+__global__ void calcular(float *c, const float *a, const float *b, int n) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < n) {
+    float v = a[idx];
+    for (int i = 0; i < ITER; i++)
+      v = v * 0.9999f + b[idx];
+    c[idx] = v;
+  }
+}
 
-  // allocate host memories
-  cudaMallocHost((void **)&h_a, bufsize);
-  cudaMallocHost((void **)&h_b, bufsize);
-  cudaMallocHost((void **)&h_c, bufsize);
+double segundos() {
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  return (double)tp.tv_sec + (double)tp.tv_usec * 1.e-6;
+}
 
-  // initialize host values
+int main() {
+  int n = 1 << 24;
+  size_t bytes = n * sizeof(float);
+
+  float *h_a = (float *)malloc(bytes), *h_b = (float *)malloc(bytes);
   srand(2019);
-  init_buffer(h_a, size);
-  init_buffer(h_b, size);
-  init_buffer(h_c, size);
+  for (int i = 0; i < n; i++) {
+    h_a[i] = rand() / (float)RAND_MAX;
+    h_b[i] = rand() / (float)RAND_MAX;
+  }
 
-  // allocate device memories
-  cudaMalloc((void **)&d_a, bufsize);
-  cudaMalloc((void **)&d_b, bufsize);
-  cudaMalloc((void **)&d_c, bufsize);
+  float *d_a, *d_b, *d_c;
+  cudaMalloc((void **)&d_a, bytes);
+  cudaMalloc((void **)&d_b, bytes);
+  cudaMalloc((void **)&d_c, bytes);
+  cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice);
 
-  // copy host -> device
-  cudaMemcpyAsync(d_a, h_a, bufsize, cudaMemcpyHostToDevice);
-  cudaMemcpyAsync(d_b, h_b, bufsize, cudaMemcpyHostToDevice);
+  int grid = (n + BLOQUE - 1) / BLOQUE;
 
-  // initialize the host timer
-  StopWatchInterface *timer;
-  sdkCreateTimer(&timer);
+  // calentamiento
+  calcular<<<grid, BLOQUE>>>(d_c, d_a, d_b, n);
+  cudaDeviceSynchronize();
 
-  cudaEvent_t start, stop;
-  // create CUDA events
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
+  // crear los eventos
+  cudaEvent_t inicio, fin;
+  cudaEventCreate(&inicio);
+  cudaEventCreate(&fin);
 
-  // start to measure the execution time
-  sdkStartTimer(&timer);
-  cudaEventRecord(start);
+  double t0 = segundos();
+  cudaEventRecord(inicio); // marca antes del kernel
+  calcular<<<grid, BLOQUE>>>(d_c, d_a, d_b, n);
+  cudaEventRecord(fin); // marca después del kernel
 
-  // launch cuda kernel
-  dim3 dimBlock(256);
-  dim3 dimGrid(size / dimBlock.x);
-  vecAdd_kernel<<<dimGrid, dimBlock>>>(d_c, d_a, d_b);
+  // el host todavía no sabe nada: el lanzamiento es asincrónico.
+  // Esperamos a que el GPU llegue a la marca "fin".
+  cudaEventSynchronize(fin);
+  double t_host = (segundos() - t0) * 1e3;
 
-  // record the event right after the kernel execution finished
-  cudaEventRecord(stop);
+  float t_evento;
+  cudaEventElapsedTime(&t_evento, inicio, fin);
 
-  // Synchronize the device to measure the execution time from the host side
-  cudaEventSynchronize(
-      stop); // we also can make synchronization based on CUDA event
-  sdkStopTimer(&timer);
+  printf("tiempo medido con eventos:     %8.3f ms\n", t_evento);
+  printf("tiempo medido desde el host:   %8.3f ms\n", t_host);
 
-  // copy device -> host
-  cudaMemcpyAsync(h_c, d_c, bufsize, cudaMemcpyDeviceToHost);
-
-  // print out the result
-  int print_idx = 256;
-  printf("compared a sample result...\n");
-  printf("host: %.6f, device: %.6f\n", h_a[print_idx] + h_b[print_idx],
-         h_c[print_idx]);
-
-  // print estimated kernel execution time
-  float elapsed_time_msed = 0.f;
-  cudaEventElapsedTime(&elapsed_time_msed, start, stop);
-  printf("CUDA event estimated - elapsed %.3f ms \n", elapsed_time_msed);
-
-  // Compute and print the performance
-  elapsed_time_msed = sdkGetTimerValue(&timer);
-  printf("Host measured time= %.3f msec/s\n", elapsed_time_msed);
-
-  // terminate device memories
+  cudaEventDestroy(inicio);
+  cudaEventDestroy(fin);
   cudaFree(d_a);
   cudaFree(d_b);
   cudaFree(d_c);
-
-  // terminate host memories
-  cudaFreeHost(h_a);
-  cudaFreeHost(h_b);
-  cudaFreeHost(h_c);
-
-  // delete timer
-  sdkDeleteTimer(&timer);
-
-  // terminate CUDA events
-  cudaEventDestroy(start);
-  cudaEventDestroy(stop);
-
+  free(h_a);
+  free(h_b);
   return 0;
-}
-
-__global__ void vecAdd_kernel(float *c, const float *a, const float *b) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  for (int i = 0; i < 500; i++)
-    c[idx] = a[idx] + b[idx];
-}
-
-void init_buffer(float *data, const int size) {
-  for (int i = 0; i < size; i++)
-    data[i] = rand() / (float)RAND_MAX;
 }
