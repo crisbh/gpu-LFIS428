@@ -195,6 +195,16 @@ table.timeline td.s2 { background: #90caf9 !important; }
 table.timeline td.s3 { background: #ffcc80 !important; }
 table.timeline td.s4 { background: #ce93d8 !important; }
 
+/* Waiting slot (e.g. a warp stalled on a memory load): hatched grey. */
+table.timeline td.espera {
+  background: repeating-linear-gradient(45deg, #ddd, #ddd 4px, #f4f4f4 4px, #f4f4f4 8px) !important;
+}
+
+/* Time-slot header cells (t0, t1, …): centred, not right-aligned. */
+table.timeline th.t {
+  text-align: center;
+}
+
 .video-container {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 aspect ratio */

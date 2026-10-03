@@ -11,25 +11,25 @@ theme: curso
 
 ---
 
-## **Códigos**
-
-Los códigos de esta clase están disponibles para descargar:
-
-- [cuda_thread_block.cu](../code/threads/cuda_thread_block.cu), [matriz_mult.cu](../code/threads/matriz_mult.cu)
-- Reducción: [reduccion_global.cu](../code/threads/reduccion_global.cu) … [reduccion_global8.cu](../code/threads/reduccion_global8.cu), [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu)
-- Reducción completa y atómicas: [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu), [histograma.cu](../code/threads/histograma.cu)
-- [grid_stride.cu](../code/threads/grid_stride.cu)
-- [warp_shuffle_down.cu](../code/threads/warp_shuffle_down.cu), [warp_shuffle_up.cu](../code/threads/warp_shuffle_up.cu), [warp_shuffle_xor.cu](../code/threads/warp_shuffle_xor.cu)
-- [gpu_suma_error.py](../code/threads/gpu_suma_error.py), [gpu_producto_punto_error.py](../code/threads/gpu_producto_punto_error.py)
-
-<!-- NOTA — todos los programas de esta clase son autocontenidos (no necesitan
-common.h) y se compilan con nvcc -arch=sm_75. Los de la reducción imprimen el
-resultado del host y del GPU para comparar; reduccion-shuffle.cu e
-histograma.cu además miden su tiempo con eventos de CUDA, que se ven en la
-clase de streams. Los dos .py usan PyCUDA, que veremos en la clase de
-librerías. -->
-
----
+<!-- ## **Códigos** -->
+<!---->
+<!-- Los códigos de esta clase están disponibles para descargar: -->
+<!---->
+<!-- - [cuda_thread_block.cu](../code/threads/cuda_thread_block.cu), [matriz_mult.cu](../code/threads/matriz_mult.cu) -->
+<!-- - Reducción: [reduccion_global.cu](../code/threads/reduccion_global.cu) … [reduccion_global8.cu](../code/threads/reduccion_global8.cu), [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu) -->
+<!-- - Reducción completa y atómicas: [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu), [histograma.cu](../code/threads/histograma.cu) -->
+<!-- - [grid_stride.cu](../code/threads/grid_stride.cu) -->
+<!-- - [warp_shuffle_down.cu](../code/threads/warp_shuffle_down.cu), [warp_shuffle_up.cu](../code/threads/warp_shuffle_up.cu), [warp_shuffle_xor.cu](../code/threads/warp_shuffle_xor.cu) -->
+<!-- - [gpu_suma_error.py](../code/threads/gpu_suma_error.py), [gpu_producto_punto_error.py](../code/threads/gpu_producto_punto_error.py) -->
+<!---->
+<!-- <!-- NOTA — todos los programas de esta clase son autocontenidos (no necesitan -->
+<!-- common.h) y se compilan con nvcc -arch=sm_75. Los de la reducción imprimen el -->
+<!-- resultado del host y del GPU para comparar; reduccion-shuffle.cu e -->
+<!-- histograma.cu además miden su tiempo con eventos de CUDA, que se ven en la -->
+<!-- clase de streams. Los dos .py usan PyCUDA, que veremos en la clase de -->
+<!-- librerías. --> -->
+<!---->
+<!-- --- -->
 
 ## **Organización y sincronización de los threads**
 
@@ -54,9 +54,9 @@ usamos en la reducción. -->
 
 **SIMT** (*single instruction, multiple threads*) está entre **SIMD** (vectorización, AVX) y **SMT** (*threads* independientes, OpenMP):
 
-- Escribimos el código de **un** *thread*; cada uno tiene sus propios registros.
+- Escribimos el código de **un** *thread*; c/u tiene sus propios registros.
 - Cada *thread* puede acceder a cualquier dirección (pero el acceso contiguo sigue siendo mejor).
-- Cada *thread* puede tomar su propio camino en un `if`/`else`, a costa de **divergencia**.
+- Cada *thread* puede tomar su propio camino en un `if`/`else` (a costa de **divergencia**).
 
 En flexibilidad: **SIMD < SIMT < SMT**.
 
@@ -69,9 +69,9 @@ divergentes (más adelante en esta clase) cuestan rendimiento. -->
 
 ---
 
-## **SIMT: costos**
+## **SIMT: desventajas**
 
-- Con pocos *warps* activos (**occupancy** baja) no hay con qué esconder la latencia.
+- Con pocos *warps* activos (**occupancy** baja) no hay suficiente concurrency para esconder la latencia.
 - La **divergencia de *warps*** serializa las ramas de un `if`.
 - CUDA 9 agregó control fino: *warp primitives* (`__shfl_down_sync`, `__syncwarp`, ...) y *cooperative groups*.
 
@@ -85,17 +85,111 @@ desde Volta. Cooperative groups queda fuera del curso. -->
 ## **Diseño del GPU**
 
 *Throughput* alto, *latency* alto:
-- Los CPUs optimizan *latency* (tiempo de demora).
-- Los GPUs optimizan *throughput* (cantidad de datos procesados).
+- Los **CPUs**  optimizan *latency* (tiempo de espera).
+- Los **GPUs**  optimizan *throughput* (cantidad de datos procesados).
 
-Cada *core* de un GPU es mucho más lento que un *core* de un CPU... pero hay miles de *cores*, así que un GPU puede usar miles de *threads* e intercambiar entre ellos (*context switching*) mucho más rápido que un CPU.
+Cada *core* de un GPU es mucho más lento que un *core* de un CPU... 
+
+Pero hay miles de *cores*, así que un GPU puede usar miles de *threads* e intercambiar entre ellos (*context switching*) mucho más rápido que un CPU.
 
 <!-- NOTA — conviene conectar con el roofline del capítulo 1: un acceso a DRAM
 tarda cientos de ciclos (300-600 en la T4, ver la jerarquía de memoria), y el
 GPU no intenta reducir esa latencia como un CPU con caches grandes y ejecución
 especulativa. La esconde: mientras un warp espera su dato, el SM ejecuta otro.
 Para eso necesita muchos warps listos, y eso es exactamente lo que mide el
-occupancy. -->
+occupancy. Las dos diapositivas que siguen lo muestran como una línea de
+tiempo. -->
+
+---
+
+## **Latencia: ejemplo con un solo warp**
+
+```cuda
+float a = x[i];     // L: cargar de memoria global (latencia alta)
+y[i] = 2.0f * a;    // C: calcular y guardar (necesita a)
+```
+
+Asumamos que una carga tarda $4$ unidades de tiempo (ciclos del reloj) en llegar, y el  *streaming multiprocessor* (SM) emite **una** instrucción por ciclo.
+
+<table class="timeline">
+<tr><th></th><th class="t">t0</th><th class="t">t1</th><th class="t">t2</th><th class="t">t3</th><th class="t">t4</th></tr>
+<tr><th>Warp 0</th><td class="s1">L</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td class="s1">C</td></tr>
+<tr><th>SM emite</th><td class="s1">W0</td><td>—</td><td>—</td><td>—</td><td class="s1">W0</td></tr>
+</table>
+
+El SM está esperando (*idle*) de $3$ de $5$ ciclos: el *warp* pasa casi todo el tiempo esperando.
+
+<!-- NOTA — el modelo es de juguete a propósito: en la T4 un acceso a DRAM tarda
+unos 300-600 ciclos (diapositiva de la jerarquía en el capítulo de memoria),
+no 4. Con un solo warp, el SM estaría ocioso casi todo el tiempo: emite la
+carga, y después no tiene nada que hacer hasta que llega el dato, porque la
+instrucción siguiente depende de él. Las casillas rayadas son ese tiempo de
+espera. -->
+
+
+---
+
+## **¿Cómo mantener ocupada la máquina?**
+
+```cuda
+float a = x[i];     // L: cargar de memoria global (latencia alta)
+y[i] = 2.0f * a;    // C: calcular y guardar (necesita a)
+```
+
+Ahora tenemos 4 *warps* para ejecutar las mismas tareas.
+
+<table class="timeline">
+<tr><th></th><th class="t">t0</th><th class="t">t1</th><th class="t">t2</th><th class="t">t3</th><th class="t">t4</th><th class="t">t5</th><th class="t">t6</th><th class="t">t7</th></tr>
+<tr><th>Warp 0</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Warp 1</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Warp 2</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Warp 3</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>SM emite</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+
+**¿Qué opciones tenemos para repartir el trabajo de modo que el SM no se quede esperando?**
+
+<!-- NOTA — dejar que la clase proponga antes de pasar a la diapositiva siguiente;
+se puede llenar la tabla en la pizarra con sus ideas. Las respuestas que
+buscamos son dos. (1) Más warps: mientras uno espera su carga, el SM emite la
+instrucción de otro (paralelismo entre threads, TLP); es lo que muestran las
+dos diapositivas que siguen, y lleva al occupancy. (2) Más trabajo
+independiente dentro de cada thread: si cada thread carga dos elementos antes
+de usar el primero (por ejemplo x[i] y x[i + N/2]), las dos cargas están en
+vuelo a la vez (paralelismo de instrucciones, ILP); es lo que hace el loop
+unrolling en la reducción. Las dos se combinan. Respuestas que conviene
+descartar: hacer más rápido un solo thread no sirve, porque lo que domina es
+la espera de la memoria, no el cálculo; y reordenar las dos instrucciones no
+se puede, porque C depende de L. -->
+
+---
+
+## **Esconder la latencia: varios warps**
+
+<table class="timeline">
+<tr><th></th><th class="t">t0</th><th class="t">t1</th><th class="t">t2</th><th class="t">t3</th><th class="t">t4</th><th class="t">t5</th><th class="t">t6</th><th class="t">t7</th></tr>
+<tr><th>Warp 0</th><td class="s1">L</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td class="s1">C</td><td></td><td></td><td></td></tr>
+<tr><th>Warp 1</th><td></td><td class="s2">L</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td class="s2">C</td><td></td><td></td></tr>
+<tr><th>Warp 2</th><td></td><td></td><td class="s3">L</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td class="s3">C</td><td></td></tr>
+<tr><th>Warp 3</th><td></td><td></td><td></td><td class="s4">L</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td class="s4">C</td></tr>
+<tr><th>SM emite</th><td class="s1">W0</td><td class="s2">W1</td><td class="s3">W2</td><td class="s4">W3</td><td class="s1">W0</td><td class="s2">W1</td><td class="s3">W2</td><td class="s4">W3</td></tr>
+</table>
+
+- Mientras un *warp* espera, el SM emite una instrucción **independiente** a otro *warp*.
+- $4$ *warps* terminan en $8$ tiempos, en vez de $4 \times 5 = 20$: el SM nunca está ocioso.
+- La latencia **sigue ahí**, pero queda **escondida**.
+
+<!-- NOTA — la regla general: para esconder una latencia de L ciclos hay que tener
+suficiente trabajo independiente en vuelo; es la ley de Little aplicada al
+GPU, bytes en vuelo = latencia x ancho de banda. Estimación de orden de
+magnitud para la T4: 300 GB/s x unos 250 ns (unos 400 ciclos a 1.59 GHz) dan
+unos 75 KB en vuelo, repartidos entre 40 SMs, unos 1.9 KB por SM, o sea unos
+15 warps por SM si cada thread carga un float (128 B por warp). Por eso un SM
+mantiene hasta 32 warps residentes, y por eso la sección siguiente mide
+cuántos hay: eso es el occupancy. La otra forma de tener trabajo independiente
+es dentro de un mismo warp (ILP): varias cargas independientes antes de usar
+cualquiera de ellas, que es lo que hace el loop unrolling en la reducción. Y
+explica la diapositiva anterior: el GPU no reduce la latencia, la esconde. -->
 
 ---
 
@@ -103,8 +197,9 @@ occupancy. -->
 
 Ejemplo: [cuda_thread_block.cu](../code/threads/cuda_thread_block.cu).
 
-- Bloques y *warps* se ejecutan en cualquier orden: lo que imprimen sale desordenado.
-- Dentro de un *warp* los *threads* suelen imprimir en orden, pero desde Volta **no está garantizado**: no hay que programar asumiendo *lock-step*.
+- Bloques y *warps* se ejecutan en cualquier orden: lo que imprimen no está ordenado.
+- Dentro de un *warp* los *threads* suelen imprimir en orden, pero desde Volta **no está garantizado**.
+ - **No**  hay que programar un código asumiendo *lock-step*.
 
 <!-- NOTA — el programa recibe el tamaño del grid y del bloque como argumentos
 (./cuda_thread_block.x 4 128) e imprime thread, bloque, warp y lane para
@@ -221,9 +316,9 @@ de 16 threads, cae en el caso peor que el de esta tabla. -->
 
 Recordar el **modelo roofline** (Capítulo 1): un *kernel* con $AI$ bajo cae en la región *memory bound*, y su techo es $AI \times$ ancho de banda.
 
-Más *warps* activos $\Rightarrow$ más accesos a memoria en vuelo $\Rightarrow$ se oculta la *latency* y el *kernel* se acerca a ese techo.
+Más *warps* activos $\Rightarrow$ más accesos a memoria $\Rightarrow$ se oculta la latencia y el *kernel* se acerca a ese techo.
 
-Si el *kernel* ya alcanza el techo, o si es *compute bound*, subir el *occupancy* no ayuda.
+Si el *kernel* ya alcanza el techo, o si es *compute bound*, subir el *occupancy* **no ayuda**.
 
 <!-- NOTA — la idea clave: occupancy no es una meta en sí. Sirve para esconder
 latencia de memoria, así que importa en kernels memory bound que están lejos
@@ -259,6 +354,7 @@ Para controlar el *occupancy*:
 - `--maxrregcount` en el compilador, para limitar el número de registros ocupados.
 
 Si el compilador no puede satisfacer las restricciones, usará memoria fuera de los registros (*register spill*).
+ - Esto no es deseable ya que reduce el rendimiento. La idea es evitarlo.
 
 <!-- NOTA — __launch_bounds__ le dice al compilador para qué tamaño de bloque
 optimizar: con esa garantía puede repartir los registros sabiendo cuántos
@@ -300,7 +396,7 @@ para verla conviene subir N (múltiplo del bloque). TODO: medir en la T4. -->
 
 ## **Reducción paralela**
 
-- Vimos el concepto de reducción en el curso de programación paralela.
+- Recordar el concepto de reducción visto en el curso de Programación Paralela.
 - Significa obtener un solo valor de un conjunto de datos, en forma paralela.
 - Un ejemplo sería la suma total de todos los elementos en un *array*.
 
@@ -314,14 +410,75 @@ desperdiciar la menor cantidad de threads. -->
 
 ## **Reducción paralela**
 
-![w:560px](images/threads/parallel_reduction.jpeg)
+<svg class="arbol" viewBox="0 0 960 310" width="860" style="display:block;margin:0.4em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<defs><marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
+<line x1="60" y1="50" x2="105" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="150" y1="50" x2="105" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="240" y1="50" x2="285" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="330" y1="50" x2="285" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="420" y1="50" x2="465" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="510" y1="50" x2="465" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="600" y1="50" x2="645" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="690" y1="50" x2="645" y2="93" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="105" y1="135" x2="195" y2="178" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="285" y1="135" x2="195" y2="178" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="465" y1="135" x2="555" y2="178" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="645" y1="135" x2="555" y2="178" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="195" y1="220" x2="375" y2="263" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<line x1="555" y1="220" x2="375" y2="263" stroke="#555" stroke-width="2" marker-end="url(#flecha)"/>
+<rect x="28" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="60" y="38" font-size="24" fill="#fff" text-anchor="middle">13</text>
+<rect x="118" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="150" y="38" font-size="24" fill="#fff" text-anchor="middle">27</text>
+<rect x="208" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="240" y="38" font-size="24" fill="#fff" text-anchor="middle">15</text>
+<rect x="298" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="330" y="38" font-size="24" fill="#fff" text-anchor="middle">14</text>
+<rect x="388" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="420" y="38" font-size="24" fill="#fff" text-anchor="middle">33</text>
+<rect x="478" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="510" y="38" font-size="24" fill="#fff" text-anchor="middle">2</text>
+<rect x="568" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="600" y="38" font-size="24" fill="#fff" text-anchor="middle">24</text>
+<rect x="658" y="10" width="64" height="40" rx="4" fill="#9e9e9e"/>
+<text x="690" y="38" font-size="24" fill="#fff" text-anchor="middle">6</text>
+<rect x="73" y="95" width="64" height="40" rx="4" fill="#76b900"/>
+<text x="105" y="123" font-size="24" fill="#fff" text-anchor="middle">40</text>
+<rect x="253" y="95" width="64" height="40" rx="4" fill="#76b900"/>
+<text x="285" y="123" font-size="24" fill="#fff" text-anchor="middle">29</text>
+<rect x="433" y="95" width="64" height="40" rx="4" fill="#76b900"/>
+<text x="465" y="123" font-size="24" fill="#fff" text-anchor="middle">35</text>
+<rect x="613" y="95" width="64" height="40" rx="4" fill="#76b900"/>
+<text x="645" y="123" font-size="24" fill="#fff" text-anchor="middle">30</text>
+<rect x="163" y="180" width="64" height="40" rx="4" fill="#76b900"/>
+<text x="195" y="208" font-size="24" fill="#fff" text-anchor="middle">69</text>
+<rect x="523" y="180" width="64" height="40" rx="4" fill="#76b900"/>
+<text x="555" y="208" font-size="24" fill="#fff" text-anchor="middle">65</text>
+<rect x="343" y="265" width="64" height="40" rx="4" fill="#76b900"/>
+<text x="375" y="293" font-size="24" fill="#fff" text-anchor="middle">134</text>
+<text x="760" y="38" font-size="22" fill="#455a64" font-style="italic">datos</text>
+<text x="760" y="123" font-size="22" fill="#455a64" font-style="italic">paso 1: 4 sumas</text>
+<text x="760" y="208" font-size="22" fill="#455a64" font-style="italic">paso 2: 2 sumas</text>
+<text x="760" y="293" font-size="22" fill="#455a64" font-style="italic">paso 3: 1 suma</text>
+</svg>
 
-<p class="credit">Fuente: www.eximia.co</p>
+Algoritmo de *árbol*:
+ - Dividimos el cálculo en *ramas* que calculan sumas parciales.
+ - En cada paso, juntamos las sumas parciales (sincronizamos).
 
 <!-- NOTA — el árbol de la figura: en cada nivel la mitad de los elementos se suma
 con la otra mitad, así que para N elementos hacen falta log2(N) niveles.
 Secuencial son N-1 sumas en N-1 pasos; en paralelo son las mismas N-1 sumas,
 pero en log2(N) pasos. -->
+
+<!-- NOTA — versión redibujada (SVG) de la figura anterior, con los mismos
+valores. Las sumas están verificadas: 13+27=40, 15+14=29, 33+2=35, 24+6=30,
+40+29=69, 35+30=65 y 69+65=134. En cada paso se suman PARES VECINOS, así que
+la cantidad de valores se reduce a la mitad: con N = 8 hacen falta log2(8) = 3
+pasos (4, 2 y 1 sumas). Secuencial son las mismas N-1 = 7 sumas, pero en 7
+pasos. El patrón de pares vecinos es el de las primeras versiones del código
+(reduccion_global, global2); las versiones con acceso contiguo suman en cambio
+la primera mitad con la segunda, con el mismo número de pasos. -->
 
 ---
 
@@ -356,7 +513,7 @@ falta ninguna barrera dentro del kernel. -->
 
 ## **Reducción paralela: memoria global**
 
-![w:560px](images/threads/reduction_global.png)
+![w:720px](images/threads/reduction_global.png)
 
 `stride = 8` no puede pasar porque el ciclo va hasta `stride < N`.
 
@@ -412,7 +569,7 @@ pasa por memoria global, y cada nivel lee y escribe el arreglo entero. -->
 
 Ejemplo: [reduccion_global2.cu](../code/threads/reduccion_global2.cu).
 
-![w:560px](images/threads/reduction_global_strided.png)
+![w:720px](images/threads/reduction_global_strided.png)
 
 <!-- NOTA — reduccion_global2.cu agrega la condición idx % (2*stride) == 0: ahora
 solo suman los threads cuyos resultados importan. Se hace menos trabajo
@@ -443,7 +600,7 @@ por la misma rama, no hay costo extra. -->
 
 ## **Divergencia de warps**
 
-- Todos los *threads* dentro de un *warp* ejecutan la misma instrucción en el mismo momento.
+- Recordar que en CUDA, todos los *threads* dentro de un *warp* ejecutan la misma instrucción en cada instante.
 - Entonces, ¿cómo podemos tener divergencia de los *threads* dentro de un *warp*?
 - En el ejemplo (y en el código de la reducción) los *threads* de índice par ejecutan sus instrucciones, mientras los otros **esperan**.
 - La divergencia de *warp* (*warp divergence*) implica menos eficiencia de un *kernel*.
@@ -460,7 +617,7 @@ pagan en serie. -->
 
 ## **Divergencia de warps**
 
-![w:560px](images/threads/warp_divergence.png)
+![w:1020px](images/threads/warp_divergence.png)
 
 <!-- NOTA — la figura muestra las dos ramas ejecutándose una después de la otra,
 con la mitad de los threads del warp inactivos en cada una. En
@@ -487,7 +644,7 @@ que comparen reduccion_global2 con reduccion_global3 con esta métrica. -->
 
 Ejemplo: [reduccion_global3.cu](../code/threads/reduccion_global3.cu).
 
-![w:560px](images/threads/reduction_global_noWD.png)
+![w:620px](images/threads/reduction_global_noWD.png)
 
 Puede ser problemático usar el índice global de los *threads* para un *array* muy grande...
 
@@ -504,7 +661,7 @@ cabe en un int, por eso el código usa unsigned long. -->
 
 Ejemplo: [reduccion_global4.cu](../code/threads/reduccion_global4.cu).
 
-![w:520px](images/threads/block_reduction.png)
+![w:1220px](images/threads/block_reduction.png)
 
 <p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
 
@@ -599,7 +756,7 @@ directo del grid-stride loop, que hace lo mismo sin un factor fijo. -->
 
 Ejemplo: [reduccion_global6.cu](../code/threads/reduccion_global6.cu).
 
-![w:560px](images/threads/reduction_global_unrolled.png)
+![w:720px](images/threads/reduction_global_unrolled.png)
 
 <!-- NOTA — reduccion_global6.cu: cada bloque procesa 2*blockDim elementos. Primero
 cada thread suma su elemento con el que está un bloque más adelante, y después
@@ -1034,6 +1191,6 @@ localmente, después una atómica por bloque. -->
 
 ---
 
-# ¡Gracias!
+# Fin Capítulo 3
 
-## Próxima clase: invocación de los kernels
+## Próximo capítulo: invocación de los kernels
