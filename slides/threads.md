@@ -198,13 +198,20 @@ explica la diapositiva anterior: el GPU no reduce la latencia, la esconde. -->
 
 Ejemplo: [cuda_thread_block.cu](../code/threads/cuda_thread_block.cu).
 
+Recibe dos argumentos: el número de bloques y de *threads* por bloque.
+
+```bash
+nvcc -arch=sm_75 cuda_thread_block.cu -o cuda_thread_block.x
+./cuda_thread_block.x 4 128     # 4 bloques de 128 threads
+```
+
 - Bloques y *warps* se ejecutan en cualquier orden: lo que imprimen no está ordenado.
 - Dentro de un *warp* los *threads* **suelen**  imprimir en orden, pero desde Volta **no está garantizado**.
  - **No**  hay que programar un código asumiendo *lock-step*.
 
 <!-- NOTA — el programa recibe el tamaño del grid y del bloque como argumentos
 (./cuda_thread_block.x 4 128) e imprime thread, bloque, warp y lane para
-algunos threads. Vale la pena ejecutarlo varias veces: el orden entre bloques y
+los lanes 0 y 16 de cada warp. Sin argumentos muestra cómo usarlo y termina. Vale la pena ejecutarlo varias veces: el orden entre bloques y
 entre warps cambia. Que dentro de un warp salga en orden es un detalle de
 implementación de printf, no una garantía; desde Volta los threads de un warp
 pueden avanzar por separado. -->
