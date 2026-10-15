@@ -36,7 +36,7 @@ theme: curso
 | Nivel | Se compone de | Sincronización |
 |---|---|---|
 | *Grid* | bloques | no hay entre bloques (solo al terminar el *kernel*) |
-| Bloque | *warps* (máx. $1024$ *threads*) | `__syncthreads()` |
+| Bloque | *warps* ($\leq 1024$ *threads*) | `__syncthreads()` |
 | *Warp* | $32$ *threads* | `__syncwarp()`: **no** es implícita desde Volta |
 
 <!-- NOTA — antes de Volta (CC 7.0) los 32 threads de un warp avanzaban juntos
@@ -52,11 +52,11 @@ usamos en la reducción. -->
 
 ## **Modelo SIMT**
 
-**SIMT** (*single instruction, multiple threads*) está entre **SIMD** (vectorización, AVX) y **SMT** (*threads* independientes, OpenMP):
+CUDA es un modelo **SIMT** (*single instruction, multiple threads*). Es una mezcla entre **SIMD** (vectorización, AVX) y **SMT** (*threads* independientes, OpenMP):
 
 - Escribimos el código de **un** *thread*; c/u tiene sus propios registros.
 - Cada *thread* puede acceder a cualquier dirección (pero el acceso contiguo sigue siendo mejor).
-- Cada *thread* puede tomar su propio camino en un `if`/`else` (a costa de **divergencia**).
+- Cada *thread* puede tomar su propio camino en un `if`/`else` (a costa de producir **divergencia**).
 
 En flexibilidad: **SIMD < SIMT < SMT**.
 
@@ -71,8 +71,8 @@ divergentes (más adelante en esta clase) cuestan rendimiento. -->
 
 ## **SIMT: desventajas**
 
-- Con pocos *warps* activos (**occupancy** baja) no hay suficiente concurrency para esconder la latencia.
-- La **divergencia de *warps*** serializa las ramas de un `if`.
+- Con pocos *warps* activos (**occupancy** baja), no hay suficiente concurrency para esconder la latencia.
+- Un *warp* serializa las ramas de un `if` (divergencia).
 - CUDA 9 agregó control fino: *warp primitives* (`__shfl_down_sync`, `__syncwarp`, ...) y *cooperative groups*.
 
 <!-- NOTA — estos dos costos son la agenda de la clase: occupancy viene ahora,
@@ -90,26 +90,229 @@ desde Volta. Cooperative groups queda fuera del curso. -->
 
 Cada *core* de un GPU es mucho más lento que un *core* de un CPU... 
 
-Pero hay miles de *cores*, así que un GPU puede usar miles de *threads* e intercambiar entre ellos (*context switching*) mucho más rápido que un CPU.
+Pero hay miles de *cores*, así que un GPU puede usar miles de *threads* e intercambiar entre ellos (*context switching*) mucho más rápido que un CPU (son *threads* más "livianos").
 
 <!-- NOTA — conviene conectar con el roofline del capítulo 1: un acceso a DRAM
 tarda cientos de ciclos (300-600 en la T4, ver la jerarquía de memoria), y el
 GPU no intenta reducir esa latencia como un CPU con caches grandes y ejecución
 especulativa. La esconde: mientras un warp espera su dato, el SM ejecuta otro.
 Para eso necesita muchos warps listos, y eso es exactamente lo que mide el
-occupancy. Las dos diapositivas que siguen lo muestran como una línea de
-tiempo. -->
+occupancy. Después de la comparación con el CPU, las diapositivas siguientes
+lo muestran como una línea de tiempo. -->
+
+---
+
+## **CPU vs GPU**
+
+<br>
+
+<svg viewBox="0 0 1000 440" width="1000" style="display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<text x="240" y="26" font-size="22" font-weight="bold" text-anchor="middle" fill="#0288d1">CPU</text>
+<text x="760" y="26" font-size="22" font-weight="bold" text-anchor="middle" fill="#0288d1">GPU</text>
+<rect x="30" y="45" width="200" height="105" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<text x="130" y="103.1" font-size="16" text-anchor="middle" fill="#222">Control</text>
+<rect x="240" y="45" width="100" height="50" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<text x="290" y="75.6" font-size="16" text-anchor="middle" fill="#222">ALU</text>
+<rect x="347" y="45" width="100" height="50" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<text x="397" y="75.6" font-size="16" text-anchor="middle" fill="#222">ALU</text>
+<rect x="240" y="100" width="100" height="50" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<text x="290" y="130.6" font-size="16" text-anchor="middle" fill="#222">ALU</text>
+<rect x="347" y="100" width="100" height="50" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<text x="397" y="130.6" font-size="16" text-anchor="middle" fill="#222">ALU</text>
+<rect x="30" y="160" width="417" height="90" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<text x="238.5" y="210.6" font-size="16" text-anchor="middle" fill="#222">Caché</text>
+<rect x="30" y="262" width="417" height="40" rx="3" fill="#ffcc80" stroke="#555" stroke-width="1"/>
+<text x="238.5" y="287.6" font-size="16" text-anchor="middle" fill="#222">DRAM</text>
+<rect x="550" y="45.0" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="45.0" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="45.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="70.6" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="70.6" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="70.6" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="96.2" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="96.2" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="96.2" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="121.80000000000001" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="121.80000000000001" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="121.80000000000001" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="147.4" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="147.4" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="147.4" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="173.0" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="173.0" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="173.0" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="198.60000000000002" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="198.60000000000002" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="198.60000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="224.20000000000002" width="18" height="22" rx="3" fill="#ffe082" stroke="#555" stroke-width="1"/>
+<rect x="570" y="224.20000000000002" width="18" height="22" rx="3" fill="#ce93d8" stroke="#555" stroke-width="1"/>
+<rect x="592" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="616" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="640" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="664" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="688" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="712" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="736" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="760" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="784" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="808" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="832" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="856" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="880" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="904" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="928" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="952" y="224.20000000000002" width="21" height="22" rx="3" fill="#a5d6a7" stroke="#555" stroke-width="1"/>
+<rect x="550" y="262" width="426" height="40" rx="3" fill="#ffcc80" stroke="#555" stroke-width="1"/>
+<text x="763" y="287.6" font-size="16" text-anchor="middle" fill="#222">DRAM</text>
+<rect x="200" y="318" width="16" height="16" fill="#ffe082" stroke="#555"/>
+<text x="222" y="331" font-size="15" fill="#333">control</text>
+<rect x="340" y="318" width="16" height="16" fill="#ce93d8" stroke="#555"/>
+<text x="362" y="331" font-size="15" fill="#333">caché</text>
+<rect x="470" y="318" width="16" height="16" fill="#a5d6a7" stroke="#555"/>
+<text x="492" y="331" font-size="15" fill="#333">cómputo (ALU)</text>
+<rect x="650" y="318" width="16" height="16" fill="#ffcc80" stroke="#555"/>
+<text x="672" y="331" font-size="15" fill="#333">memoria DRAM</text>
+<text x="240" y="370" font-size="17" text-anchor="middle" fill="#333">Pocos núcleos grandes, mucho caché y control:</text>
+<text x="240" y="394" font-size="17" text-anchor="middle" fill="#333">que <tspan font-weight="bold">un</tspan> thread espere lo menos posible</text>
+<text x="240" y="418" font-size="17" text-anchor="middle" fill="#333">→ baja <tspan font-weight="bold">latencia</tspan></text>
+<text x="760" y="370" font-size="17" text-anchor="middle" fill="#333">Miles de núcleos simples: el área va a cómputo.</text>
+<text x="760" y="394" font-size="17" text-anchor="middle" fill="#333">La espera se <tspan font-weight="bold">esconde</tspan> con muchos threads</text>
+<text x="760" y="418" font-size="17" text-anchor="middle" fill="#333">→ alto <tspan font-weight="bold">throughput</tspan></text>
+</svg>
+
+<!-- NOTA — el argumento es de área del chip: los transistores se gastan en cosas
+distintas. El CPU los gasta en que UN thread avance lo más rápido posible:
+caches grandes para que el dato casi siempre esté cerca, y control complejo
+(predicción de saltos, ejecución fuera de orden, especulación) para no
+detenerse nunca. El GPU los gasta en unidades de cómputo y en registros para
+mantener miles de threads residentes al mismo tiempo, con muy poco control y
+caché por núcleo. Cifras de la T4 que ya usamos en el curso: 40 SMs, 2560 CUDA
+cores a unos 1.59 GHz, 300 GB/s, y unos 300-600 ciclos de latencia a la DRAM
+(jerarquía de memoria, capítulo 2). Un CPU de escritorio típico, sólo como
+orden de magnitud: decenas de núcleos, algunos GHz, decenas de GB/s. La
+consecuencia es la clave de lo que sigue: el GPU no acorta la espera de un
+acceso a memoria; si tuviera un solo warp, estaría casi siempre ocioso.
+Necesita muchos warps en vuelo para esconder esa espera, que es lo que
+muestran las líneas de tiempo siguientes y lo que después mide el occupancy.
+El diagrama es esquemático: las proporciones no son a escala. -->
 
 ---
 
 ## **Latencia: ejemplo con un solo warp**
 
 ```cuda
-float a = x[i];     // L: cargar de memoria global (latencia alta)
-y[i] = 2.0f * a;    // C: calcular y guardar (necesita a)
+float a = x[i];     // L: cargar desde la memoria global (latencia alta)
+y[i] = 2.0f * a;    // C: calcular y guardar resultado (necesita a)
 ```
 
 Asumamos que una carga tarda $4$ unidades de tiempo (ciclos del reloj) en llegar, y el  *streaming multiprocessor* (SM) emite **una** instrucción por ciclo.
+
+**Línea de tiempo:** 
 
 <table class="timeline">
 <tr><th></th><th class="t">t0</th><th class="t">t1</th><th class="t">t2</th><th class="t">t3</th><th class="t">t4</th></tr>
@@ -117,7 +320,7 @@ Asumamos que una carga tarda $4$ unidades de tiempo (ciclos del reloj) en llegar
 <tr><th>SM emite</th><td class="s1">W0</td><td>—</td><td>—</td><td>—</td><td class="s1">W0</td></tr>
 </table>
 
-El SM está esperando (*idle*) de $3$ de $5$ ciclos: el *warp* pasa casi todo el tiempo esperando.
+El SM está esperando (*idle*) durante $3$ de $5$ ciclos: el *warp* pasa casi todo el tiempo esperando.
 
 <!-- NOTA — el modelo es de juguete a propósito: en la T4 un acceso a DRAM tarda
 unos 300-600 ciclos (diapositiva de la jerarquía en el capítulo de memoria),
@@ -132,8 +335,8 @@ espera. -->
 ## **Esconder la latencia: varios warps**
 
 ```cuda
-float a = x[i];     // L: cargar de memoria global (latencia alta)
-y[i] = 2.0f * a;    // C: calcular y guardar (necesita a)
+float a = x[i];     // L: cargar desde la memoria global (latencia alta)
+y[i] = 2.0f * a;    // C: calcular y guardar resultado (necesita a)
 ```
 
 Ahora tenemos 4 *warps* para ejecutar las mismas tareas.
@@ -166,6 +369,8 @@ se puede, porque C depende de L. -->
 
 ## **Esconder la latencia: varios warps**
 
+<br>
+
 <table class="timeline">
 <tr><th></th><th class="t">t0</th><th class="t">t1</th><th class="t">t2</th><th class="t">t3</th><th class="t">t4</th><th class="t">t5</th><th class="t">t6</th><th class="t">t7</th></tr>
 <tr><th>Warp 0</th><td class="s1">L</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td class="s1">C</td><td></td><td></td><td></td></tr>
@@ -194,27 +399,64 @@ explica la diapositiva anterior: el GPU no reduce la latencia, la esconde. -->
 
 ---
 
-## **Threads, warps, blocks**
+## **Orden en la ejecución de los threads**
+
+- Al igual que en la programación en paralelo con CPU (p. ej. con OpenMP), **no** podemos asumir un orden de ejecución de los *threads*.
+- Bloques y *warps* se ejecutan en cualquier orden: no hay ninguna garantía.
+
+Si nuestro programa **asume** un cierto orden de ejecución para obtener resultados correctos, **está mal implementado**. Nosotros debemos imponerlo.
+
+<!-- NOTA — como en OpenMP, el orden de los threads no está garantizado, pero aquí
+la escala es otra: miles de threads repartidos por el hardware, sin que el
+programador decida nada. Ojo con el matiz de la última frase: muchos programas
+correctos SÍ necesitan un orden (la transpuesta escribe el tile antes de
+leerlo; la reducción hace un nivel después del otro). Lo que está mal es
+suponerlo; hay que imponerlo con __syncthreads(), __syncwarp(), atómicas o
+lanzamientos de kernel separados. La diapositiva siguiente muestra el desorden
+en la práctica. -->
+
+---
+
+## **Orden en la ejecución de los threads**
 
 Ejemplo: [cuda_thread_block.cu](../code/threads/cuda_thread_block.cu).
 
-Recibe dos argumentos: el número de bloques y de *threads* por bloque.
-
 ```bash
 nvcc -arch=sm_75 cuda_thread_block.cu -o cuda_thread_block.x
-./cuda_thread_block.x 4 128     # 4 bloques de 128 threads
+./cuda_thread_block.x 4 128     # argumentos: bloques, threads por bloque
 ```
 
-- Bloques y *warps* se ejecutan en cualquier orden: lo que imprimen no está ordenado.
-- Dentro de un *warp* los *threads* **suelen**  imprimir en orden, pero desde Volta **no está garantizado**.
- - **No**  hay que programar un código asumiendo *lock-step*.
+- Ejecutarlo varias veces: el orden entre bloques y *warps* cambia.
+- Dentro de un *warp* suelen imprimir en orden de *lane*: eso **no** prueba que avancen juntos.
+- Desde Volta **no** hay *lock-step* garantizado: si un *thread* usa el resultado de otro, hay que usar `__syncwarp()`.
 
 <!-- NOTA — el programa recibe el tamaño del grid y del bloque como argumentos
 (./cuda_thread_block.x 4 128) e imprime thread, bloque, warp y lane para
-los lanes 0 y 16 de cada warp. Sin argumentos muestra cómo usarlo y termina. Vale la pena ejecutarlo varias veces: el orden entre bloques y
-entre warps cambia. Que dentro de un warp salga en orden es un detalle de
+los lanes 0 y 16 de cada warp. Sin argumentos muestra cómo usarlo y termina.
+Vale la pena ejecutarlo varias veces: el orden entre bloques y entre warps
+cambia. Que dentro de un warp salga en orden es un detalle de
 implementación de printf, no una garantía; desde Volta los threads de un warp
-pueden avanzar por separado. -->
+pueden avanzar por separado. Ojo con no confundir ORDEN con LOCK-STEP: el orden
+es la secuencia en que aparecen las líneas; lock-step es que los 32 threads
+ejecuten la misma instrucción al mismo tiempo, sin que ninguno empiece la
+siguiente antes de que todos terminen la actual. Son independientes: un printf
+suele escribir las líneas del warp en orden de lane avancen o no juntos, así
+que ver el orden no prueba el lock-step; y perder el lock-step no desordena la
+salida de este ejemplo, porque aquí los lanes no divergen. Lo que importa es la
+regla: si un lane lee lo que escribió otro, hay que sincronizar con
+__syncwarp() o una primitiva *_sync (como en el warp unrolling de la
+reducción). -->
+
+<!-- Si alguien nota que dos corridas seguidas imprimen el MISMO orden y
+después cambia: "no garantizado" no significa "aleatorio". Los
+planificadores de bloques y de warps siguen reglas fijas, así que con el GPU
+desocupado y el mismo lanzamiento suelen repetir el orden. Pequeñas
+diferencias de tiempo (el reloj del GPU según temperatura y consumo, qué SMs
+estaban libres, quién escribe primero en el buffer de printf) desempatan
+distinto de vez en cuando. Moraleja: que un orden se repita no lo hace
+garantizado; si la corrección depende del orden, hay que imponerlo con
+sincronización (__syncthreads, __syncwarp, atómicas). Así pasan
+desapercibidas las race conditions. -->
 
 ---
 
@@ -308,6 +550,12 @@ Máximo $16$ bloques y $1024$ *threads* por SM:
 
 **Ojo:** Bloques de menos de $64$ *threads* no alcanzan a llenar el SM.
 
+<!-- NOTA — el occupancy se cuenta en warps, no en threads: un bloque más chico que
+un warp (por ejemplo 16 threads) ocupa igual un warp entero, con lanes
+apagados. Con bloques de 16, como en el ejercicio de matriz_mult.cu, caben 16
+bloques = 16 warps = 50% de occupancy, y además la mitad de cada warp no hace
+nada. Por eso conviene que el tamaño del bloque sea múltiplo de 32. -->
+
 <!-- NOTA — el caso de 32 threads es el que más sorprende: el bloque es un warp
 completo, pero como solo caben 16 bloques por SM, quedan 16 warps de 32
 posibles. Por eso la recomendación habitual es bloques de 128 a 256 threads:
@@ -387,14 +635,27 @@ nvcc -arch=sm_75 --resource-usage matriz_mult.cu -o matriz_mult.x
 nvprof --metrics achieved_occupancy ./matriz_mult.x
 ```
 
-<!-- RESPUESTAS — (1) Con 16 threads por bloque el límite que manda es el de
-bloques: 16 bloques x 16 threads = 256 threads activos de 1024 posibles, o sea
-occupancy teórico 0.25. Los registros no limitan: el kernel usa muy pocos (ver
-la salida de --resource-usage). (2) achieved_occupancy debería salir cerca de
-0.25 o menos. (3) Con 16x16 = 256 threads, caben 4 bloques: occupancy teórico
-1. Ojo con el tiempo: la matriz es de 256x256, así que el kernel dura
-microsegundos y la diferencia puede quedar tapada por el costo del lanzamiento;
-para verla conviene subir N (múltiplo del bloque). TODO: medir en la T4. -->
+<!-- RESPUESTAS medidas con ncu en la T4 (2026-10). (1) Occupancy teórico 50%, no
+25%: el occupancy se cuenta en WARPS, y un bloque de 16 threads ocupa igual un
+warp completo (con la mitad de los lanes apagados). Manda el límite de 16
+bloques por SM: 16 bloques x 1 warp = 16 de 32 warps = 50%. Los registros no
+limitan: el kernel usa 52 por thread y cabrían 36 bloques. Moraleja: con
+bloques más chicos que un warp se pierde por partida doble: el occupancy es
+50%, y además cada warp trabaja con 16 de sus 32 lanes, así que sólo 256 de
+1024 threads posibles hacen trabajo útil (ncu lo estima como un 50% de mejora
+posible en Launch Statistics). (2) Achieved Occupancy 47.7% (15.3 warps
+activos por SM), cerca del teórico. Otras lecturas del mismo reporte: DRAM
+Throughput 1% pero L1/TEX 97%: las matrices son de 256x256 (256 KB cada una),
+caben en cache, así que el kernel no está limitado por la DRAM sino por el L1,
+que atiende muchos accesos pequeños por warp. (3) Con 16x16 = 256 threads = 8
+warps por bloque: por registros (52 por thread, unos 14 K por bloque) caben 4
+bloques, 32 warps, occupancy teórico 100%. Ojo con el tiempo: con N = 256 son
+sólo 256 bloques para 40 SMs y el kernel dura microsegundos; para ver la
+diferencia conviene subir N (múltiplo del bloque). Detalle importante al
+comparar tiempos: ncu fija por defecto el reloj del GPU en su valor base (SM
+Frequency 585 MHz en el reporte, contra unos 1590 MHz de boost), así que la
+Duration de ncu (463 us) no es comparable con tiempos medidos con eventos;
+para eso, ncu --clock-control none. -->
 
 ---
 
