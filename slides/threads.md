@@ -586,20 +586,22 @@ viene en la reducción. -->
 
 ---
 
-## **Occupancy: ejemplo**
+## **Occupancy: cómo medirlo**
 
-Ejemplo: [matriz_mult.cu](../code/threads/matriz_mult.cu) (multiplicación de matrices).
-
-- Compilamos con `--resource-usage`.
-- Se puede medir el *occupancy* con el *profiler*:
-  - `nvprof`: `achieved_occupancy`
-  - `ncu`: `sm__warps_active.avg.pct_of_peak_sustained_active`
+- **Teórico**: con los recursos del *kernel* (`nvcc --resource-usage` da registros y memoria compartida) y los límites de la T4.
+- **Medido** (*achieved*): con el *profiler*. `ncu --section Occupancy` muestra el teórico, el medido y **qué límite** manda.
+- La línea *Achieved Occupancy* de `ncu` es la métrica `sm__warps_active.avg.pct_of_peak_sustained_active`.
 
 <!-- NOTA — --resource-usage imprime, por cada kernel, los registros por thread y
-la memoria compartida y constante que usa. achieved_occupancy es el occupancy
-medido (promedio de warps activos durante la ejecución), que puede ser menor
-que el teórico, por ejemplo cuando el último grupo de bloques no llena todos
-los SMs. El ejercicio al final de esta sección usa este mismo programa. -->
+la memoria compartida y constante que usa; con eso y los límites de la T4 se
+calcula el occupancy teórico. Para el medido basta ncu sin argumentos: sus
+secciones por defecto ya incluyen Occupancy, y su línea Achieved Occupancy es
+exactamente la métrica sm__warps_active.avg.pct_of_peak_sustained_active;
+pedir la métrica sola (ncu --metrics ...) sólo sirve para obtener una línea
+por kernel. El medido puede quedar bajo el teórico, por ejemplo cuando la
+última tanda de bloques no llena todos los SMs. Ojo: ncu fija el reloj en su
+valor base, así que sus tiempos no se comparan con los medidos con eventos. El
+ejercicio de dos diapositivas más adelante aplica todo esto a matriz_mult.cu. -->
 
 ---
 
@@ -624,15 +626,16 @@ occupancy que se ganó. -->
 
 ## **Ejercicio: occupancy de `matriz_mult.cu`**
 
-Descargar: [matriz_mult.cu](../code/threads/matriz_mult.cu). Usa bloques de $4 \times 4 = 16$ *threads*.
+Descargar: [matriz_mult.cu](../code/threads/matriz_mult.cu). Por defecto usa bloques de $4 \times 4 = 16$ *threads*; el tamaño se puede pasar como argumento.
 
 1. Con los límites de la T4, ¿cuál es el *occupancy* teórico? (`--resource-usage` da los registros).
 2. Medirlo con el *profiler*.
-3. Cambiar a bloques de $16 \times 16$ y repetir.
+3. Repetir con bloques de $16 \times 16$.
 
 ```bash
 nvcc -arch=sm_75 --resource-usage matriz_mult.cu -o matriz_mult.x
-nvprof --metrics achieved_occupancy ./matriz_mult.x
+ncu --section Occupancy ./matriz_mult.x         # bloques de 4 x 4
+ncu --section Occupancy ./matriz_mult.x 16 16   # bloques de 16 x 16
 ```
 
 <!-- RESPUESTAS medidas con ncu en la T4 (2026-10). (1) Occupancy teórico 50%, no
@@ -647,7 +650,10 @@ posible en Launch Statistics). (2) Achieved Occupancy 47.7% (15.3 warps
 activos por SM), cerca del teórico. Otras lecturas del mismo reporte: DRAM
 Throughput 1% pero L1/TEX 97%: las matrices son de 256x256 (256 KB cada una),
 caben en cache, así que el kernel no está limitado por la DRAM sino por el L1,
-que atiende muchos accesos pequeños por warp. (3) Con 16x16 = 256 threads = 8
+que atiende muchos accesos pequeños por warp. (3) Se corre con ./matriz_mult.x 16 16 (el programa recibe el tamaño de bloque
+como argumento y redondea el grid hacia arriba, así que se puede probar
+cualquier tamaño de hasta 1024 threads; nvprof --metrics achieved_occupancy
+sirve como alternativa a ncu). Con 16x16 = 256 threads = 8
 warps por bloque: por registros (52 por thread, unos 14 K por bloque) caben 4
 bloques, 32 warps, occupancy teórico 100%. Ojo con el tiempo: con N = 256 son
 sólo 256 bloques para 40 SMs y el kernel dura microsegundos; para ver la
