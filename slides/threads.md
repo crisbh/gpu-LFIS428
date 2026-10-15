@@ -673,10 +673,11 @@ tiempos medidos con eventos; para eso, ncu --clock-control none. nvprof
 
 ## **Reducción paralela**
 
-- Recordar el concepto de reducción visto en el curso de Programación Paralela.
-- Significa obtener un solo valor de un conjunto de datos, en forma paralela.
+- Muchas operaciones tienen como objetivo obtener un solo valor a partir de un conjunto de datos.
+  - Este tipo de operaciones la denominamos **reducción**.
+- Ahora discutiremos un cálculo de reducción en paralelo con GPU.
 
-Un ejemplo:
+**Ejemplo:**
 Calcular la sumatoria de todos los elementos en un *array* utilizando $N$ *threads*.
 
 <!-- NOTA — la reducción es un buen caso de estudio porque es simple de entender y
