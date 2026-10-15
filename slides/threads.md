@@ -638,30 +638,32 @@ ncu --section Occupancy ./matriz_mult.x         # bloques de 4 x 4
 ncu --section Occupancy ./matriz_mult.x 16 16   # bloques de 16 x 16
 ```
 
-<!-- RESPUESTAS medidas con ncu en la T4 (2026-10). (1) Occupancy teórico 50%, no
-25%: el occupancy se cuenta en WARPS, y un bloque de 16 threads ocupa igual un
-warp completo (con la mitad de los lanes apagados). Manda el límite de 16
-bloques por SM: 16 bloques x 1 warp = 16 de 32 warps = 50%. Los registros no
-limitan: el kernel usa 52 por thread y cabrían 36 bloques. Moraleja: con
-bloques más chicos que un warp se pierde por partida doble: el occupancy es
-50%, y además cada warp trabaja con 16 de sus 32 lanes, así que sólo 256 de
-1024 threads posibles hacen trabajo útil (ncu lo estima como un 50% de mejora
-posible en Launch Statistics). (2) Achieved Occupancy 47.7% (15.3 warps
-activos por SM), cerca del teórico. Otras lecturas del mismo reporte: DRAM
-Throughput 1% pero L1/TEX 97%: las matrices son de 256x256 (256 KB cada una),
-caben en cache, así que el kernel no está limitado por la DRAM sino por el L1,
-que atiende muchos accesos pequeños por warp. (3) Se corre con ./matriz_mult.x 16 16 (el programa recibe el tamaño de bloque
-como argumento y redondea el grid hacia arriba, así que se puede probar
-cualquier tamaño de hasta 1024 threads; nvprof --metrics achieved_occupancy
-sirve como alternativa a ncu). Con 16x16 = 256 threads = 8
-warps por bloque: por registros (52 por thread, unos 14 K por bloque) caben 4
-bloques, 32 warps, occupancy teórico 100%. Ojo con el tiempo: con N = 256 son
-sólo 256 bloques para 40 SMs y el kernel dura microsegundos; para ver la
-diferencia conviene subir N (múltiplo del bloque). Detalle importante al
-comparar tiempos: ncu fija por defecto el reloj del GPU en su valor base (SM
-Frequency 585 MHz en el reporte, contra unos 1590 MHz de boost), así que la
-Duration de ncu (463 us) no es comparable con tiempos medidos con eventos;
-para eso, ncu --clock-control none. -->
+<!-- RESPUESTAS medidas con ncu --section Occupancy en la T4 (2026-10). (1) Bloques
+de 4x4: occupancy teórico 50%, no 25%. El occupancy se cuenta en WARPS, y un
+bloque de 16 threads ocupa igual un warp completo (con la mitad de los lanes
+apagados). Manda el límite de 16 bloques por SM: 16 bloques x 1 warp = 16 de
+32 warps = 50%. Los registros no limitan: 52 por thread, cabrían 36 bloques.
+ncu también nombra a la memoria compartida como límite aunque el kernel no la
+usa: su límite coincide con los mismos 16 bloques, se puede ignorar. Se pierde
+por partida doble: occupancy de 50%, y además cada warp trabaja con 16 de sus
+32 lanes, así que sólo 256 de 1024 threads posibles hacen trabajo útil. (2)
+Achieved 47.8% (15.3 warps activos por SM), cerca del teórico. Del reporte
+completo de ncu: DRAM Throughput 1% pero L1/TEX 97%; las matrices de 256x256
+(256 KB) caben en cache, así que el kernel está limitado por el L1, no por la
+DRAM. (3) Bloques de 16x16 (./matriz_mult.x 16 16; el programa recibe el
+tamaño de bloque como argumento y redondea el grid hacia arriba): teórico
+100%. Ahora mandan a la vez los registros (52 x 256 threads: caben 4 bloques)
+y los warps (8 por bloque: 4 bloques = 32 warps). Achieved 79.7%, y la
+diferencia se explica casi exacta con las tandas (waves) de bloques: el grid
+tiene 16x16 = 256 bloques y caben 40 SMs x 4 = 160 a la vez. La primera tanda
+llena todos los SMs; la segunda tiene sólo 96 bloques, 2.4 por SM en promedio.
+Si las dos tandas duran lo mismo, el promedio es (4 + 2.4)/2 = 3.2 bloques por
+SM, o sea 3.2/4 = 80%. Con N más grande la última tanda pesa menos y el
+achieved se acerca al 100%: el occupancy medido depende también del tamaño del
+problema. Al comparar tiempos: ncu fija el reloj del GPU en su valor base (585
+MHz contra unos 1590 de boost), así que sus duraciones no se comparan con
+tiempos medidos con eventos; para eso, ncu --clock-control none. nvprof
+--metrics achieved_occupancy sirve como alternativa a ncu. -->
 
 ---
 
