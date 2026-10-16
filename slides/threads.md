@@ -760,19 +760,193 @@ pasos. El patrón de pares vecinos es el de las primeras versiones del código
 (reduccion_global, global2); las versiones con acceso contiguo suman en cambio
 la primera mitad con la segunda, con el mismo número de pasos. -->
 
+
 ---
 
 ## **Reducción paralela**
 
-![w:560px](images/threads/par_red.png)
-
-<p class="credit">Fuente: sodocumentation.net</p>
+<svg viewBox="0 0 874 442" width="940" style="display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<defs><marker id="fl-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#222"/></marker></defs>
+<line x1="38" y1="46" x2="38" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M82,46 Q82,62.8 50.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="38" y1="89" x2="38" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="126" y1="46" x2="126" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M170,46 Q170,62.8 138.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="126" y1="89" x2="126" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="214" y1="46" x2="214" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M258,46 Q258,62.8 226.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="214" y1="89" x2="214" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="302" y1="46" x2="302" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M346,46 Q346,62.8 314.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="302" y1="89" x2="302" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="390" y1="46" x2="390" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M434,46 Q434,62.8 402.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="390" y1="89" x2="390" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="478" y1="46" x2="478" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M522,46 Q522,62.8 490.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="478" y1="89" x2="478" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="566" y1="46" x2="566" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M610,46 Q610,62.8 578.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="566" y1="89" x2="566" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="654" y1="46" x2="654" y2="62" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M698,46 Q698,62.8 666.4,67.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="654" y1="89" x2="654" y2="105" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="38" y1="142" x2="38" y2="158" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M126,142 Q126,160.6 52.2,167.2" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="38" y1="185" x2="38" y2="201" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="214" y1="142" x2="214" y2="158" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M302,142 Q302,160.6 228.2,167.2" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="214" y1="185" x2="214" y2="201" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="390" y1="142" x2="390" y2="158" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M478,142 Q478,160.6 404.2,167.2" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="390" y1="185" x2="390" y2="201" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="566" y1="142" x2="566" y2="158" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M654,142 Q654,160.6 580.2,167.2" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="566" y1="185" x2="566" y2="201" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="38" y1="238" x2="38" y2="254" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M214,238 Q214,257.7 52.8,265.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="38" y1="281" x2="38" y2="297" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="390" y1="238" x2="390" y2="254" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M566,238 Q566,257.7 404.8,265.5" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="390" y1="281" x2="390" y2="297" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="38" y1="334" x2="38" y2="350" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<path d="M390,334 Q390,354.4 52.9,362.7" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<line x1="38" y1="377" x2="38" y2="393" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#fl-red)"/>
+<rect x="20" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="64" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="108" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="152" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="196" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="240" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="284" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="328" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="372" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="416" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="460" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="504" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="548" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="592" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="636" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="680" y="10" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="20" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="64" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="108" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="152" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="196" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="240" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="284" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="328" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="372" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="416" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="460" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="504" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="548" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="592" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="636" y="106" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="680" y="106" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="20" y="202" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="64" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="108" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="152" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="196" y="202" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="240" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="284" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="328" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="372" y="202" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="416" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="460" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="504" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="548" y="202" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="592" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="636" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="680" y="202" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="20" y="298" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="64" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="108" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="152" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="196" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="240" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="284" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="328" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="372" y="298" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="416" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="460" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="504" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="548" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="592" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="636" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="680" y="298" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="20" y="394" width="36" height="36" fill="#29a8e0" stroke="#222" stroke-width="1.6"/>
+<rect x="64" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="108" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="152" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="196" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="240" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="284" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="328" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="372" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="416" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="460" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="504" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="548" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="592" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="636" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<rect x="680" y="394" width="36" height="36" fill="#fff" stroke="#222" stroke-width="0.8"/>
+<circle cx="38" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="38" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="126" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="126" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="214" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="214" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="302" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="302" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="390" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="390" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="478" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="478" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="566" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="566" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="654" cy="76" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="654" y="83" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<text x="738" y="82" font-size="17" font-style="italic" fill="#455a64">stride = 1</text>
+<circle cx="38" cy="172" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="38" y="179" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="214" cy="172" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="214" y="179" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="390" cy="172" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="390" y="179" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="566" cy="172" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="566" y="179" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<text x="738" y="178" font-size="17" font-style="italic" fill="#455a64">stride = 2</text>
+<circle cx="38" cy="268" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="38" y="275" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<circle cx="390" cy="268" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="390" y="275" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<text x="738" y="274" font-size="17" font-style="italic" fill="#455a64">stride = 4</text>
+<circle cx="38" cy="364" r="13" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="38" y="371" font-size="20" font-weight="bold" text-anchor="middle" fill="#222">+</text>
+<text x="738" y="370" font-size="17" font-style="italic" fill="#455a64">stride = 8</text>
+</svg>
 
 <!-- NOTA — en esta figura conviene marcar dos cosas que se repiten en todas las
 versiones: cuántos threads trabajan en cada nivel (la mitad del anterior) y
 qué distancia hay entre los dos elementos que se suman (el stride). Las
 versiones que siguen difieren justamente en cómo se asignan threads a
 elementos y en el orden de los strides. -->
+
+
+<!-- NOTA — versión redibujada (SVG) de la figura anterior. Dieciséis datos; en
+cada nivel el elemento i se suma con el elemento i + stride y el resultado se
+guarda en i, con stride = 1, 2, 4, 8. Las casillas blancas son datos que ya no
+se usan. Al final la suma total queda en la casilla 0, después de log2(16) = 4
+niveles. La figura original usa un operador genérico (*), porque el mismo
+árbol sirve para cualquier operación asociativa (máximo, mínimo, producto);
+aquí se dibuja + porque en el curso reducimos con sumas. Dos cosas para
+marcar, que se repiten en todas las versiones: en cada nivel trabaja la mitad
+de los threads del anterior, y el stride se duplica. Este patrón de pares
+vecinos con stride creciente es el de reduccion_global y reduccion_global2;
+las versiones con acceso contiguo recorren los strides al revés (de mayor a
+menor). -->
 
 ---
 
