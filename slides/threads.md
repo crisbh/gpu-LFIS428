@@ -404,7 +404,7 @@ explica la diapositiva anterior: el GPU no reduce la latencia, la esconde. -->
 - Al igual que en la programación en paralelo con CPU (p. ej. con OpenMP), **no** podemos asumir un orden de ejecución de los *threads*.
 - Bloques y *warps* se ejecutan en cualquier orden: no hay ninguna garantía.
 
-Si nuestro programa **asume** un cierto orden de ejecución para obtener resultados correctos, **está mal implementado**. Nosotros debemos imponerlo.
+Si nuestro programa **asume** un cierto orden de ejecución para obtener resultados correctos, **tiene un bug**. Nosotros debemos imponerlo.
 
 <!-- NOTA — como en OpenMP, el orden de los threads no está garantizado, pero aquí
 la escala es otra: miles de threads repartidos por el hardware, sin que el
