@@ -51,7 +51,7 @@ int main() {
   float *h_array;
   float *d_array;
 
-  unsigned int N = 1 << 25;
+  unsigned int N = 1 << 24;
   unsigned int n_threads = 1024;
 
   float resultado_host;

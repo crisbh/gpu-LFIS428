@@ -75,7 +75,8 @@ int main() {
   cudaMemcpy(d_data, h_data, bytes, cudaMemcpyHostToDevice);
 
   // Con grid-stride no hace falta un thread por elemento: basta con llenar
-  // el GPU. 32 bloques de 256 threads por SM es más que suficiente.
+  // el GPU. En la T4 caben a la vez 4 bloques de 256 threads por SM; lanzamos
+  // 32 por SM, que corren en 8 tandas, y cada thread suma varios elementos.
   int n_sm;
   cudaDeviceGetAttribute(&n_sm, cudaDevAttrMultiProcessorCount, 0);
   int n_bloques = 32 * n_sm;

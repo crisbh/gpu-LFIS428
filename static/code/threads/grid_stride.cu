@@ -1,4 +1,6 @@
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 __global__ void saxpy(int N, float a, float *x, float *y) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N;
@@ -20,11 +22,18 @@ void inicializar(float *data, int N) {
 }
 
 int main() {
-  int N = 1 << 4;
+  int N = 1 << 24;
 
-  int n_threads = 1024;
-  int n_bloques = (N + n_threads - 1) / n_threads;
-  // int n_bloques = 16;
+  // El grid NO depende de N: basta con llenar el GPU. En la T4 caben 4
+  // bloques de 256 threads por SM, así que lanzamos 4 bloques por SM y cada
+  // thread procesa varios elementos en el ciclo del kernel.
+  int n_threads = 256;
+  int n_sm;
+  cudaDeviceGetAttribute(&n_sm, cudaDevAttrMultiProcessorCount, 0);
+  int n_bloques = 4 * n_sm;
+  printf("N = %d, %d bloques de %d threads: %d elementos por thread\n", N,
+         n_bloques, n_threads, (N + n_bloques * n_threads - 1) /
+                                   (n_bloques * n_threads));
 
   float a = 2.0f;
   float *h_x, *h_y, *resultado_gpu;
@@ -59,8 +68,8 @@ int main() {
   int error = 0;
   float err;
   for (int i = 0; i < N; i++) {
-    err = h_y[i] - resultado_gpu[i];
-    if (err > 1e-8) {
+    err = fabsf(h_y[i] - resultado_gpu[i]);
+    if (err > 1e-6f * fabsf(h_y[i])) {
       error = 1;
     }
   }
@@ -77,6 +86,7 @@ int main() {
   // liberar memoria del host
   free(h_x);
   free(h_y);
+  free(resultado_gpu);
 
   return 0;
 }

@@ -1,16 +1,16 @@
 #include <stdio.h>
-#define FULL_MASK 0x00000000
+#define FULL_MASK 0xffffffff // los 32 threads del warp participan
 
 __global__ void reduccion_gpu(int *data, int N) {
   int val = data[threadIdx.x];
   for (int stride = 16; stride > 0; stride >>= 1) {
-    val += __shfl_down_sync(0x01, val, stride);
+    val += __shfl_down_sync(FULL_MASK, val, stride);
   }
   if (threadIdx.x == 0)
     data[0] = val;
 }
 
-float reduccion_cpu(int *data, int N) {
+int reduccion_cpu(int *data, int N) {
   int resultado = 0;
   for (int i = 0; i < N; i++) {
     resultado += data[i];

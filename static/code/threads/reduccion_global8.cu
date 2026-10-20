@@ -134,6 +134,7 @@ int main() {
   cudaFree(d_array);
   cudaFree(d_parcial);
   free(h_array);
+  free(h_array2);
 
   return 0;
 }

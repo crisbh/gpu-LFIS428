@@ -1,11 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-__global__ void reduccion_memoria_global(float *data, int stride, int N) {
+// Lee de data_in y escribe en data_out: dos arreglos distintos. Si se
+// escribiera en el mismo arreglo (data[idx] += data[idx + stride]), el thread
+// idx leería data[idx + stride] mientras el thread idx + stride lo está
+// modificando en el mismo lanzamiento: una race condition.
+__global__ void reduccion_memoria_global(float *data_out, const float *data_in,
+                                         int stride, int N) {
   int idx_x = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (idx_x + stride < N) {
-    data[idx_x] += data[idx_x + stride];
+    data_out[idx_x] = data_in[idx_x] + data_in[idx_x + stride];
+  } else if (idx_x < N) {
+    data_out[idx_x] = data_in[idx_x];
   }
 }
 
@@ -30,9 +37,9 @@ float resultado_cpu(float *data, int N) {
 
 int main() {
   float *h_array;
-  float *d_array;
+  float *d_in, *d_out;
 
-  unsigned int N = 1 << 25;
+  unsigned int N = 1 << 24;
   unsigned int n_threads = 1024;
 
   float resultado_host, resultado_gpu;
@@ -45,26 +52,31 @@ int main() {
   // Iniciliazar valores de h_array con números aleatorios
   inicializar_numeros(h_array, N);
 
-  // Asignar memoria en el GPU y copiar datos
-  cudaMalloc((void **)&d_array, N * sizeof(float));
-  cudaMemcpy(d_array, h_array, N * sizeof(float), cudaMemcpyHostToDevice);
+  // Asignar memoria en el GPU (entrada y salida) y copiar datos
+  cudaMalloc((void **)&d_in, N * sizeof(float));
+  cudaMalloc((void **)&d_out, N * sizeof(float));
+  cudaMemcpy(d_in, h_array, N * sizeof(float), cudaMemcpyHostToDevice);
 
-  // Calcular reducción en el GPU
+  // Calcular reducción en el GPU: después de cada lanzamiento la salida pasa
+  // a ser la entrada del siguiente (se intercambian los punteros)
   int n_bloques = (N + n_threads - 1) / n_threads;
   for (int stride = 1; stride < N; stride *= 2) {
-    reduccion_memoria_global<<<n_bloques, n_threads>>>(d_array, stride, N);
+    reduccion_memoria_global<<<n_bloques, n_threads>>>(d_out, d_in, stride, N);
+    float *tmp = d_in;
+    d_in = d_out;
+    d_out = tmp;
   }
 
-  // Copiar resultado del GPU
-  cudaMemcpy(&resultado_gpu, &d_array[0], sizeof(float),
-             cudaMemcpyDeviceToHost);
+  // Copiar resultado del GPU: después del último intercambio está en d_in
+  cudaMemcpy(&resultado_gpu, &d_in[0], sizeof(float), cudaMemcpyDeviceToHost);
 
   // Calcular reducción en el CPU (secuencial)
   resultado_host = resultado_cpu(h_array, N);
   printf("host: %f, device %f\n", resultado_host, resultado_gpu);
 
   // Liberar memoria
-  cudaFree(d_array);
+  cudaFree(d_in);
+  cudaFree(d_out);
   free(h_array);
 
   return 0;

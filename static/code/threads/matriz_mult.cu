@@ -42,6 +42,10 @@ int main(int argc, char *argv[]) {
   N = M = K = 256;
 
   // tamaño de bloque: argumentos opcionales (por defecto 4 x 4)
+  if (argc == 2) {
+    printf("Uso: %s [bx by]   (por ejemplo %s 16 16)\n", argv[0], argv[0]);
+    return 1;
+  }
   int bx = (argc > 2) ? atoi(argv[1]) : BLOCK_DIM_X;
   int by = (argc > 2) ? atoi(argv[2]) : BLOCK_DIM_Y;
   if (bx < 1 || by < 1 || bx * by > 1024) {
@@ -77,6 +81,9 @@ int main(int argc, char *argv[]) {
   printf("Matriz %d x %d, bloques de %d x %d (%d threads), grid de %d x %d\n",
          N, M, bx, by, bx * by, dimGrid.x, dimGrid.y);
   matriz_mult<<<dimGrid, dimBlock>>>(d_A, d_B, d_C, N, M, K, alpha, beta);
+  cudaError_t err = cudaDeviceSynchronize();
+  if (err != cudaSuccess)
+    printf("Error en el kernel: %s\n", cudaGetErrorString(err));
 
   // liberar espacio de memoria en el GPU
   cudaFree(d_A);

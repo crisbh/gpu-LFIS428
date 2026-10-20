@@ -1,12 +1,26 @@
 #include <stdio.h>
-#define FULL_MASK 0xffffffff
+#define FULL_MASK 0xffffffff // los 32 threads del warp participan
 
-__global__ void intercambio_gpu(int *data) {
+// Reducción "en mariposa" (butterfly) dentro de un warp.
+// __shfl_xor_sync(mascara, v, m) entrega a cada lane el valor v del lane
+// cuyo índice es (lane XOR m): con m = 16 se intercambian las dos mitades del
+// warp, con m = 8 los cuartos, etc. Cada par de lanes intercambia sus valores
+// y los dos suman lo mismo, así que al final TODOS los lanes tienen la suma
+// (con __shfl_down_sync solo el lane 0 la tiene).
+__global__ void reduccion_gpu(int *data) {
   int val = data[threadIdx.x];
-  // Intercambiar con el "lane" que tiene ID que resulta
-  // de un XOR combinando FULL_MASK con el "lane" actual.
-  val = __shfl_xor_sync(FULL_MASK, val, FULL_MASK);
+  for (int m = 16; m > 0; m >>= 1) {
+    val += __shfl_xor_sync(FULL_MASK, val, m);
+  }
   data[threadIdx.x] = val;
+}
+
+int reduccion_cpu(int *data, int N) {
+  int resultado = 0;
+  for (int i = 0; i < N; i++) {
+    resultado += data[i];
+  }
+  return resultado;
 }
 
 void inicializar(int *data, int N) {
@@ -34,21 +48,21 @@ int main() {
   // incializar el array
   inicializar(h_data, N);
 
-  for (int i = 0; i < N; i++) {
-    printf("CPU: %d %d\n", i, h_data[i]);
-  }
+  // calcular en el host para comparar
+  int resultado_cpu = reduccion_cpu(h_data, N);
 
   // copiar valores iniciales al GPU
   cudaMemcpy(d_data, h_data, N * sizeof(int), cudaMemcpyHostToDevice);
 
   // invocar kernel
-  intercambio_gpu<<<n_bloques, n_threads>>>(d_data);
+  reduccion_gpu<<<n_bloques, n_threads>>>(d_data);
 
-  // copiar resultado del GPU al host
+  // copiar resultado del GPU al host: un valor por lane
   cudaMemcpy(h_data, d_data, N * sizeof(int), cudaMemcpyDeviceToHost);
 
+  printf("Host: %d\n", resultado_cpu);
   for (int i = 0; i < N; i++) {
-    printf("GPU: %d %d\n", i, h_data[i]);
+    printf("GPU, lane %2d: %d\n", i, h_data[i]);
   }
 
   // liberar espacio de memoria en el GPU

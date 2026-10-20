@@ -58,7 +58,7 @@ int main() {
   float *h_array;
   float *d_array, *d_salida;
 
-  unsigned int N = 1 << 25;
+  unsigned int N = 1 << 24;
   unsigned int Nt = N;
   unsigned int n_threads = 1024;
 

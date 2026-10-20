@@ -8,6 +8,10 @@ __global__ void reduccion_memoria_global(float *data, float *parcial, int N) {
   float *idata = data + blockIdx.x * blockDim.x;
 
   // Verificar que estamos todavía dentro del array
+  // Ojo: el __syncthreads() de adentro solo es correcto si TODOS los threads
+  // del bloque entran a este if, es decir, si N es múltiplo de blockDim.x
+  // (aquí N = 2^24 y bloques de 1024). Si no, la barrera queda en una rama
+  // divergente y el comportamiento no está definido.
   if (idx < N) {
 
     // Reducción aplicada dentro de cada bloque

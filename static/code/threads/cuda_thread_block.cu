@@ -12,7 +12,7 @@ __global__ void idx_print() {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc == 1) {
+  if (argc < 3) {
     printf("./cuda_thread_block [grid size] [block size]");
     printf(" (e.g. ./cuda_thread_block 4 128)\n");
 

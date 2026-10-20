@@ -75,8 +75,8 @@ divergentes (más adelante en esta clase) cuestan rendimiento. -->
 - Un *warp* serializa las ramas de un `if` (divergencia).
 - CUDA 9 agregó control fino: *warp primitives* (`__shfl_down_sync`, `__syncwarp`, ...) y *cooperative groups*.
 
-<!-- NOTA — estos dos costos son la agenda de la clase: occupancy viene ahora,
-divergencia dentro de la reducción. Las warp primitives de CUDA 9 también
+<!-- NOTA — los dos costos de las primeras viñetas son la agenda de la clase:
+occupancy viene ahora, divergencia dentro de la reducción. Las warp primitives de CUDA 9 también
 aparecen en la reducción, como la forma correcta de trabajar dentro de un warp
 desde Volta. Cooperative groups queda fuera del curso. -->
 
@@ -303,6 +303,16 @@ El diagrama es esquemático: las proporciones no son a escala. -->
 
 ---
 
+## **SM y organización de los threads**
+
+![w:520px](images/warps_thread_blocks.png)
+
+<p class="credit">Fuente: <em>Professional CUDA C Programming</em></p>
+
+Los *warps* son manejados por los *streaming multiprocessors* (SM).
+
+---
+
 ## **Latencia: ejemplo con un solo warp**
 
 ```cuda
@@ -355,8 +365,8 @@ Ahora tenemos 4 *warps* para ejecutar las mismas tareas.
 <!-- NOTA — dejar que la clase proponga antes de pasar a la diapositiva siguiente;
 se puede llenar la tabla en la pizarra con sus ideas. Las respuestas que
 buscamos son dos. (1) Más warps: mientras uno espera su carga, el SM emite la
-instrucción de otro (paralelismo entre threads, TLP); es lo que muestran las
-dos diapositivas que siguen, y lleva al occupancy. (2) Más trabajo
+instrucción de otro (paralelismo entre threads, TLP); es lo que muestra la
+diapositiva que sigue, y lleva al occupancy. (2) Más trabajo
 independiente dentro de cada thread: si cada thread carga dos elementos antes
 de usar el primero (por ejemplo x[i] y x[i + N/2]), las dos cargas están en
 vuelo a la vez (paralelismo de instrucciones, ILP); es lo que hace el loop
@@ -401,8 +411,10 @@ explica la diapositiva anterior: el GPU no reduce la latencia, la esconde. -->
 
 ## **Orden en la ejecución de los threads**
 
-- Al igual que en la programación en paralelo con CPU (p. ej. con OpenMP), **no** podemos asumir un orden de ejecución de los *threads*.
-- Bloques y *warps* se ejecutan en cualquier orden: no hay ninguna garantía.
+**Importante:** 
+- Desde Volta **no** hay *lock-step* garantizado: si un *thread* usa el resultado de otro, hay que usar `__syncwarp()`.
+- Al igual que en la programación en paralelo con CPU (eg. con OpenMP), **no** podemos asumir un orden de ejecución de los *threads*.
+- No hay garantías en el orden de ejecución de bloques y *warps*.
 
 Si nuestro programa **asume** un cierto orden de ejecución para obtener resultados correctos, **tiene un bug**. Nosotros debemos imponerlo.
 
@@ -427,8 +439,7 @@ nvcc -arch=sm_75 cuda_thread_block.cu -o cuda_thread_block.x
 ```
 
 - Ejecutarlo varias veces: el orden entre bloques y *warps* cambia.
-- Dentro de un *warp* suelen imprimir en orden de *lane*: eso **no** prueba que avancen juntos.
-- Desde Volta **no** hay *lock-step* garantizado: si un *thread* usa el resultado de otro, hay que usar `__syncwarp()`.
+<!-- - Dentro de un *warp* suelen imprimir en orden de *lane*: eso **no** prueba que avancen juntos. -->
 
 <!-- NOTA — el programa recibe el tamaño del grid y del bloque como argumentos
 (./cuda_thread_block.x 4 128) e imprime thread, bloque, warp y lane para
@@ -493,13 +504,34 @@ calculan en bloques enteros. -->
 | Registros | $65\,536$ |
 | Memoria compartida | hasta $64$ KB |
 
+
+
+
 <!-- NOTA — el material original usaba la arquitectura Fermi del libro (32K
 registros, 48 warps y 8 bloques por SM, 16 o 48 KB de memoria compartida).
 Los números de esta tabla son los de la T4 que usan los alumnos, y se pueden
 consultar con cudaGetDeviceProperties: maxThreadsPerMultiProcessor,
 maxBlocksPerMultiProcessor, regsPerMultiprocessor y
 sharedMemPerMultiprocessor. El occupancy real es el MÍNIMO de lo que permite
-cada límite por separado. -->
+cada límite por separado.
+
+Cómo obtenerlos en Colab: nvidia-smi solo da la capacidad de cómputo
+(nvidia-smi --query-gpu=name,compute_cap --format=csv). simpleDeviceQuery.cu
+(intro) imprime los threads por SM, pero no los bloques por SM, y da
+regsPerBlock y sharedMemPerBlock (por bloque, no por SM). Basta un programa de
+pocas líneas que imprima los cuatro campos de arriba con cudaGetDeviceProperties.
+En la T4 deberían dar 1024 (32 warps), 16, 65536 y 65536 bytes. Para un kernel
+concreto, ncu --section Occupancy --section LaunchStats ./prog muestra el
+límite que impone cada recurso (Block Limit Registers / Shared Mem / Warps /
+SM), que es la cuenta de las diapositivas siguientes. Referencia publicada: la
+tabla "Compute Capabilities" de la CUDA C++ Programming Guide, columna 7.5.
+
+Ojo con la memoria compartida: el SM tiene hasta 64 KB, pero cada bloque
+recibe como máximo 48 KB por defecto (sharedMemPerBlock). Para pasar de 48 KB
+hay que usar memoria compartida dinámica y pedirlo explícitamente con
+cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, ...),
+hasta sharedMemPerBlockOptin (64 KB en la T4). Los ejemplos de la diapositiva
+de memoria compartida (16 y 32 KB por bloque) quedan bajo ese límite. -->
 
 ---
 
@@ -548,7 +580,7 @@ Máximo $16$ bloques y $1024$ *threads* por SM:
 | 256 | 4  | 1024 | 1 |
 | 1024 | 1 | 1024 | 1 |
 
-**Ojo:** Bloques de menos de $64$ *threads* no alcanzan a llenar el SM.
+**Notar:** Bloques de menos de $64$ *threads* no alcanzan a llenar el SM.
 
 <!-- NOTA — el occupancy se cuenta en warps, no en threads: un bloque más chico que
 un warp (por ejemplo 16 threads) ocupa igual un warp entero, con lanes
@@ -561,7 +593,8 @@ completo, pero como solo caben 16 bloques por SM, quedan 16 warps de 32
 posibles. Por eso la recomendación habitual es bloques de 128 a 256 threads:
 llenan el SM sin quedar limitados por el número de bloques, y dejan margen
 para que varios bloques convivan. El ejercicio de matriz_mult.cu, con bloques
-de 16 threads, cae en el caso peor que el de esta tabla. -->
+de 16 threads, tiene el mismo occupancy que la primera fila (50%), pero es
+peor: cada warp trabaja con solo 16 de sus 32 lanes. -->
 
 ---
 
@@ -628,15 +661,15 @@ occupancy que se ganó. -->
 
 Descargar: [matriz_mult.cu](../code/threads/matriz_mult.cu). Por defecto usa bloques de $4 \times 4 = 16$ *threads*; el tamaño se puede pasar como argumento.
 
-1. Con los límites de la T4, ¿cuál es el *occupancy* teórico? (`--resource-usage` da los registros).
-2. Medirlo con el *profiler*.
-3. Repetir con bloques de $16 \times 16$.
-
 ```bash
 nvcc -arch=sm_75 --resource-usage matriz_mult.cu -o matriz_mult.x
 ncu --section Occupancy ./matriz_mult.x         # bloques de 4 x 4
 ncu --section Occupancy ./matriz_mult.x 16 16   # bloques de 16 x 16
 ```
+
+1. Con los límites de la T4, ¿cuál es el *occupancy* teórico? (`--resource-usage` da los registros).
+2. Medirlo con el *profiler*.
+3. Repetir con bloques de $16 \times 16$.
 
 <!-- RESPUESTAS medidas con ncu --section Occupancy en la T4 (2026-10). (1) Bloques
 de 4x4: occupancy teórico 50%, no 25%. El occupancy se cuenta en WARPS, y un
@@ -673,7 +706,7 @@ tiempos medidos con eventos; para eso, ncu --clock-control none. nvprof
 
 ## **Reducción paralela**
 
-- Muchas operaciones tienen como objetivo obtener un solo valor a partir de un conjunto de datos.
+- Muchas operaciones tienen como objetivo obtener un **solo valor a partir de un conjunto de datos**.
   - Este tipo de operaciones la denominamos **reducción**.
 - Ahora discutiremos un cálculo de reducción en paralelo con GPU.
 
@@ -961,7 +994,8 @@ Ejemplo: [reduccion_global.cu](../code/threads/reduccion_global.cu).
 inteligente: el ciclo sobre el stride está en el host, y cada nivel del árbol
 es un lanzamiento de kernel distinto. Con N = 2^24 son 24 lanzamientos. La
 ventaja es que el fin de cada kernel sincroniza todo el grid, así que no hace
-falta ninguna barrera dentro del kernel. -->
+falta ninguna barrera dentro del kernel. Cada lanzamiento lee de un arreglo y
+escribe en otro (la diapositiva del código explica por qué). -->
 
 ---
 
@@ -980,28 +1014,31 @@ ya no queda nada que sumar. -->
 ## **Reducción paralela: memoria global**
 
 ```cuda
-__global__ void reduccion_memoria_global(float *data, int stride, int N)
-{
+__global__ void reduccion_memoria_global(float *data_out, const float *data_in,
+                                         int stride, int N) {
   int idx_x = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx_x + stride < N) {
-    data_out[idx_x] += data_in[idx_x + stride];
-  }
+  if (idx_x + stride < N)
+    data_out[idx_x] = data_in[idx_x] + data_in[idx_x + stride];
+  else if (idx_x < N)
+    data_out[idx_x] = data_in[idx_x];
 }
 ...
-int main(){
-  ...
-  for (int stride = 1; stride < N; stride *= 2) {
-    global_reduction_kernel<<<n_bloques, n_threads>>>(d_array, stride, N);
-  }
-  ...
+for (int stride = 1; stride < N; stride *= 2) {
+  reduccion_memoria_global<<<n_bloques, n_threads>>>(d_out, d_in, stride, N);
+  float *tmp = d_in; d_in = d_out; d_out = tmp;  // intercambiar
 }
 ```
 
-<!-- NOTA — ojo con el código de la diapositiva: muestra data_out y data_in, pero
-reduccion_global.cu trabaja sobre un solo arreglo, data, que se va
-actualizando en el lugar (data[idx] += data[idx + stride]). Es seguro porque
-cada lanzamiento lee y escribe posiciones distintas, y el siguiente
-lanzamiento empieza recién cuando termina el anterior. -->
+<!-- NOTA — ¿por qué dos arreglos? Con uno solo, data[idx] += data[idx + stride],
+el thread idx leería data[idx + stride] mientras el thread idx + stride lo
+está modificando en el MISMO lanzamiento: una race condition. Dentro de un
+warp las lecturas ocurren antes que las escrituras, pero entre warps y entre
+bloques no hay ningún orden garantizado, y el resultado puede salir mal (es
+la regla de las diapositivas de orden de ejecución). Con data_in y data_out
+separados ningún thread lee lo que otro escribe en el mismo lanzamiento;
+después de cada lanzamiento se intercambian los punteros, y el siguiente
+lanzamiento empieza recién cuando termina el anterior. El resultado queda en
+d_in[0] después del último intercambio. -->
 
 ---
 
@@ -1026,8 +1063,10 @@ Ejemplo: [reduccion_global2.cu](../code/threads/reduccion_global2.cu).
 ![w:720px](images/threads/reduction_global_strided.png)
 
 <!-- NOTA — reduccion_global2.cu agrega la condición idx % (2*stride) == 0: ahora
-solo suman los threads cuyos resultados importan. Se hace menos trabajo
-inútil, pero aparece un problema nuevo, que es el tema de las diapositivas
+solo suman los threads cuyos resultados importan. Con esa condición puede
+volver a trabajar en un solo arreglo: escriben los índices múltiplos de
+2*stride y se leen los múltiplos impares de stride, que nadie escribe en ese
+lanzamiento. Se hace menos trabajo inútil, pero aparece un problema nuevo, que es el tema de las diapositivas
 siguientes: dentro de un warp, unos threads cumplen la condición y otros no. -->
 
 ---
@@ -2138,7 +2177,7 @@ escribe sus parciales en otro arreglo y los punteros se intercambian. -->
 
 ## **Reducción paralela: warp unrolling**
 
-- Cuando llegamos a $< 32$ elementos en un bloque, el trabajo cabe en un *warp*.
+- Cuando quedan $64$ elementos en un bloque, el trabajo cabe en un *warp* ($32$ *threads* que suman de a dos).
 - Dentro de un *warp* no hace falta `__syncthreads()` (que sincroniza todo el bloque), pero desde Volta **sí** `__syncwarp()`.
 - Además, tendremos *threads* que no trabajan mientras el número de sumas disminuye: menos eficiente.
 - Podemos hacer *unroll* dentro del último *warp* para optimizar más.
@@ -2328,9 +2367,10 @@ __device__ float sumaWarp(float v) {
 
 <!-- NOTA — compárese con el warp unrolling de reduccion_global8: el mismo
 resultado, sin memoria compartida, sin volatile y sin __syncwarp() explícito.
-Los ejemplos de up y xor muestran las otras dos formas de mover valores; xor
-es la base de la reducción "en mariposa", donde al final TODOS los lanes
-tienen la suma (no solo el 0). Otra opción para este nivel de control son los
+Los ejemplos de up y xor muestran las otras dos formas de mover valores:
+warp_shuffle_up.cu calcula la suma acumulada (el lane t termina con la suma
+de los lanes 0 a t), y warp_shuffle_xor.cu hace la reducción "en mariposa",
+donde al final TODOS los lanes tienen la suma (no solo el 0). Otra opción para este nivel de control son los
 cooperative groups, fuera del alcance del curso. -->
 
 ---
@@ -2415,7 +2455,8 @@ Ejemplo (SAXPY): [grid_stride.cu](../code/threads/grid_stride.cu).
 <!-- NOTA — el material original decía que el grid-stride "mejora el
 occupancy". No es así: el occupancy depende de los recursos por bloque, no de
 cuántos bloques se lanzan. Lo que sí hace es desacoplar el tamaño del grid del
-tamaño de los datos (basta con llenar el GPU, p. ej. 32 bloques por SM),
+tamaño de los datos (basta con llenar el GPU: en la T4 caben 4 bloques de
+256 threads por SM; si se lanzan más, corren en tandas),
 reducir el costo de lanzar y retirar bloques, y amortizar el trabajo fijo de
 cada thread (calcular índices, inicializar) sobre muchos elementos. -->
 
