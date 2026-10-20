@@ -27,7 +27,7 @@ theme: curso
 <!-- resultado del host y del GPU para comparar; reduccion-shuffle.cu e -->
 <!-- histograma.cu además miden su tiempo con eventos de CUDA, que se ven en la -->
 <!-- clase de streams. Los dos .py usan PyCUDA, que veremos en la clase de -->
-<!-- librerías. --> -->
+<!-- librerías. -->
 <!---->
 <!-- --- -->
 
@@ -987,27 +987,74 @@ menor). -->
 
 Ejemplo: [reduccion_global.cu](../code/threads/reduccion_global.cu).
 
-- *Kernel* invocado dentro de un ciclo.
-- El *stride* cambia en cada iteración por un factor de $2$.
+Implementa la estrategia de reducción anterior.
+- El *kernel* es invocado dentro de un ciclo para cada nivel del árbol.
+- Con cada iteración, el *stride* aumenta en un factor de $2$.
 
 <!-- NOTA — la primera versión no usa memoria compartida ni bloques de forma
 inteligente: el ciclo sobre el stride está en el host, y cada nivel del árbol
 es un lanzamiento de kernel distinto. Con N = 2^24 son 24 lanzamientos. La
 ventaja es que el fin de cada kernel sincroniza todo el grid, así que no hace
 falta ninguna barrera dentro del kernel. Cada lanzamiento lee de un arreglo y
-escribe en otro (la diapositiva del código explica por qué). -->
+escribe en otro (la diapositiva del código explica por qué).
+
+El host y el device no dan exactamente lo mismo, y el que se equivoca es el
+CPU. Cada elemento vale a lo más 255/(2^31 - 1) ~ 1.2e-7 (media ~ 6e-8). Cuando
+el acumulador float secuencial pasa de 1, la separación entre floats es
+2^-23 ~ 1.2e-7: cada término nuevo es la mitad de esa separación, así que cada
+suma redondea y el error se acumula, O(N). El GPU suma en árbol (por pares de
+tamaño parecido) y el error crece como O(log N). Comparado con la suma exacta
+en double (mismo srand(2019), rand de glibc):
+
+  N      float secuencial (host)   double (exacta)   árbol (device)
+  2^24   0.995958                  0.996006836       0.996007
+  2^25   1.992238                  1.992247406       1.992247
+
+Con 2^25 (una versión anterior del programa) la T4 imprimió
+"host: 1.992238, device 1.992247": el device coincide con la suma exacta en
+todas las cifras impresas y el host difiere en 9e-6. Con el N = 2^24 actual
+la T4 imprime "host: 0.995958, device 0.996007" (2026-10), igual a la
+predicción de la tabla: el host difiere en 4.9e-5. Lección: la reducción
+paralela es más precisa; el CPU no es automáticamente la referencia. -->
 
 ---
 
 ## **Reducción paralela: memoria global**
 
-![w:720px](images/threads/reduction_global.png)
+El ciclo sobre el *stride* está en el *host*: un lanzamiento por nivel del árbol.
 
-`stride = 8` no puede pasar porque el ciclo va hasta `stride < N`.
+@include[cuda]{static/code/threads/reduccion_global.cu:60-71}
 
-<!-- NOTA — la condición del ciclo es stride < N: con stride = N/2 se suma la
-última mitad sobre la primera y el resultado queda en data[0]. Con stride = N
-ya no queda nada que sumar. -->
+<!-- NOTA — con N = 2^24 el ciclo da 24 vueltas: stride = 1, 2, 4, ..., 2^23.
+Cada lanzamiento usa n_bloques bloques de 1024 threads, es decir N threads en
+todos los niveles, aunque cada nivel necesite la mitad de resultados que el
+anterior (es el problema que plantea la diapositiva "Hay un problema con el
+kernel"). Los lanzamientos en el mismo stream se ejecutan en orden, así que
+cada uno ve completo el resultado del anterior sin sincronizar nada desde el
+host. El cudaMemcpy final sí espera a que termine el último kernel. -->
+
+---
+
+## **Reducción paralela: memoria global**
+
+![w:560px](images/threads/reduction_global.png)
+
+- Cada nivel del árbol (fila) es **un lanzamiento** del *kernel* en el ciclo (`stride` $= 1, 2, 4$).
+- Los *threads* se muestran en rojo.
+
+<!-- NOTA — propósito de esta diapositiva: seguir el ciclo de la diapositiva
+anterior a mano con N = 8, antes de mirar el kernel. Cada lanzamiento suma a
+cada elemento el que está stride posiciones más adelante; después de los
+niveles con stride 1, 2 y 4, data[0] tiene la suma de los 8 (37). Con
+stride = N/2 se suma la última mitad sobre la primera; con stride = N ya no
+queda nada que sumar, por eso el ciclo es stride < N.
+
+Ojo con la figura: la última fila solo dibuja la flecha del thread 0. En el
+código los threads 1, 2 y 3 también suman (20 + 14 = 34, 21 + 12 = 33,
+22 + 3 = 25) y los threads 4 a 7 copian su valor; esos resultados no le sirven
+a nadie. Es justamente la pregunta de dos diapositivas más adelante: conviene
+preguntar a los alumnos qué threads trabajaron en cada fila antes de llegar
+ahí. -->
 
 ---
 
@@ -1021,11 +1068,6 @@ __global__ void reduccion_memoria_global(float *data_out, const float *data_in,
     data_out[idx_x] = data_in[idx_x] + data_in[idx_x + stride];
   else if (idx_x < N)
     data_out[idx_x] = data_in[idx_x];
-}
-...
-for (int stride = 1; stride < N; stride *= 2) {
-  reduccion_memoria_global<<<n_bloques, n_threads>>>(d_out, d_in, stride, N);
-  float *tmp = d_in; d_in = d_out; d_out = tmp;  // intercambiar
 }
 ```
 
@@ -1044,15 +1086,25 @@ d_in[0] después del último intercambio. -->
 
 ## **Reducción paralela: memoria global**
 
-Hay un problema con el *kernel*... ¿cuál es?
+Hay un problema con el *kernel*...
 
-... todos los *threads* calculan algo, ¡pero los resultados no son necesarios!
+... todos los *threads* calculan algo, ¡pero la mayoría de los resultados no se usan!
+
+- En el nivel con *stride* $s$ solo sirven los índices múltiplos de $2s$.
+- Con $N = 8$: $7 + 6 + 4 = 17$ sumas, cuando bastan $4 + 2 + 1 = 7$.
+<!-- - En general: $\sim N \log_2 N$ sumas en vez de $N - 1$. -->
 
 <!-- NOTA — la respuesta: en cada lanzamiento todos los threads hacen la suma, pero
 en el nivel con stride s solo sirven los resultados de los índices múltiplos
 de 2s; el resto escribe valores que nadie va a leer. En el último nivel
 trabajan millones de threads para producir un único número útil. Además, todo
-pasa por memoria global, y cada nivel lee y escribe el arreglo entero. -->
+pasa por memoria global, y cada nivel lee y escribe el arreglo entero.
+
+Las cuentas con N = 8: un thread suma si idx + stride < N, así que con
+stride 1 suman 7 threads, con stride 2 suman 6 y con stride 4 suman 4. Un
+árbol solo necesita N/2 + N/4 + ... + 1 = N - 1 = 7. Con N = 2^24 son 24
+niveles de ~2^24 sumas cada uno, unas 4*10^8, contra 1.7*10^7 necesarias.
+La próxima versión ataca exactamente esto. -->
 
 ---
 
@@ -1060,14 +1112,46 @@ pasa por memoria global, y cada nivel lee y escribe el arreglo entero. -->
 
 Ejemplo: [reduccion_global2.cu](../code/threads/reduccion_global2.cu).
 
-![w:720px](images/threads/reduction_global_strided.png)
+![w:520px](images/threads/reduction_global_strided.png)
 
-<!-- NOTA — reduccion_global2.cu agrega la condición idx % (2*stride) == 0: ahora
-solo suman los threads cuyos resultados importan. Con esa condición puede
-volver a trabajar en un solo arreglo: escriben los índices múltiplos de
-2*stride y se leen los múltiplos impares de stride, que nadie escribe en ese
-lanzamiento. Se hace menos trabajo inútil, pero aparece un problema nuevo, que es el tema de las diapositivas
-siguientes: dentro de un warp, unos threads cumplen la condición y otros no. -->
+Solo suman los *threads* cuyo resultado se usa: $4 + 2 + 1 = 7$ sumas.
+
+<!-- NOTA — misma entrada (N = 8) y mismo resultado (37) que la figura de
+reduccion_global, para compararlas lado a lado: ahora en cada fila trabajan
+solo los threads múltiplos de 2*stride (0, 2, 4, 6; después 0, 4; después 0).
+Los demás elementos quedan como estaban, porque nadie los vuelve a leer. -->
+
+---
+
+## **Reducción paralela: menos threads trabajando**
+
+@include[cuda]{static/code/threads/reduccion_global2.cu:4-10}
+
+- Solo suma si `idx % (2*stride) == 0`: $N - 1$ sumas en total.
+- **Un solo arreglo**: escribe en múltiplos de $2s$, lee múltiplos impares de $s$.
+- Igual se lanzan **$N$ *threads*** en cada nivel.
+
+<!-- NOTA — los tres cambios respecto de reduccion_global:
+
+(1) La condición idx % (2*stride) == 0 deja trabajar solo a los threads cuyo
+resultado se usa: N/2, N/4, ..., 1 sumas, N - 1 en total, en vez de ~N log N.
+
+(2) Con esa condición se puede volver a trabajar en un solo arreglo (in place):
+en un lanzamiento se escriben los índices múltiplos de 2*stride y se leen los
+múltiplos impares de stride, y ningún índice está en los dos grupos. Por eso
+ya no hacen falta d_in, d_out ni el intercambio de punteros.
+
+(3) Lo que NO cambia: el host lanza n_bloques * 1024 = N threads en cada
+nivel. Los threads que no cumplen la condición no suman, pero igual ocupan su
+lugar en un warp. Con stride = 1 trabajan los threads pares: en cada warp hay
+16 threads activos y 16 esperando, y todos los warps siguen ejecutándose. Esto
+sigue así mientras 2*stride <= 32 (strides 1 a 16): cada warp tiene algún
+thread activo. Solo desde stride = 32 hay warps enteros sin trabajo.
+
+O sea, se hizo mucho menos trabajo útil pero no necesariamente en menos
+tiempo: es el tema de las diapositivas siguientes (divergencia de warps), y lo
+que corrige reduccion_global3 juntando a los threads activos en índices
+contiguos. Todavía sin medir en la T4. -->
 
 ---
 
@@ -1085,11 +1169,13 @@ if (threadIdx.x % 2 == 0) {
 }
 ```
 
-Los *threads* de índice par ejecutan la **rama 1** y los de índice impar la **rama 2**.
+Los *threads* pares ejecutan la **rama 1** y los impares la **rama 2**: es `reduccion_global2` con `stride = 1`.
 
 <!-- NOTA — el if en sí no es el problema; el problema es que la condición tome
 valores distintos DENTRO de un mismo warp. Si todos los threads de un warp van
-por la misma rama, no hay costo extra. -->
+por la misma rama, no hay costo extra. En reduccion_global2 la rama "else" está
+vacía, pero los threads impares igual esperan a que los pares terminen la
+suma. -->
 
 ---
 
@@ -1541,10 +1627,43 @@ En los *profilers* se puede medir el nivel de *warp divergence*:
 - `nvprof`: `branch_efficiency`
 - `ncu`: `smsp__sass_average_branch_targets_threads_uniform.pct`
 
+En `ncu`, la sección `SourceCounters` la muestra como *Branch Efficiency*:
+
+```bash
+ncu --section SourceCounters -c 1 ./reduccion_global2.x
+```
+
 <!-- NOTA — branch_efficiency (nvprof) es el porcentaje de saltos en que todo el
 warp tomó el mismo camino; 100% es sin divergencia. En ncu la métrica
 equivalente mide el promedio de threads activos en las ramas. Se puede pedir
-que comparen reduccion_global2 con reduccion_global3 con esta métrica. -->
+que comparen reduccion_global2 con reduccion_global3 con esta métrica.
+
+La sección SourceCounters ("source metrics, including branch efficiency and
+sampled warp stall reasons", según la Profiling Guide de Nsight Compute)
+muestra la línea Branch Efficiency junto con el número de saltos y los saltos
+divergentes promedio. Que esa línea sea exactamente
+smsp__sass_average_branch_targets_threads_uniform.pct no está verificado: para
+confirmarlo, agregar --metrics smsp__sass_average_branch_targets_threads_uniform.pct
+al mismo comando y comparar los dos números. -c 1 perfila solo el primer
+lanzamiento (stride = 1, la mayor divergencia); sin él ncu imprime los 24
+lanzamientos. -s 5 -c 1 perfila el de stride = 32, desde donde hay warps
+enteros sin threads activos.
+
+Medido en la T4 (2026-10), reduccion_global (la primera versión, sin -c 1, los
+24 lanzamientos): Branch Efficiency 100% en todos, Avg. Divergent Branches 0.01
+en los 5 primeros (stride 1 a 16) y 0 después. Es lo esperado: el if/else de
+esa versión no depende de la paridad de idx sino de idx + stride < N, y la
+frontera N - stride cae dentro de un warp solo si stride < 32; entonces
+diverge 1 warp de 524 288. Branch Instructions = 1 048 576 = 2 por warp, más 2
+en los lanzamientos con ese warp divergente, y más stride/32 desde stride = 32
+(los warps de la cola que evalúan también el else if). Lección: la primera
+versión desperdicia trabajo pero NO tiene divergencia; sirve de referencia
+para reduccion_global2, donde idx % (2*stride) separa a los threads de cada
+warp. ncu además reporta accesos no coalescidos solo con stride 1, 2 y 4:
+data_in[idx + stride] queda desalineado respecto de los sectores de 32 bytes y
+cada warp toca 5 sectores en vez de 4 en esa lectura (524 287 sectores de
+más, 8% de 6 815 745 = 13 por warp: 4 + 5 leídos y 4 escritos). Desde
+stride = 8 la lectura queda alineada. reduccion_global2 y 3 todavía sin medir. -->
 
 ---
 
@@ -1562,6 +1681,83 @@ primeros (índices bajos) y quedan juntos en los mismos warps: los warps están
 o completos o vacíos, y no hay divergencia. El problema del final de la
 diapositiva es real: 2*stride*idx crece rápido, y para arreglos muy grandes no
 cabe en un int, por eso el código usa unsigned long. -->
+
+---
+
+## **¿Por qué no hay divergencia?**
+
+`reduccion_global2`: suman los `idx` múltiplos de $2s$, en **todos** los *warps*.
+
+@include[cuda]{static/code/threads/reduccion_global2.cu:7-9}
+
+`reduccion_global3`: suman los `idx` $< N/(2s)$: cada *warp* queda **completo o vacío**.
+
+@include[cuda]{static/code/threads/reduccion_global3.cu:10-13}
+
+<!-- NOTA — la divergencia depende de cómo se reparten los threads activos entre
+los warps, no de cuántos son. Las dos versiones hacen las mismas N - 1 sumas.
+
+reduccion_global2: suma el thread con idx % (2*stride) == 0. Con stride = 1
+son los pares: en cada warp 16 activos y 16 esperando, y TODOS los warps
+divergen. Mientras 2*stride <= 32 (strides 1 a 16) cada warp tiene
+32/(2*stride) threads activos; después cada thread activo queda solo en su
+warp, y siguen divergiendo N/(2*stride) warps.
+
+reduccion_global3: el thread idx trabaja sobre index = 2*stride*idx, y la
+condición index < N equivale a idx < N/(2*stride). Los threads activos son
+siempre los primeros N/(2*stride), un rango contiguo que empieza en 0. Como un
+warp son 32 idx consecutivos, un warp está entero dentro del rango (todos
+suman) o entero fuera (ninguno suma, y el if es uniforme). A lo más el warp
+de la frontera diverge, y solo cuando N/(2*stride) no es múltiplo de 32: con
+N = 2^24, en los 5 últimos niveles (stride >= 2^19), donde quedan menos de 32
+threads activos, todos en el warp 0.
+
+Lo que se movió es el trabajo: el thread 1 ya no suma data[1] + data[2] (eso
+no sirve), sino data[2] + data[3] con stride = 1, data[4] + data[6] con
+stride = 2, etc. Mismo árbol, otra asignación de threads a nodos. Los warps
+vacíos igual se lanzan y evalúan el if, pero salen enseguida sin dividir a
+nadie. Para medirlo: ncu --section SourceCounters -c 1 sobre
+reduccion_global2.x y reduccion_global3.x. Todavía sin medir en la T4. -->
+
+---
+
+## **Reducción paralela: ¿por qué `unsigned long`?**
+
+@include[cuda]{static/code/threads/reduccion_global3.cu:6-13}
+
+- **Todos** los *threads* calculan `index`: hasta $2^{24} \cdot 2^{24} = 2^{48}$.
+- En $32$ bits, `stride` $= 2^{23}$ e `idx` $= 256$ dan $2^{32} \to 0$.
+- Ese *thread* también suma en `data[0]`: **resultado incorrecto**.
+
+<!-- NOTA — la respuesta a "puede ser problemático usar el índice global" de la
+diapositiva anterior. En reduccion_global3 el índice del elemento ya no es el
+índice global del thread, sino index = 2*stride*idx, y se calcula en todos los
+N threads lanzados, no solo en los N/(2*stride) que trabajan. Con N = 2^24,
+idx llega a 2^24 - 1 y 2*stride a 2^24 en el último nivel, así que el producto
+llega a ~2^48: no cabe en 32 bits.
+
+El ejemplo del slide: en el último nivel (stride = 2^23), el thread idx = 256
+calcula 2^24 * 2^8 = 2^32, que en 32 bits sin signo vale 0 (con int con signo
+es comportamiento indefinido; en la práctica también da la vuelta). Entonces
+index = 0 < N y el thread ejecuta data[0] += data[2^23], igual que el thread
+0. Lo mismo pasa con todos los múltiplos de 256: 2^24/256 = 65 536 threads
+sumando sobre data[0] a la vez, en una race condition y contando de nuevo la
+segunda mitad. En niveles anteriores el producto da la vuelta a valores
+menores que N (a veces 0, a veces no), y esos threads modifican elementos
+que no les tocan.
+
+Por qué basta unsigned long: idx es de 64 bits, y en 2 * stride * idx primero
+se calcula 2 * stride en int (a lo más 2^24, cabe) y luego se multiplica por
+idx convirtiendo a 64 bits. Si se declarara idx como int, el producto
+completo se haría en 32 bits y el resultado saldría mal sin ningún aviso ni
+error. El costo: la aritmética entera de 64 bits es más lenta en el GPU que la
+de 32. Una alternativa es comprobar antes de multiplicar, idx < N / (2*stride),
+que nunca desborda.
+
+Otro problema de este índice, que no es de desborde: los threads de un warp
+acceden a posiciones separadas por 2*stride, así que con stride grande cada
+thread toca su propio sector de 32 bytes y los accesos no son coalescidos. Las
+versiones siguientes (con bloques y memoria compartida) lo atacan. -->
 
 ---
 
