@@ -3807,38 +3807,97 @@ kernels por separado. Todavía sin medir en la T4. -->
 
 ---
 
+# Operaciones atómicas
+
+---
+
+## **Operaciones atómicas**
+
+- Cuando muchos *threads* escriben en la **misma** dirección de memoria hay una *race condition*: el resultado depende del orden de ejecución.
+- Una operación **atómica** garantiza que la lectura-modificación-escritura ocurra sin interrupción (es *indivisible*).
+
+```cuda
+__global__ void suma_atomica(int *contador, const int *datos) {
+  int i = threadIdx.x + blockIdx.x * blockDim.x;
+  atomicAdd(contador, datos[i]); // seguro: sin race condition
+}
+```
+
+- Otras: `atomicSub`, `atomicMax`, `atomicMin`, `atomicExch`, `atomicCAS`, ...
+
+<!-- NOTA — el ejemplo clásico: si dos threads hacen contador++ a la vez, los dos
+leen el mismo valor viejo, los dos suman 1 y los dos escriben: se pierde una
+cuenta. atomicAdd hace la lectura, la suma y la escritura como una sola
+operación que nadie puede interrumpir. Funcionan en memoria global y en
+memoria compartida; atomicAdd existe para int, unsigned, float y double (este
+último desde CC 6.0). -->
+
+---
+
+## **Atómicas: costo y buenas prácticas**
+
+- Serializan los accesos concurrentes → pueden ser **lentas** si hay mucha contención.
+- Buena práctica: reducir primero dentro del bloque (con memoria compartida, o con *warp primitives*, que vienen a continuación) y usar **una** atómica por bloque.
+
+```cuda
+// cada bloque aporta su resultado parcial al total global
+if (threadIdx.x == 0) atomicAdd(total, suma_del_bloque);
+```
+
+- Es una alternativa simple (con contención) a la **reducción** en paralelo que vimos antes.
+
+<!-- NOTA — contención es cuántos threads atacan la MISMA dirección: si son muchos,
+el hardware los atiende de a uno. Por eso un atomicAdd por thread sobre un
+solo contador es lento, y uno por bloque es barato. Es exactamente el diseño
+de la reducción completa y del histograma con memoria compartida. Detalle:
+atomicAdd en float suma en el orden en que llegan los bloques, que cambia
+entre ejecuciones; el resultado puede variar en los últimos dígitos. -->
+
+---
+
 # Warp primitives
 
 ---
 
 ## **Warp primitives**
 
-- Las *warp primitives* (funciones primitivas de *warp*) son funciones básicas para trabajar directamente con los *threads* dentro de un *warp*.
-- Un poco de jerga: un *thread* dentro de un *warp* se conoce como un *lane*.
-- Hay muchas funciones disponibles: *CUDA Programming Guide*.
-- Las usaremos para el último paso de la reducción, dentro de un *warp*, sin memoria compartida.
+- Hasta ahora, los *threads* se comunican por **memoria compartida**: uno escribe, `__syncthreads()`, otro lee.
+- Dentro de un *warp* hay un atajo: un *thread* puede leer **directamente un registro** de otro *thread* del mismo *warp*.
+- Las funciones que hacen eso son las *warp primitives*; la que usaremos es el *shuffle*.
+- Jerga: la posición de un *thread* dentro de su *warp* es su *lane*: `lane = threadIdx.x % 32`, de $0$ a $31$.
 
-<!-- NOTA — lane es el índice del thread dentro de su warp, de 0 a 31 (threadIdx.x
-% 32). Todas las primitivas modernas terminan en _sync y reciben una máscara:
-son las versiones seguras desde Volta, porque sincronizan a los threads de la
-máscara antes de intercambiar datos. Son la forma correcta de trabajar
-dentro de un warp desde Volta: el idioma del libro ("warp unrolling", seis
-sumas seguidas en memoria compartida confiando en el lock-step, sin
-__syncwarp()) es una race condition en la T4. reduccion_global8.cu, en la
-página de códigos, lo muestra corregido con volatile y dos __syncwarp() por
-paso; no se ve en clase. -->
+<!-- NOTA — la idea central: cada thread tiene sus propias variables locales (por
+ejemplo float v), que viven en registros y que ningún otro thread puede ver.
+Para combinar valores entre threads, hasta ahora había que pasar por memoria
+compartida: escribir, barrera, leer. Pero los 32 threads de un warp se
+ejecutan juntos en el mismo SM, y el hardware puede mover un registro de un
+lane a otro en una sola instrucción, sin pasar por memoria. Eso hacen las
+warp primitives: __shfl_down_sync, __shfl_up_sync, __shfl_xor_sync (mover
+valores), __ballot_sync, __all_sync, __any_sync (votar), y __syncwarp()
+(barrera del warp). Lista completa en la CUDA Programming Guide, sección
+"Warp Shuffle Functions".
+
+Todas terminan en _sync y reciben una máscara de 32 bits, un bit por lane:
+0xffffffff (32 unos) significa que participan los 32 lanes. El _sync importa
+desde Volta (la T4 incluida): los threads de un warp ya no avanzan
+necesariamente juntos, y la función espera a todos los lanes de la máscara
+antes de intercambiar. El idioma del libro ("warp unrolling": seis sumas
+seguidas en memoria compartida confiando en que el warp avanza junto, sin
+__syncwarp()) es por eso una race condition en la T4. reduccion_global8.cu,
+en la página de códigos, lo muestra corregido con volatile y dos
+__syncwarp() por paso; no se ve en clase. -->
 
 ---
 
-## **Warp primitives**
+## **Shuffle: leer el registro de otro *lane***
 
 ```cuda
-#define FULL_MASK 0xffffffff  // 32-bits, todos igual a 1
-for (int stride = 16; stride > 0; stride >>= 1)
-  val += __shfl_down_sync(FULL_MASK, val, stride);
+// máscara 0xffffffff: un bit por lane, los 32 en 1 → participan todos
+// los 32 lanes llaman a la vez; el lane t recibe el v del lane t + d
+v += __shfl_down_sync(0xffffffff, v, d);
 ```
 
-<svg viewBox="0 0 860 390" width="760" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<svg viewBox="0 0 860 390" width="680" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-shfl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#222"/></marker></defs>
 <text x="58" y="24" font-size="18" font-weight="bold" text-anchor="end" fill="#222">lane</text>
 <text x="93" y="24" font-size="18" font-weight="bold" text-anchor="middle" fill="#222">0</text>
@@ -3911,22 +3970,38 @@ for (int stride = 16; stride > 0; stride >>= 1)
 
 <p class="credit">Fuente: adaptado de NVIDIA Developer Blog</p>
 
-<!-- NOTA — __shfl_down_sync(mascara, v, d): cada lane recibe el valor v del lane
-que está d posiciones más arriba. Con d = 16, 8, 4, 2, 1, después de 5 pasos
-el lane 0 tiene la suma de los 32. Los lanes que reciben de 'fuera' del warp
-se quedan con su propio valor, pero eso no importa porque solo se usa el
-resultado del lane 0. -->
+<!-- NOTA — cómo leer __shfl_down_sync(mascara, v, d): TODOS los lanes de la
+máscara ejecutan la llamada a la vez, cada uno con su propio v. La función le
+devuelve al lane t el valor de v que tiene el lane t + d ("down": el valor
+baja d lanes, de un número de lane mayor a uno menor). Con += cada lane suma
+ese valor al suyo. Un lane cuyo t + d se sale del warp (t + d > 31) recibe su
+propio v; su resultado queda mal, pero no importa, porque solo se usa el lane
+0.
 
-<!-- NOTA — versión redibujada (SVG) de la figura anterior. Por espacio muestra 8
-lanes con desplazamientos 4, 2 y 1; en un warp real son 32 lanes y los
-desplazamientos 16, 8, 4, 2 y 1, como en el código. Cada flecha va del lane t
-+ d al lane t: el lane t recibe el valor v del lane que está d posiciones más
-arriba y lo suma al suyo. Todos los lanes empiezan con 1, así que se ve la
-cuenta: 2 en 4 lanes, 4 en 2, y 8 en el lane 0. Las casillas claras siguen
-teniendo un valor en el hardware, pero ya no importa: solo se usa el resultado
-del lane 0. No hay memoria compartida ni __syncwarp(): el intercambio es
-directo entre registros, y el _sync de la función sincroniza a los lanes de la
-máscara m. -->
+La máscara 0xffffffff tiene un bit por lane, todos en 1: participan los 32.
+0x indica hexadecimal; cada dígito hexadecimal son 4 bits y f = 15 = 1111, así
+que ocho f son 32 unos:
+
+  0xffffffff = 1111 1111 1111 1111 1111 1111 1111 1111  (binario)
+               lane 31 ...                      ... lane 0
+
+Como entero sin signo es 2^32 - 1 = 4 294 967 295. Otras máscaras posibles:
+0x0000ffff (solo los lanes 0–15) o 0x55555555 (0101...01, solo los lanes
+pares), pero todos los lanes de la máscara tienen que ejecutar la llamada; en
+una reducción la ejecutan los 32, y por eso se usa 0xffffffff.
+
+La figura muestra 8 lanes por espacio, con d = 4, 2, 1; en un warp real son
+32 lanes y d = 16, 8, 4, 2, 1. Cada flecha va del lane t + d al lane t. Todos
+los lanes empiezan con v = 1, así que se puede seguir la cuenta: después de
+d = 4 los lanes 0–3 tienen 2, después de d = 2 los lanes 0–1 tienen 4, y
+después de d = 1 el lane 0 tiene 8 = la suma de los 8. Las casillas claras
+siguen teniendo un valor, pero ya no se usan.
+
+Es exactamente el árbol contiguo de reduccion_global5 (el thread t suma el
+elemento t + stride, y el stride se divide por 2), pero con dos diferencias:
+los valores están en registros y no en memoria, y no hace falta
+__syncthreads() entre niveles, porque cada nivel es una sola instrucción que
+ya sincroniza a los lanes de la máscara. -->
 
 ---
 
@@ -3940,11 +4015,22 @@ __device__ float sumaWarp(float v) {
 }
 ```
 
-- Intercambio de datos **entre registros**: más eficiente que la memoria compartida (sin *load*, *store* ni dirección).
-- La máscara dice qué *threads* participan; el `_sync` ya los sincroniza.
+- El árbol de `reduccion_global5` con *stride* $16, 8, 4, 2, 1$, pero entre los $32$ registros de un *warp*.
+- **Sin** memoria compartida y **sin** `__syncthreads()`: cada nivel es una sola instrucción.
 - Ejemplos: [warp_shuffle_down.cu](../code/threads/warp_shuffle_down.cu) (un vector de $32$), [warp_shuffle_up.cu](../code/threads/warp_shuffle_up.cu), [warp_shuffle_xor.cu](../code/threads/warp_shuffle_xor.cu).
 
-<!-- NOTA — los ejemplos de up y xor muestran las otras dos formas de mover valores:
+<!-- NOTA — sumaWarp es el ciclo de la diapositiva anterior metido en una
+función __device__: cada thread del warp la llama con su propio v, y al
+volver, el lane 0 tiene la suma de los 32 valores (los otros lanes tienen
+sumas parciales que no se usan). Son 5 instrucciones de shuffle (log2 32 = 5
+niveles), contra 5 niveles de lecturas y escrituras en memoria compartida
+separados por barreras. Por qué es más rápido: no hay load ni store, no hay
+direcciones que calcular, no hay conflictos de bancos y no hay que esperar a
+los otros warps del bloque.
+
+warp_shuffle_down.cu es el ejemplo mínimo: un solo warp de 32 threads, cada
+uno con el valor de su índice, y el lane 0 escribe la suma (0 + 1 + ... + 31
+= 496). Los ejemplos de up y xor muestran las otras dos formas de mover valores:
 warp_shuffle_up.cu calcula la suma acumulada (el lane t termina con la suma
 de los lanes 0 a t), y warp_shuffle_xor.cu hace la reducción "en mariposa",
 donde al final TODOS los lanes tienen la suma (no solo el 0). Otra opción para este nivel de control son los
@@ -3952,51 +4038,132 @@ cooperative groups, fuera del alcance del curso. -->
 
 ---
 
-# Operaciones atómicas
+## **Reducción completa: la idea**
 
----
+<svg viewBox="0 0 1072 470" width="1000" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<defs><marker id="fl-compl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
+<rect x="200.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="248.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 0</text>
+<text x="248.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<rect x="308.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="356.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 1</text>
+<text x="356.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<rect x="416.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="464.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 2</text>
+<text x="464.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<rect x="524.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="572.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 3</text>
+<text x="572.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<rect x="632.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="680.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 4</text>
+<text x="680.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<rect x="740.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="788.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 5</text>
+<text x="788.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<rect x="848.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="896.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 6</text>
+<text x="896.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<rect x="956.0" y="20" width="96" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="1004.0" y="45.0" font-size="15" text-anchor="middle" fill="#222">warp 7</text>
+<text x="1004.0" y="78" font-size="12" text-anchor="middle" fill="#666">32 sumas</text>
+<text x="178" y="46" font-size="15" text-anchor="end" fill="#333">1. registros</text>
+<text x="178" y="63" font-size="13" text-anchor="end" fill="#666" font-style="italic">grid-stride</text>
+<line x1="248.0" y1="84.0" x2="248.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="248.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="248.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="356.0" y1="84.0" x2="356.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="356.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="356.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="464.0" y1="84.0" x2="464.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="464.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="464.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="572.0" y1="84.0" x2="572.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="572.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="572.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="680.0" y1="84.0" x2="680.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="680.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="680.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="788.0" y1="84.0" x2="788.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="788.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="788.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="896.0" y1="84.0" x2="896.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="896.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="896.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="1004.0" y1="84.0" x2="1004.0" y2="102.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<circle cx="1004.0" cy="118" r="15" fill="#e8641b" stroke="#444"/>
+<text x="1004.0" y="123" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<text x="178" y="123" font-size="15" text-anchor="end" fill="#333">2. sumaWarp</text>
+<text x="178" y="140" font-size="13" text-anchor="end" fill="#666" font-style="italic">lane 0 = suma del warp</text>
+<rect x="192" y="162" width="868" height="62" rx="8" fill="#e3ecf9" stroke="#9fb6d8"/>
+<line x1="248.0" y1="133.0" x2="248.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="200.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="248.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[0]</text>
+<line x1="356.0" y1="133.0" x2="356.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="308.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="356.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[1]</text>
+<line x1="464.0" y1="133.0" x2="464.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="416.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="464.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[2]</text>
+<line x1="572.0" y1="133.0" x2="572.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="524.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="572.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[3]</text>
+<line x1="680.0" y1="133.0" x2="680.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="632.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="680.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[4]</text>
+<line x1="788.0" y1="133.0" x2="788.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="740.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="788.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[5]</text>
+<line x1="896.0" y1="133.0" x2="896.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="848.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="896.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[6]</text>
+<line x1="1004.0" y1="133.0" x2="1004.0" y2="171.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="956.0" y="172" width="96" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="1004.0" y="194.0" font-size="12" text-anchor="middle" fill="#222" font-family="monospace">parcial[7]</text>
+<text x="178" y="194" font-size="15" text-anchor="end" fill="#333">3. compartida</text>
+<text x="178" y="211" font-size="13" text-anchor="end" fill="#666" font-style="italic">__syncthreads()</text>
+<line x1="248.0" y1="207.0" x2="280.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<line x1="356.0" y1="207.0" x2="320.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<line x1="464.0" y1="207.0" x2="360.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<line x1="572.0" y1="207.0" x2="400.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<line x1="680.0" y1="207.0" x2="440.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<line x1="788.0" y1="207.0" x2="480.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<line x1="896.0" y1="207.0" x2="520.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<line x1="1004.0" y1="207.0" x2="560.0" y2="289.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="248.0" y="290" width="344" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="420.0" y="315.0" font-size="13" text-anchor="middle" fill="#222">warp 0: lanes 0–7 leen parcial, 8–31 usan 0</text>
+<circle cx="632.0" cy="310" r="15" fill="#e8641b" stroke="#444"/>
+<text x="632.0" y="315" font-size="13" text-anchor="middle" fill="#fff">Σ</text>
+<line x1="592.0" y1="310.0" x2="616.0" y2="310.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<text x="178" y="316" font-size="15" text-anchor="end" fill="#333">4. sumaWarp</text>
+<text x="178" y="333" font-size="13" text-anchor="end" fill="#666" font-style="italic">otra vez</text>
+<line x1="632.0" y1="326.0" x2="632.0" y2="399.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-compl)"/>
+<rect x="572.0" y="400" width="120" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="632.0" y="425.0" font-size="16" text-anchor="middle" fill="#222" font-family="monospace">total</text>
+<text x="644.0" y="358" font-size="14" fill="#333" font-family="monospace">atomicAdd</text>
+<text x="644.0" y="374" font-size="12" fill="#666">(lane 0, una por bloque)</text>
+<rect x="912.0" y="290" width="140" height="40" rx="3" fill="#f2f2f2" stroke="#555"/>
+<text x="982.0" y="315.0" font-size="14" text-anchor="middle" fill="#222">otros bloques</text>
+<line x1="962.0" y1="332.0" x2="694.0" y2="414.0" stroke="#444" stroke-width="1.4" stroke-dasharray="5,4" marker-end="url(#fl-compl)"/>
+<text x="178" y="426" font-size="15" text-anchor="end" fill="#333">5. global</text>
+<text x="178" y="443" font-size="13" text-anchor="end" fill="#666" font-style="italic">un número</text>
+</svg>
 
-## **Operaciones atómicas**
-
-- Cuando muchos *threads* escriben en la **misma** dirección de memoria hay una *race condition*: el resultado depende del orden de ejecución.
-- Una operación **atómica** garantiza que la lectura-modificación-escritura ocurra sin interrupción (es *indivisible*).
-
-```cuda
-__global__ void suma_atomica(int *contador, const int *datos) {
-  int i = threadIdx.x + blockIdx.x * blockDim.x;
-  atomicAdd(contador, datos[i]); // seguro: sin race condition
-}
-```
-
-- Otras: `atomicSub`, `atomicMax`, `atomicMin`, `atomicExch`, `atomicCAS`, ...
-
-<!-- NOTA — el ejemplo clásico: si dos threads hacen contador++ a la vez, los dos
-leen el mismo valor viejo, los dos suman 1 y los dos escriben: se pierde una
-cuenta. atomicAdd hace la lectura, la suma y la escritura como una sola
-operación que nadie puede interrumpir. Funcionan en memoria global y en
-memoria compartida; atomicAdd existe para int, unsigned, float y double (este
-último desde CC 6.0). -->
-
----
-
-## **Atómicas: costo y buenas prácticas**
-
-- Serializan los accesos concurrentes → pueden ser **lentas** si hay mucha contención.
-- Buena práctica: reducir primero dentro del bloque (memoria compartida o *warp primitives*) y usar **una** atómica por bloque.
-
-```cuda
-// cada bloque aporta su resultado parcial al total global
-if (threadIdx.x == 0) atomicAdd(total, suma_del_bloque);
-```
-
-- Es una alternativa simple (con contención) a la **reducción** en paralelo que vimos antes.
-
-<!-- NOTA — contención es cuántos threads atacan la MISMA dirección: si son muchos,
-el hardware los atiende de a uno. Por eso un atomicAdd por thread sobre un
-solo contador es lento, y uno por bloque es barato. Es exactamente el diseño
-de la reducción completa y del histograma con memoria compartida. Detalle:
-atomicAdd en float suma en el orden en que llegan los bloques, que cambia
-entre ejecuciones; el resultado puede variar en los últimos dígitos. -->
+<!-- NOTA — el recorrido de UN bloque de 256 threads (8 warps) en
+reduccion-shuffle.cu; todos los bloques hacen lo mismo en paralelo.
+(1) Grid-stride: cada thread recorre el arreglo saltando de a
+blockDim.x * gridDim.x elementos y acumula en su registro suma. En la T4 se
+lanzan 32 bloques por SM x 40 SMs = 1280 bloques de 256, o sea 327 680
+threads, y cada uno suma 2^24 / 327 680 = 51.2 elementos (51 o 52).
+(2) Cada warp reduce sus 32 sumas con sumaWarp: queda una suma por warp, en el
+lane 0. (3) Para juntar los 8 warps del bloque hace falta memoria compartida,
+porque el shuffle solo funciona dentro de un warp: el lane 0 de cada warp
+escribe parcial[warp], un arreglo __shared__ de 256/32 = 8 floats, y
+__syncthreads() espera a que estén los 8. (4) El warp 0 vuelve a usar
+sumaWarp: sus lanes 0–7 leen parcial[0..7] y los lanes 8–31 ponen 0, que no
+cambia la suma. (5) El lane 0 del warp 0 suma el resultado del bloque al total
+en memoria global con atomicAdd. Hay 1280 bloques, así que son 1280
+atómicas en todo el kernel, con poca contención. total tiene que estar en 0
+antes de lanzar (el programa hace cudaMemset). -->
 
 ---
 
@@ -4010,14 +4177,23 @@ suma = sumaWarp(suma);                             // 2. shuffle en el warp
 if (lane == 0) parcial[warp] = suma;               // 3. un valor por warp
 __syncthreads();
 if (warp == 0) {
-  suma = sumaWarp(lane < BLOQUE / 32 ? parcial[lane] : 0.f);
-  if (lane == 0) atomicAdd(total, suma);           // 4. una atómica por bloque
+  suma = sumaWarp(lane < BLOQUE / 32 ? parcial[lane] : 0.f); // 4. otra vez
+  if (lane == 0) atomicAdd(total, suma);           // 5. una atómica por bloque
 }
 ```
 
-Ejemplo: [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu). Un solo *kernel*, sin copiar resultados parciales al *host*.
+- `lane = threadIdx.x % 32`, `warp = threadIdx.x / 32`; `parcial`: $256/32 = 8$ `float` en memoria compartida.
+- Ejemplo: [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu): todo en un solo *kernel*.
 
-<!-- NOTA — este kernel junta todo lo de la clase: grid-stride (cada thread
+<!-- NOTA — el código sigue los pasos de la figura anterior. Lo que no se ve en
+el recorte: lane = threadIdx.x % 32 y warp = threadIdx.x / 32 (el número de
+warp dentro del bloque), parcial es __shared__ float parcial[BLOQUE / 32] con
+BLOQUE = 256, e idx = blockIdx.x * blockDim.x + threadIdx.x. Los pasos 1 y 2
+los hacen todos los threads; el 3 solo los lanes 0; el 4 solo el warp 0, y la
+atómica (5) solo un thread por bloque. Es la condición lane < BLOQUE / 32 la que
+hace que los lanes 8–31 usen 0.
+
+Este kernel junta todo lo de la clase: grid-stride (cada thread
 suma muchos elementos en un registro), warp primitives (sin memoria compartida
 dentro del warp), memoria compartida solo para los 8 valores por bloque, y una
 atómica por bloque para el total. Comparado con la serie
