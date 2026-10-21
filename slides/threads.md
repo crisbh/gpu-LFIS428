@@ -1047,11 +1047,47 @@ paralela es más precisa; el CPU no es automáticamente la referencia. -->
 
 ---
 
+## **Reducción paralela: cómo medir cada versión**
+
+Cada programa imprime su resultado y el **tiempo GPU** de sus *kernels* (medido con eventos de CUDA):
+
+```bash
+nvcc -arch=sm_75 reduccion_global.cu -o reduccion_global.x
+./reduccion_global.x
+```
+
+- Para las otras versiones, los mismos comandos cambiando el nombre.
+- *Speedup* de una versión $= t_\texttt{reduccion\_global} \,/\, t_\text{versión}$.
+
+<!-- NOTA — todas las versiones en una celda de Colab:
+
+for f in reduccion_global reduccion_global2 reduccion_global3 reduccion_global4 reduccion_global5 reduccion_compartida reduccion_global6 reduccion_global7; do echo "== $f"; nvcc -arch=sm_75 $f.cu -o $f.x && ./$f.x; done
+
+El tiempo cubre solo los lanzamientos (no las copias ni la suma final en el
+host): en reduccion_global, 2 y 3 es el total de los 24 lanzamientos, en
+reduccion_compartida el de las 3 pasadas, y reduccion_global7 imprime un
+tiempo por cada factor de unrolling. Antes de medir, cudaFuncGetAttributes
+carga el kernel: desde CUDA 12 los kernels se cargan en su primer
+lanzamiento, y sin eso esa carga quedaría dentro de la medición.
+
+Referencia en la T4 (2026-10, ncu --clock-control none, tiempo total de los
+kernels): reduccion_global 14.0 ms, global2 8.8, global3 6.5, global4 1.4,
+global5 1.1–1.2, compartida 1.3–1.5, global6 0.65, global7 x2/x4/x8
+0.66/0.36/0.29 ms. Es decir, de 1x a unas 48x. Los tiempos absolutos cambian
+entre sesiones de Colab; lo que se compara son los cocientes.
+
+Para comprobar con el profiler (Colab ya no trae nvprof):
+ncu --clock-control none --metrics gpu__time_duration.sum ./reduccion_global5.x
+Sin --clock-control none, ncu fija el reloj del GPU en su valor base y todos
+los tiempos salen más lentos que los medidos con eventos. -->
+
+---
+
 ## **Reducción paralela: memoria global**
 
 El ciclo sobre el *stride* está en el *host*: un lanzamiento por nivel del árbol.
 
-@include[cuda]{static/code/threads/reduccion_global.cu:60-71}
+@include[cuda]{static/code/threads/reduccion_global.cu:70-78}
 
 <!-- NOTA — con N = 2^24 el ciclo da 24 vueltas: stride = 1, 2, 4, ..., 2^23.
 Cada lanzamiento usa n_bloques bloques de 1024 threads, es decir N threads en
@@ -1059,7 +1095,9 @@ todos los niveles, aunque cada nivel necesite la mitad de resultados que el
 anterior (es el problema que plantea la diapositiva "Hay un problema con el
 kernel"). Los lanzamientos en el mismo stream se ejecutan en orden, así que
 cada uno ve completo el resultado del anterior sin sincronizar nada desde el
-host. El cudaMemcpy final sí espera a que termine el último kernel. -->
+host. El cudaMemcpy que copia el resultado (después del ciclo, en el
+programa) sí espera a que termine el último kernel: después del último
+intercambio el resultado está en d_in[0]. -->
 
 ---
 
@@ -3307,7 +3345,7 @@ juntar los resultados. -->
 
 ## **Memoria compartida: varias pasadas**
 
-@include[cuda]{static/code/threads/reduccion_compartida.cu:83-92}
+@include[cuda]{static/code/threads/reduccion_compartida.cu:93-102}
 
 - **Tercer argumento** de `<<<...>>>`: memoria compartida por bloque (*bytes*).
 - $2^{24} \to 2^{14} \to 2^{4} \to 1$: **3 lanzamientos**, y la suma termina en el GPU.
