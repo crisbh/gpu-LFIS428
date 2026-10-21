@@ -1063,6 +1063,34 @@ host. El cudaMemcpy final sí espera a que termine el último kernel. -->
 
 ## **Reducción paralela: memoria global**
 
+Kernel invocado:
+
+```cuda
+__global__ void reduccion_memoria_global(float *data_out, const float *data_in,
+                                         int stride, int N) {
+  int idx_x = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx_x + stride < N)
+    data_out[idx_x] = data_in[idx_x] + data_in[idx_x + stride];
+  else if (idx_x < N)
+    data_out[idx_x] = data_in[idx_x];
+}
+```
+
+<!-- NOTA — ¿por qué dos arreglos? Con uno solo, data[idx] += data[idx + stride],
+el thread idx leería data[idx + stride] mientras el thread idx + stride lo
+está modificando en el MISMO lanzamiento: una race condition. Dentro de un
+warp las lecturas ocurren antes que las escrituras, pero entre warps y entre
+bloques no hay ningún orden garantizado, y el resultado puede salir mal (es
+la regla de las diapositivas de orden de ejecución). Con data_in y data_out
+separados ningún thread lee lo que otro escribe en el mismo lanzamiento;
+después de cada lanzamiento se intercambian los punteros, y el siguiente
+lanzamiento empieza recién cuando termina el anterior. El resultado queda en
+d_in[0] después del último intercambio. -->
+
+---
+
+## **Reducción paralela: memoria global**
+
 <svg viewBox="0 0 612 436" width="540" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-glob" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
 <text x="170" y="16" font-size="16" fill="#333">N = 8, n_threads = 4: n_bloques = 2</text>
@@ -1250,8 +1278,8 @@ host. El cudaMemcpy final sí espera a que termine el último kernel. -->
 - Cada nivel del árbol (fila) es **un lanzamiento** del *kernel* en el ciclo (`stride` $= 1, 2, 4$).
 - Los *threads* se muestran en los círculos naranjos (gris: solo copia).
 
-<!-- NOTA — propósito de esta diapositiva: seguir el ciclo de la diapositiva
-anterior a mano con N = 8, antes de mirar el kernel. Cada lanzamiento suma a
+<!-- NOTA — propósito de esta diapositiva: seguir a mano, con N = 8, el ciclo
+y el kernel de las dos diapositivas anteriores. Cada lanzamiento suma a
 cada elemento el que está stride posiciones más adelante; después de los
 niveles con stride 1, 2 y 4, data[0] tiene la suma de los 8 (37). Con
 stride = N/2 se suma la última mitad sobre la primera; con stride = N ya no
@@ -1259,8 +1287,8 @@ queda nada que sumar, por eso el ciclo es stride < N.
 
 Los threads 1, 2 y 3 también suman en el último nivel (20 + 14 = 34,
 21 + 12 = 33, 22 + 3 = 25) y los threads 4 a 7 copian su valor; esos
-resultados no le sirven a nadie. Es justamente la pregunta de dos
-diapositivas más adelante: conviene preguntar a los alumnos qué threads
+resultados no le sirven a nadie. Es justamente la pregunta de la
+diapositiva siguiente: conviene preguntar a los alumnos qué threads
 trabajaron en cada fila antes de llegar ahí. -->
 
 <!-- NOTA — la figura (redibujada en SVG a partir de la del libro, en el estilo
@@ -1275,33 +1303,7 @@ data[0] = 37 queda con número. Las cuentas: stride 1 → 4, 9, 12, 11, 9, 11,
 25, 21, 14, 12, 3 en las casillas lila). Cada fila es un
 arreglo distinto (d_in y d_out se intercambian), así que ninguna flecha lee
 una casilla que se escribe en la misma fila. Suman 7 + 6 + 4 = 17 threads,
-que es la cuenta de dos diapositivas más adelante. -->
-
----
-
-## **Reducción paralela: memoria global**
-
-```cuda
-__global__ void reduccion_memoria_global(float *data_out, const float *data_in,
-                                         int stride, int N) {
-  int idx_x = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx_x + stride < N)
-    data_out[idx_x] = data_in[idx_x] + data_in[idx_x + stride];
-  else if (idx_x < N)
-    data_out[idx_x] = data_in[idx_x];
-}
-```
-
-<!-- NOTA — ¿por qué dos arreglos? Con uno solo, data[idx] += data[idx + stride],
-el thread idx leería data[idx + stride] mientras el thread idx + stride lo
-está modificando en el MISMO lanzamiento: una race condition. Dentro de un
-warp las lecturas ocurren antes que las escrituras, pero entre warps y entre
-bloques no hay ningún orden garantizado, y el resultado puede salir mal (es
-la regla de las diapositivas de orden de ejecución). Con data_in y data_out
-separados ningún thread lee lo que otro escribe en el mismo lanzamiento;
-después de cada lanzamiento se intercambian los punteros, y el siguiente
-lanzamiento empieza recién cuando termina el anterior. El resultado queda en
-d_in[0] después del último intercambio. -->
+que es la cuenta de la diapositiva siguiente. -->
 
 ---
 
@@ -2091,7 +2093,7 @@ Ejemplo: [reduccion_global3.cu](../code/threads/reduccion_global3.cu).
 <text x="156" y="381" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 4</text>
 </svg>
 
-Puede ser problemático usar el índice global de los *threads* para un *array* muy grande...
+<!-- Puede ser problemático usar el índice global de los *threads* para un *array* muy grande... -->
 
 <!-- NOTA — reduccion_global3.cu cambia QUÉ thread suma qué par: el thread idx suma
 la posición 2*stride*idx. Así los threads que trabajan son siempre los
@@ -2149,7 +2151,7 @@ reduccion_global2.x y reduccion_global3.x. Todavía sin medir en la T4. -->
 
 ---
 
-## **Reducción paralela: ¿por qué `unsigned long`?**
+## **¿Por qué usar `unsigned long` para `index`?**
 
 @include[cuda]{static/code/threads/reduccion_global3.cu:6-13}
 
@@ -2189,9 +2191,12 @@ versiones siguientes (con bloques y memoria compartida) lo atacan. -->
 
 ---
 
-## **Reducción paralela: usando bloques**
+## **Reducción paralela: un árbol por bloque**
 
 Ejemplo: [reduccion_global4.cu](../code/threads/reduccion_global4.cu).
+
+- Antes: un árbol sobre **todo** el arreglo y un lanzamiento por nivel.
+- Ahora: cada bloque reduce **su parte** en un solo lanzamiento.
 
 <svg viewBox="0 0 1000 300" width="1100" style="display:block;margin:0.3em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-blq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e65100"/></marker></defs>
@@ -2460,16 +2465,20 @@ Ejemplo: [reduccion_global4.cu](../code/threads/reduccion_global4.cu).
 <rect x="885" y="126" width="60" height="16" fill="#edf3dc"/><text x="915" y="138" font-size="12" text-anchor="middle" fill="#555">bloque 7</text>
 </svg>
 
-<p class="credit">Fuente: adaptado de <em>Professional CUDA C Programming</em></p>
+<!-- <p class="credit">Fuente: adaptado de <em>Professional CUDA C Programming</em></p> -->
 
 <!-- NOTA — reduccion_global4.cu cambia de estrategia: cada bloque reduce SU parte
 del arreglo dentro de un solo kernel, sincronizando con __syncthreads() entre
 niveles, y deja un resultado parcial por bloque; la suma de los parciales se
 hace en el host. Detalle corregido en el código: los parciales se guardan en
 un arreglo aparte, porque escribirlos en data[blockIdx.x] pisaba datos que el
-bloque 0 todavía estaba sumando. Un solo lanzamiento en vez de 24. -->
+bloque 0 todavía estaba sumando. Un solo lanzamiento en vez de 24. Las
+versiones anteriores también lanzaban bloques, pero el árbol abarcaba el
+arreglo entero y los niveles se sincronizaban relanzando el kernel; como
+__syncthreads() solo sincroniza un bloque, hacerlo en un solo lanzamiento
+obliga a un árbol por bloque. Ese es el cambio que nombra el título. -->
 
-<!-- NOTA — versión redibujada (SVG) de la figura anterior. Arriba, en el device:
+<!-- NOTA — la figura (redibujada en SVG a partir de la del libro). Arriba, en el device:
 cada bloque reduce su parte del arreglo en paralelo con los demás, con el
 árbol de siempre y __syncthreads() entre niveles, y deja UN resultado parcial.
 Las líneas punteadas son esos parciales, uno por bloque, que se copian al
@@ -2479,6 +2488,31 @@ host suma 16384 números en vez de 16 millones, y el GPU hace todo el resto en
 un solo lanzamiento. La figura dibuja 8 bloques de 8 elementos solo para que
 se vea. Más adelante la reducción completa (reduccion-shuffle.cu) reemplaza la
 suma en el host por un atomicAdd por bloque. -->
+
+---
+
+## **Reducción paralela: un árbol por bloque**
+
+@include[cuda]{static/code/threads/reduccion_global4.cu:18-28}
+
+- **Un solo lanzamiento**: el ciclo sobre el *stride* está dentro del *kernel*.
+- `idata` apunta a la parte del bloque.
+  - Al final: `parcial[blockIdx.x] = idata[0]`.
+
+<!-- NOTA — los cambios respecto de reduccion_global3: (1) el ciclo sobre el
+stride pasa del host al kernel, así que hay un lanzamiento en vez de 24;
+(2) como los niveles ya no están separados por lanzamientos, hace falta
+__syncthreads() para que un nivel empiece cuando todo el bloque terminó el
+anterior, y __syncthreads() solo sincroniza un bloque: por eso cada bloque
+reduce SU parte (idata apunta al comienzo de ella) y deja un parcial;
+(3) el parcial va a un arreglo aparte, parcial[blockIdx.x], porque
+escribirlo en data[blockIdx.x] pisaría datos que el bloque 0 todavía está
+sumando. El índice sigue siendo el de reduccion_global3 (2*stride*t), ahora
+con threadIdx.x. El comentario del código sobre el if vale la pena: la
+barrera queda dentro de if (idx < N), lo que solo es correcto porque N es
+múltiplo de blockDim.x; con otro N la barrera sería divergente y el
+comportamiento no está definido (la diapositiva muestra solo el ciclo; el if
+y la escritura del parcial están en el archivo). -->
 
 ---
 
@@ -2584,10 +2618,10 @@ stride = blockDim/2 y lo va dividiendo por 2, y suma el thread threadIdx.x con
 threadIdx.x + stride. Así los threads activos son siempre los primeros (sin
 divergencia) Y cada warp lee posiciones consecutivas (acceso contiguo), lo
 que conecta con el capítulo de memoria. Es el patrón que se usa en todas las
-versiones que siguen. -->
+versiones con memoria global que siguen (la de memoria compartida, que viene
+ahora, vuelve a propósito a la indexación de reduccion_global2). -->
 
-<!-- NOTA — versión redibujada (SVG) de la figura anterior, con los mismos valores;
-las sumas están verificadas: con stride 4, 3+4=7, 1+1=2, 7+6=13 y 0+3=3; con
+<!-- NOTA — la figura (redibujada en SVG a partir de la del libro); las sumas están verificadas: con stride 4, 3+4=7, 1+1=2, 7+6=13 y 0+3=3; con
 stride 2, 7+13=20 y 2+3=5; con stride 1, 20+5=25, que es la suma de los ocho
 datos. Es exactamente lo que hace reduccion_global5.cu: el stride empieza en
 blockDim/2 y se divide por 2, y el thread t suma la casilla t + stride sobre
@@ -2596,6 +2630,39 @@ primeros (0 a stride-1), así que no hay divergencia dentro de los warps
 mientras stride sea al menos 32; y las lecturas de un paso son dos tramos
 contiguos (t y t + stride), así que el acceso es contiguo. Las casillas lila
 quedan con datos que ya no se usan. -->
+
+---
+
+## **Reducción paralela: acceso contiguo**
+
+@include[cuda]{static/code/threads/reduccion_global5.cu:13-22}
+
+- Respecto de la versión anterior (`reduccion_global4`) solo cambia el **orden de los *strides*** y el **índice**.
+- Los *threads* activos son los primeros y leen **posiciones contiguas**.
+
+<!-- NOTA — es el mismo kernel que reduccion_global4 (mismo idata, mismo
+__syncthreads(), mismo parcial) con el ciclo invertido. Comparar las dos
+versiones línea a línea: en global4 el thread t trabaja en 2*stride*t y lee
+2*stride*t + stride, posiciones separadas por 2*stride; en global5 lee t y
+t + stride, dos tramos contiguos. Con el mismo número de sumas y sin
+divergencia en ninguno de los dos, la diferencia de tiempo es solo de acceso
+a memoria. -->
+
+---
+
+## **Reducción paralela: memoria compartida**
+
+- Hasta ahora hemos usado memoria global en todos los *kernels*.
+- Podemos optimizar el acceso a la memoria usando **memoria compartida**.
+
+Ejemplo: [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu).
+
+<!-- NOTA — reduccion_compartida.cu copia el bloque a memoria compartida y hace el
+árbol ahí, así la memoria global se lee una sola vez por elemento. Es una
+versión más simple que las anteriores (usa la indexación con divergencia de
+reduccion_global2) para aislar la idea de memoria compartida. Se lanza en
+varias pasadas hasta que queda un número; desde la corrección, cada pasada
+escribe sus parciales en otro arreglo y los punteros se intercambian. -->
 
 ---
 
@@ -2626,9 +2693,31 @@ for (int i = 0; i < N; i+=2){
 }
 ```
 
+Esto corresponde a *loop unrolling* con un factor de $2$.
+
 <!-- NOTA — las dos versiones hacen exactamente el mismo trabajo útil; la segunda
 hace la mitad de las comparaciones y saltos del ciclo. Ojo: la versión
-desenrollada supone que N es par; en código real hay que tratar el resto. -->
+desenrollada supone que N es par; en código real hay que tratar el resto. El factor de unrolling es cuántas
+iteraciones del ciclo original se hacen en una pasada. -->
+
+---
+
+## **Optimización: loop unrolling**
+
+```c
+for (int i = 0; i < N; i+=4){
+  a[i]   = b[i]   + c[i];
+  a[i+1] = b[i+1] + c[i+1];
+  a[i+2] = b[i+2] + c[i+2];
+  a[i+3] = b[i+3] + c[i+3];
+}
+```
+
+Esto corresponde a *loop unrolling* con un factor de $4$.
+
+<!-- NOTA — con factor 4 hay un cuarto de las comparaciones del ciclo original.
+Factores más grandes rinden cada vez menos y gastan más registros, que es la
+tensión con el occupancy que vimos antes. -->
 
 ---
 
@@ -2874,41 +2963,6 @@ parciales: 37 + 42 = 79, la suma de los 16 datos. -->
 
 ---
 
-## **Optimización: loop unrolling**
-
-```c
-for (int i = 0; i < N; i+=2){
-  a[i]   = b[i]   + c[i];
-  a[i+1] = b[i+1] + c[i+1];
-}
-```
-
-Esto corresponde a *loop unrolling* con un factor de $2$.
-
-<!-- NOTA — volver al ejemplo secuencial para conectar el nombre: el factor de
-unrolling es cuántas iteraciones del ciclo original se hacen en una pasada. -->
-
----
-
-## **Optimización: loop unrolling**
-
-```c
-for (int i = 0; i < N; i+=4){
-  a[i]   = b[i]   + c[i];
-  a[i+1] = b[i+1] + c[i+1];
-  a[i+2] = b[i+2] + c[i+2];
-  a[i+3] = b[i+3] + c[i+3];
-}
-```
-
-Esto corresponde a *loop unrolling* con un factor de $4$.
-
-<!-- NOTA — con factor 4 hay un cuarto de las comparaciones del ciclo original.
-Factores más grandes rinden cada vez menos y gastan más registros, que es la
-tensión con el occupancy que vimos antes. -->
-
----
-
 ## **Reducción paralela: loop unrolling**
 
 ```cuda
@@ -2981,22 +3035,6 @@ Este código incluye $3$ *kernels* con distintos factores de *unrolling*.
 otro y compara el resultado de cada uno con el del host. Para comparar tiempos
 hay que usar el profiler: nvprof ./reduccion_global7.x muestra los tres
 kernels por separado. Todavía sin medir en la T4. -->
-
----
-
-## **Reducción paralela: memoria compartida**
-
-- Hasta ahora hemos usado memoria global en todos los *kernels*.
-- Podemos optimizar el acceso a la memoria usando **memoria compartida**.
-
-Ejemplo: [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu).
-
-<!-- NOTA — reduccion_compartida.cu copia el bloque a memoria compartida y hace el
-árbol ahí, así la memoria global se lee una sola vez por elemento. Es una
-versión más simple que las anteriores (usa la indexación con divergencia de
-reduccion_global2) para aislar la idea de memoria compartida. Se lanza en
-varias pasadas hasta que queda un número; desde la corrección, cada pasada
-escribe sus parciales en otro arreglo y los punteros se intercambian. -->
 
 ---
 
@@ -3248,27 +3286,6 @@ entre ejecuciones; el resultado puede variar en los últimos dígitos. -->
 
 ---
 
-## **Atómicas: histograma**
-
-Ejemplo: [histograma.cu](../code/threads/histograma.cu). Cuenta cuántas veces aparece cada valor ($0$ a $255$) en $16$ M de bytes.
-
-- `histGlobal`: `atomicAdd` directo en memoria global.
-- `histCompartida`: histograma por bloque en memoria compartida, y al final una atómica global por contador.
-- Se mide con datos **aleatorios** y con datos **constantes** (todos los *threads* compiten por el mismo contador).
-
-```bash
-nvcc -arch=sm_75 histograma.cu -o histograma.x
-./histograma.x
-```
-
-<!-- NOTA — un histograma es el caso natural de atómicas: no se sabe de antemano
-qué contador va a incrementar cada thread. Los datos constantes son el peor
-caso a propósito: todos los threads al mismo contador, contención máxima. La
-comparación interesante es cómo reacciona cada kernel a ese peor caso; es el
-ejercicio 2. -->
-
----
-
 ## **Grid-stride loops (repaso)**
 
 - Ya lo vimos en el Capítulo 1: `for (i = idx; i < N; i += blockDim.x * gridDim.x)`.
@@ -3313,6 +3330,27 @@ al host, no tiene divergencia en el ciclo principal y lee la memoria global de
 forma contigua y una sola vez. Lo esperable es que se acerque al ancho de
 banda de la T4 (300 GB/s), porque una reducción tiene intensidad aritmética
 mínima (una suma por cada 4 bytes). -->
+
+---
+
+## **Atómicas: histograma**
+
+Ejemplo: [histograma.cu](../code/threads/histograma.cu). Cuenta cuántas veces aparece cada valor ($0$ a $255$) en $16$ M de bytes.
+
+- `histGlobal`: `atomicAdd` directo en memoria global.
+- `histCompartida`: histograma por bloque en memoria compartida, y al final una atómica global por contador.
+- Se mide con datos **aleatorios** y con datos **constantes** (todos los *threads* compiten por el mismo contador).
+
+```bash
+nvcc -arch=sm_75 histograma.cu -o histograma.x
+./histograma.x
+```
+
+<!-- NOTA — un histograma es el caso natural de atómicas: no se sabe de antemano
+qué contador va a incrementar cada thread. Los datos constantes son el peor
+caso a propósito: todos los threads al mismo contador, contención máxima. La
+comparación interesante es cómo reacciona cada kernel a ese peor caso; es el
+ejercicio 2. -->
 
 ---
 
