@@ -455,7 +455,7 @@ suele escribir las líneas del warp en orden de lane avancen o no juntos, así
 que ver el orden no prueba el lock-step; y perder el lock-step no desordena la
 salida de este ejemplo, porque aquí los lanes no divergen. Lo que importa es la
 regla: si un lane lee lo que escribió otro, hay que sincronizar con
-__syncwarp() o una primitiva *_sync (como en el warp unrolling de la
+__syncwarp() o una primitiva *_sync (como __shfl_down_sync en la
 reducción). -->
 
 <!-- Si alguien nota que dos corridas seguidas imprimen el MISMO orden y
@@ -2776,7 +2776,7 @@ tensión con el occupancy que vimos antes. -->
 
 ## **Optimización: loop unrolling**
 
-- El segundo ciclo tiene menos iteraciones.
+- Estos ciclos tienen menos iteraciones que el original.
 - Por lo tanto hay menos *overhead* de verificar si el ciclo puede terminar.
 - También hay oportunidades de optimizar el acceso a la memoria (uso de *cache*, etc.).
 - Para *loops* así, los compiladores modernos típicamente aplican *loop unrolling* automáticamente.
@@ -3091,64 +3091,6 @@ kernels por separado. Todavía sin medir en la T4. -->
 
 ---
 
-## **Reducción paralela: warp unrolling**
-
-- Cuando quedan $64$ elementos en un bloque, el trabajo cabe en un *warp* ($32$ *threads* que suman de a dos).
-- Dentro de un *warp* no hace falta `__syncthreads()` (que sincroniza todo el bloque), pero desde Volta **sí** `__syncwarp()`.
-- Además, tendremos *threads* que no trabajan mientras el número de sumas disminuye: menos eficiente.
-- Podemos hacer *unroll* dentro del último *warp* para optimizar más.
-
-<!-- NOTA — cuando el árbol llega a 32 elementos, todo el trabajo restante lo hace
-un solo warp. Seguir usando __syncthreads() frena a todo el bloque por un
-warp, y el if (threadIdx.x < stride) deja cada vez más lanes ociosos.
-Desenrollar los últimos pasos ahorra las barreras de bloque; pero desde Volta
-hay que sincronizar el warp, que es lo que muestra la diapositiva siguiente. -->
-
----
-
-## **Reducción paralela: warp unrolling**
-
-```cuda
-if (threadIdx.x < 32) {
-  volatile float *vmem = idata;
-  float v = vmem[threadIdx.x];
-  for (int stride = 32; stride > 0; stride >>= 1) {
-    v += vmem[threadIdx.x + stride];
-    __syncwarp();            // todos leyeron
-    vmem[threadIdx.x] = v;
-    __syncwarp();            // todos escribieron
-  }
-}
-```
-
-Ejemplo: [reduccion_global8.cu](../code/threads/reduccion_global8.cu). Todos los *threads* del *warp* calculan, pero solo necesitamos el resultado del primero.
-
-<!-- NOTA — la versión original (la del libro) hacía las seis sumas seguidas
-sin __syncwarp(), confiando en que el warp avanzaba en lock-step. En GPUs
-anteriores a Volta funcionaba; desde Volta es una race condition: el thread t
-lee vmem[t + stride], que el thread t + stride escribe en el MISMO paso. Por
-eso cada paso separa la lectura de la escritura con dos __syncwarp(). Queda
-feo, y es justamente la motivación de las warp primitives que vienen: el mismo
-paso con __shfl_down_sync no necesita memoria compartida, ni volatile, ni
-__syncwarp(). -->
-
----
-
-## **¿Qué es `volatile`?**
-
-- `volatile` es un calificador: le dice al compilador que **no** guarde la variable en un registro. Cada lectura y escritura va a la memoria.
-- Así un *thread* ve lo que escribieron los otros, en vez de una copia vieja en su registro.
-- Pero `volatile` **no sincroniza**: el orden entre los *threads* lo garantiza `__syncwarp()`.
-
-<!-- NOTA — volatile es necesario pero no suficiente. Sin volatile, el compilador
-podría guardar vmem[threadIdx.x] en un registro y nunca ver lo que escribieron
-otros threads. Con volatile cada acceso va a la memoria, pero eso no ordena a
-los threads entre sí: sin __syncwarp(), un thread podría leer antes de que el
-otro escriba. El material original decía que volatile evitaba las race
-conditions; no es así. -->
-
----
-
 # Warp primitives
 
 ---
@@ -3158,12 +3100,17 @@ conditions; no es así. -->
 - Las *warp primitives* (funciones primitivas de *warp*) son funciones básicas para trabajar directamente con los *threads* dentro de un *warp*.
 - Un poco de jerga: un *thread* dentro de un *warp* se conoce como un *lane*.
 - Hay muchas funciones disponibles: *CUDA Programming Guide*.
-- Las usaremos para el último paso de la reducción: sin memoria compartida, sin `volatile` y sin `__syncwarp()`.
+- Las usaremos para el último paso de la reducción, dentro de un *warp*, sin memoria compartida.
 
 <!-- NOTA — lane es el índice del thread dentro de su warp, de 0 a 31 (threadIdx.x
 % 32). Todas las primitivas modernas terminan en _sync y reciben una máscara:
 son las versiones seguras desde Volta, porque sincronizan a los threads de la
-máscara antes de intercambiar datos. -->
+máscara antes de intercambiar datos. Son la forma correcta de trabajar
+dentro de un warp desde Volta: el idioma del libro ("warp unrolling", seis
+sumas seguidas en memoria compartida confiando en el lock-step, sin
+__syncwarp()) es una race condition en la T4. reduccion_global8.cu, en la
+página de códigos, lo muestra corregido con volatile y dos __syncwarp() por
+paso; no se ve en clase. -->
 
 ---
 
@@ -3281,9 +3228,7 @@ __device__ float sumaWarp(float v) {
 - La máscara dice qué *threads* participan; el `_sync` ya los sincroniza.
 - Ejemplos: [warp_shuffle_down.cu](../code/threads/warp_shuffle_down.cu) (un vector de $32$), [warp_shuffle_up.cu](../code/threads/warp_shuffle_up.cu), [warp_shuffle_xor.cu](../code/threads/warp_shuffle_xor.cu).
 
-<!-- NOTA — compárese con el warp unrolling de reduccion_global8: el mismo
-resultado, sin memoria compartida, sin volatile y sin __syncwarp() explícito.
-Los ejemplos de up y xor muestran las otras dos formas de mover valores:
+<!-- NOTA — los ejemplos de up y xor muestran las otras dos formas de mover valores:
 warp_shuffle_up.cu calcula la suma acumulada (el lane t termina con la suma
 de los lanes 0 a t), y warp_shuffle_xor.cu hace la reducción "en mariposa",
 donde al final TODOS los lanes tienen la suma (no solo el 0). Otra opción para este nivel de control son los
