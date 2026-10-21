@@ -2652,17 +2652,67 @@ a memoria. -->
 
 ## **Reducción paralela: memoria compartida**
 
-- Hasta ahora hemos usado memoria global en todos los *kernels*.
-- Podemos optimizar el acceso a la memoria usando **memoria compartida**.
+Hasta ahora, memoria global en todos los *kernels*. Ejemplo: [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu).
 
-Ejemplo: [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu).
+@include[cuda]{static/code/threads/reduccion_compartida.cu:9-16}
+
+- Cada bloque copia su parte: **cada elemento se lee de memoria global una sola vez**.
 
 <!-- NOTA — reduccion_compartida.cu copia el bloque a memoria compartida y hace el
 árbol ahí, así la memoria global se lee una sola vez por elemento. Es una
 versión más simple que las anteriores (usa la indexación con divergencia de
 reduccion_global2) para aislar la idea de memoria compartida. Se lanza en
 varias pasadas hasta que queda un número; desde la corrección, cada pasada
-escribe sus parciales en otro arreglo y los punteros se intercambian. -->
+escribe sus parciales en otro arreglo y los punteros se intercambian.
+
+La declaración extern __shared__ es la declaración dinámica del capítulo de
+memoria (diapositiva "Memoria compartida — declaración dinámica", la misma
+de transpuestaCompDin): el tamaño se fija al lanzar el kernel, no en el
+código. Fuera del arreglo se copia un 0, que no cambia la suma. El
+__syncthreads() es indispensable: ningún thread puede empezar a sumar
+s_data[t + stride] antes de que el thread t + stride lo haya copiado. -->
+
+---
+
+## **Memoria compartida: el árbol**
+
+@include[cuda]{static/code/threads/reduccion_compartida.cu:20-29}
+
+- El mismo árbol de `reduccion_global2` (con su divergencia, a propósito), ahora sobre `s_data`.
+- Al final, `salida[blockIdx.x] = s_data[0]`: un resultado por bloque.
+
+<!-- NOTA — lo único que cambia respecto de reduccion_global2 es la memoria:
+el árbol, la condición y la divergencia son los mismos, para que la
+diferencia de tiempo se pueda atribuir a la memoria compartida. La
+condición usa idx_x (el índice global) y no threadIdx.x, pero da lo mismo:
+idx_x = blockIdx.x * blockDim.x + threadIdx.x, y blockDim.x es múltiplo de
+2*stride, así que idx_x % (2*stride) == threadIdx.x % (2*stride). Una
+diferencia con reduccion_global4 y 5: aquí el __syncthreads() está fuera de
+cualquier if, y el último bloque se completa con ceros al copiar, así que el
+kernel es correcto para cualquier N, no solo para múltiplos de blockDim.x.
+El resultado del bloque va a un arreglo aparte (salida) por la misma razón
+que en global4–8: escribirlo en data[blockIdx.x] pisaría datos que otro
+bloque todavía no copia. -->
+
+---
+
+## **Memoria compartida: varias pasadas**
+
+@include[cuda]{static/code/threads/reduccion_compartida.cu:83-92}
+
+- **Tercer argumento** de `<<<...>>>`: memoria compartida por bloque (*bytes*).
+- $2^{24} \to 2^{14} \to 2^{4} \to 1$: **3 lanzamientos**, y la suma termina en el GPU.
+
+<!-- NOTA — el tercer argumento de la configuración de lanzamiento,
+n_threads * sizeof(float), es el tamaño de s_data: la declaración extern
+__shared__ no tiene tamaño, y se lo da el lanzamiento. Las cuentas con
+N = 2^24 y bloques de 1024: la primera pasada deja 2^24/1024 = 16384 = 2^14
+parciales, la segunda 2^14/1024 = 16, la tercera 1 (con un solo bloque, y
+los 1008 threads que sobran copian ceros). Son 3 lanzamientos, contra 24 de
+reduccion_global, y a diferencia de reduccion_global4 y 5 el host no suma
+nada. entrada y salida se intercambian después de cada pasada por la misma
+razón que en reduccion_global: ningún lanzamiento escribe en el arreglo que
+está leyendo. Al terminar, el resultado queda en entrada[0]. -->
 
 ---
 
@@ -2680,12 +2730,15 @@ esconde latencia aunque haya pocos warps. -->
 
 ## **Optimización: loop unrolling**
 
+Ciclo original:
+
 ```c
 for (int i = 0; i < N; i++){
   a[i] = b[i] + c[i];
 }
 ```
 
+Versión equivalente:
 ```c
 for (int i = 0; i < N; i+=2){
   a[i]   = b[i]   + c[i];
@@ -3286,24 +3339,6 @@ entre ejecuciones; el resultado puede variar en los últimos dígitos. -->
 
 ---
 
-## **Grid-stride loops (repaso)**
-
-- Ya lo vimos en el Capítulo 1: `for (i = idx; i < N; i += blockDim.x * gridDim.x)`.
-- Cada *thread* procesa varios elementos: el *kernel* sirve para cualquier $N$.
-- En la reducción, cada *thread* primero suma varios elementos **en un registro**: es el *loop unrolling* entre bloques, sin un factor fijo.
-
-Ejemplo (SAXPY): [grid_stride.cu](../code/threads/grid_stride.cu).
-
-<!-- NOTA — el material original decía que el grid-stride "mejora el
-occupancy". No es así: el occupancy depende de los recursos por bloque, no de
-cuántos bloques se lanzan. Lo que sí hace es desacoplar el tamaño del grid del
-tamaño de los datos (basta con llenar el GPU: en la T4 caben 4 bloques de
-256 threads por SM; si se lanzan más, corren en tandas),
-reducir el costo de lanzar y retirar bloques, y amortizar el trabajo fijo de
-cada thread (calcular índices, inicializar) sobre muchos elementos. -->
-
----
-
 ## **Reducción completa en un kernel**
 
 ```cuda
@@ -3331,6 +3366,14 @@ forma contigua y una sola vez. Lo esperable es que se acerque al ancho de
 banda de la T4 (300 GB/s), porque una reducción tiene intensidad aritmética
 mínima (una suma por cada 4 bytes). -->
 
+<!-- NOTA — sobre el paso 1: el material original decía que el grid-stride "mejora el
+occupancy". No es así: el occupancy depende de los recursos por bloque, no de
+cuántos bloques se lanzan. Lo que sí hace es desacoplar el tamaño del grid del
+tamaño de los datos (basta con llenar el GPU: en la T4 caben 4 bloques de
+256 threads por SM; si se lanzan más, corren en tandas),
+reducir el costo de lanzar y retirar bloques, y amortizar el trabajo fijo de
+cada thread (calcular índices, inicializar) sobre muchos elementos. -->
+
 ---
 
 ## **Atómicas: histograma**
@@ -3352,79 +3395,56 @@ caso a propósito: todos los threads al mismo contador, contención máxima. La
 comparación interesante es cómo reacciona cada kernel a ese peor caso; es el
 ejercicio 2. -->
 
----
-
-## **Reducción paralela: errores**
-
-- El resultado del GPU no es exactamente igual al del CPU.
-- Esto se debe a que siempre hay errores de redondeo, y en el cálculo secuencial estos errores se acumulan.
-- La reducción en árbol suma números de tamaño parecido: se espera que los errores sean **menores** en el GPU que en un ciclo secuencial.
-
-Códigos de Python que muestran la idea: [gpu_suma_error.py](../code/threads/gpu_suma_error.py) y [gpu_producto_punto_error.py](../code/threads/gpu_producto_punto_error.py). Ambos usan **PyCUDA**, un módulo de Python que veremos pronto.
-
-<!-- NOTA — con números de 32 bits, sumar secuencialmente millones de valores
-acumula error porque el acumulador crece y cada nuevo sumando pequeño pierde
-dígitos. El árbol de la reducción suma números de tamaño parecido en cada
-nivel, y por eso suele tener menos error que el ciclo secuencial del host. En
-reduccion-shuffle.cu la referencia del host se acumula en double, justamente
-para tener un valor confiable con que comparar.
-
-Los dos códigos de Python comparan tres sumas en float32: la secuencial
-(np.cumsum, que acumula en orden), la de NumPy y la del GPU. Ojo: f.sum() de
-NumPy usa suma por pares (también un árbol) y np.dot llama a BLAS, así que
-NO son el ciclo secuencial; con N = 10^7 la suma por pares tiene un error de
-~0.06 contra ~24 de la secuencial (medido con NumPy en un CPU, sin GPU). La
-lección es el orden de las sumas, no el hardware. -->
-
----
-
-# Ejercicios
-
----
-
-## **Ejercicio 1: la reducción completa**
-
-Descargar: [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu) y [reduccion_global8.cu](../code/threads/reduccion_global8.cu)
-
-1. Ejecutar `reduccion-shuffle.x`. ¿Qué ancho de banda logra? Compararlo con los $300$ GB/s de la T4.
-2. Medir los dos programas con `nvprof` y comparar el tiempo de sus *kernels*.
-3. ¿Por qué el resultado del GPU puede cambiar en los últimos dígitos entre una ejecución y otra?
-
-```bash
-nvcc -arch=sm_75 reduccion-shuffle.cu -o reduccion-shuffle.x
-nvprof ./reduccion-shuffle.x
-```
-
-<!-- RESPUESTAS — TODO: medir en la T4. (1) Lo esperable es que se acerque al
-peak de 300 GB/s: la reducción solo lee cada elemento una vez y hace una suma
-por cada 4 bytes, así que es puramente memory bound (roofline del capítulo 1).
-(2) reduccion_global8 lee y escribe la memoria global varias veces dentro de
-cada bloque y copia los parciales al host; reduccion-shuffle lee cada
-elemento una sola vez. (3) atomicAdd sobre float suma los aportes de los
-bloques en el orden en que terminan, que cambia entre ejecuciones; la suma en
-punto flotante no es asociativa, así que el redondeo cambia. Conecta con la
-diapositiva de errores. -->
-
----
-
-## **Ejercicio 2: histograma y contención**
-
-Descargar: [histograma.cu](../code/threads/histograma.cu)
-
-1. Ejecutar el programa. Con datos **aleatorios**, ¿qué *kernel* es más rápido?
-2. Con datos **constantes**, ¿qué le pasa a `histGlobal`? ¿Por qué?
-3. ¿Por qué la versión con memoria compartida sufre menos con datos constantes?
-
-<!-- RESPUESTAS — TODO: medir en la T4. (1) histCompartida debería ganar: las
-atómicas en memoria compartida son mucho más baratas que en global, y al final
-cada bloque hace solo 256 atómicas globales. (2) Con datos constantes los 16 M
-atomicAdd globales caen sobre el MISMO contador: el hardware los serializa y
-el kernel se vuelve mucho más lento (contención máxima). (3) En la versión
-compartida la contención queda dentro de cada bloque (solo compiten sus 256
-threads, en la memoria rápida del SM), y entre bloques hay una sola atómica
-global por contador. Es la misma idea de la reducción: primero reducir
-localmente, después una atómica por bloque. -->
-
+<!-- --- -->
+<!---->
+<!-- # Ejercicios -->
+<!---->
+<!-- --- -->
+<!---->
+<!-- ## **Ejercicio 1: la reducción completa** -->
+<!---->
+<!-- Descargar: [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu) y [reduccion_global8.cu](../code/threads/reduccion_global8.cu) -->
+<!---->
+<!-- 1. Ejecutar `reduccion-shuffle.x`. ¿Qué ancho de banda logra? Compararlo con los $300$ GB/s de la T4. -->
+<!-- 2. Medir los dos programas con `nvprof` y comparar el tiempo de sus *kernels*. -->
+<!-- 3. ¿Por qué el resultado del GPU puede cambiar en los últimos dígitos entre una ejecución y otra? -->
+<!---->
+<!-- ```bash -->
+<!-- nvcc -arch=sm_75 reduccion-shuffle.cu -o reduccion-shuffle.x -->
+<!-- nvprof ./reduccion-shuffle.x -->
+<!-- ``` -->
+<!---->
+<!-- <!-- RESPUESTAS — TODO: medir en la T4. (1) Lo esperable es que se acerque al -->
+<!-- peak de 300 GB/s: la reducción solo lee cada elemento una vez y hace una suma -->
+<!-- por cada 4 bytes, así que es puramente memory bound (roofline del capítulo 1). -->
+<!-- (2) reduccion_global8 lee y escribe la memoria global varias veces dentro de -->
+<!-- cada bloque y copia los parciales al host; reduccion-shuffle lee cada -->
+<!-- elemento una sola vez. (3) atomicAdd sobre float suma los aportes de los -->
+<!-- bloques en el orden en que terminan, que cambia entre ejecuciones; la suma en -->
+<!-- punto flotante no es asociativa, así que el redondeo cambia. Conecta con la -->
+<!-- nota del ciclo del host de reduccion_global (la suma en árbol contra la -->
+<!-- secuencial). --> -->
+<!---->
+<!-- --- -->
+<!---->
+<!-- ## **Ejercicio 2: histograma y contención** -->
+<!---->
+<!-- Descargar: [histograma.cu](../code/threads/histograma.cu) -->
+<!---->
+<!-- 1. Ejecutar el programa. Con datos **aleatorios**, ¿qué *kernel* es más rápido? -->
+<!-- 2. Con datos **constantes**, ¿qué le pasa a `histGlobal`? ¿Por qué? -->
+<!-- 3. ¿Por qué la versión con memoria compartida sufre menos con datos constantes? -->
+<!---->
+<!-- <!-- RESPUESTAS — TODO: medir en la T4. (1) histCompartida debería ganar: las -->
+<!-- atómicas en memoria compartida son mucho más baratas que en global, y al final -->
+<!-- cada bloque hace solo 256 atómicas globales. (2) Con datos constantes los 16 M -->
+<!-- atomicAdd globales caen sobre el MISMO contador: el hardware los serializa y -->
+<!-- el kernel se vuelve mucho más lento (contención máxima). (3) En la versión -->
+<!-- compartida la contención queda dentro de cada bloque (solo compiten sus 256 -->
+<!-- threads, en la memoria rápida del SM), y entre bloques hay una sola atómica -->
+<!-- global por contador. Es la misma idea de la reducción: primero reducir -->
+<!-- localmente, después una atómica por bloque. --> -->
+<!---->
 ---
 
 # Fin Capítulo 3
