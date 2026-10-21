@@ -2619,7 +2619,9 @@ Ejemplo: [reduccion_global5.cu](../code/threads/reduccion_global5.cu).
 <text x="156" y="329" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 1</text>
 </svg>
 
-<p class="credit">Fuente: adaptado de <em>Professional CUDA C Programming</em></p>
+Este tipo de *stride* es llamado 'barrido' (desde derecha a izquierda).
+
+<!-- <p class="credit">Fuente: adaptado de <em>Professional CUDA C Programming</em></p> -->
 
 <!-- NOTA — reduccion_global5.cu invierte el orden de los strides: empieza con
 stride = blockDim/2 y lo va dividiendo por 2, y suma el thread threadIdx.x con
