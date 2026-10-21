@@ -745,7 +745,7 @@ desperdiciar la menor cantidad de threads. -->
 
 ---
 
-## **Reducción paralela**
+## **Reducción paralela: árbol**
 
 <svg class="arbol" viewBox="0 0 960 310" width="860" style="display:block;margin:0.4em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
@@ -820,7 +820,7 @@ la primera mitad con la segunda, con el mismo número de pasos. -->
 
 ---
 
-## **Reducción paralela**
+## **Reducción paralela: memoria global**
 
 <svg viewBox="0 0 1044 496" width="900" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
@@ -986,6 +986,8 @@ la primera mitad con la segunda, con el mismo número de pasos. -->
 <text x="156" y="331" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 4</text>
 <text x="156" y="441" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 8</text>
 </svg>
+
+Asignamos a los *threads* la tarea de sumar pares usando un *stride*.
 
 <!-- NOTA — en esta figura conviene marcar dos cosas que se repiten en todas las
 versiones: cuántos threads trabajan en cada nivel (la mitad del anterior) y
@@ -1275,7 +1277,7 @@ d_in[0] después del último intercambio. -->
 <text x="156" y="381" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 4</text>
 </svg>
 
-- Cada nivel del árbol (fila) es **un lanzamiento** del *kernel* en el ciclo (`stride` $= 1, 2, 4$).
+- Cada nivel del árbol es **un lanzamiento** del *kernel* en el ciclo.
 - Los *threads* se muestran en los círculos naranjos (gris: solo copia).
 
 <!-- NOTA — propósito de esta diapositiva: seguir a mano, con N = 8, el ciclo
