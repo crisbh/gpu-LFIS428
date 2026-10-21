@@ -1311,12 +1311,16 @@ que es la cuenta de la diapositiva siguiente. -->
 
 ## **Reducción paralela: memoria global**
 
-Hay un problema con el *kernel*...
+Este *kernel* tiene hace más trabajo del necesario...
 
 ... todos los *threads* calculan algo, ¡pero la mayoría de los resultados no se usan!
 
+- Esto es evidente en el último nivel: los resultados de los threads 1, 2 y 3 no terminan en ninguna parte.
+
 - En el nivel con *stride* $s$ solo sirven los índices múltiplos de $2s$.
-- Con $N = 8$: $7 + 6 + 4 = 17$ sumas, cuando bastan $4 + 2 + 1 = 7$.
+
+Con $N = 8$: estamos haciendo $7 + 6 + 4 = 17$ sumas en total, cuando bastan $4 + 2 + 1 = 7$.
+
 <!-- - En general: $\sim N \log_2 N$ sumas en vez de $N - 1$. -->
 
 <!-- NOTA — la respuesta: en cada lanzamiento todos los threads hacen la suma, pero
@@ -1453,11 +1457,12 @@ de 17. Un solo arreglo: cada fila es el mismo data después del lanzamiento. -->
 
 ## **Reducción paralela: menos threads trabajando**
 
+Nueva versión del *kernel*:
 @include[cuda]{static/code/threads/reduccion_global2.cu:4-10}
 
 - Solo suma si `idx % (2*stride) == 0`: $N - 1$ sumas en total.
-- **Un solo arreglo**: escribe en múltiplos de $2s$, lee múltiplos impares de $s$.
-- Igual se lanzan **$N$ *threads*** en cada nivel.
+- **1 solo arreglo**: escribe en múltiplos de $2s$, lee múltiplos impares de $s$.
+- Igual se lanza el *kernel* con **$N$ *threads*** en cada nivel.
 
 <!-- NOTA — los tres cambios respecto de reduccion_global:
 
@@ -1526,7 +1531,7 @@ pagan en serie. -->
 
 ## **Divergencia de warps**
 
-<svg viewBox="0 0 992 320" width="1000" style="display:block;margin:0.3em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<svg viewBox="0 0 992 320" width="1140" style="display:block;margin:0.6em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-div" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/></marker></defs>
 <text x="406" y="16" font-size="17" text-anchor="middle" fill="#333">threads</text>
 <text x="79" y="38" font-size="15" text-anchor="middle" fill="#333">0</text>
@@ -2157,6 +2162,7 @@ reduccion_global2.x y reduccion_global3.x. Todavía sin medir en la T4. -->
 
 @include[cuda]{static/code/threads/reduccion_global3.cu:6-13}
 
+Con un arreglo de largo $N=2^24$:
 - **Todos** los *threads* calculan `index`: hasta $2^{24} \cdot 2^{24} = 2^{48}$.
 - En $32$ bits, `stride` $= 2^{23}$ e `idx` $= 256$ dan $2^{32} \to 0$.
 - Ese *thread* también suma en `data[0]`: **resultado incorrecto**.
