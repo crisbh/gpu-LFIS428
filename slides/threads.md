@@ -2993,7 +2993,22 @@ memoria (diapositiva "Memoria compartida — declaración dinámica", la misma
 de transpuestaCompDin): el tamaño se fija al lanzar el kernel, no en el
 código. Fuera del arreglo se copia un 0, que no cambia la suma. El
 __syncthreads() es indispensable: ningún thread puede empezar a sumar
-s_data[t + stride] antes de que el thread t + stride lo haya copiado. -->
+s_data[t + stride] antes de que el thread t + stride lo haya copiado.
+
+¿Por qué dinámica? El tamaño de s_data es un float por thread, o sea depende
+del tamaño del bloque, que es un parámetro del lanzamiento y no del kernel.
+Con extern __shared__ el mismo kernel sirve para bloques de 256, 512 o 1024
+sin recompilar: el tamaño en bytes llega en el tercer argumento de <<<...>>>
+(n_threads * sizeof(float), diapositiva de las pasadas). En este programa
+n_threads está fijo en 1024 (main), así que __shared__ float s_data[1024]
+funcionaría igual; lo que se gana es flexibilidad, no rendimiento (la
+memoria es la misma, como muestra transpuestaCompDin). Errores típicos:
+olvidar el tercer argumento deja 0 bytes y el kernel lee y escribe fuera de
+la memoria compartida sin error de compilación; hay una sola región dinámica
+por kernel (dos extern __shared__ apuntan a la misma memoria, así que para
+dos arreglos se pide un buffer y se reparte con desplazamientos); y por
+defecto el máximo es 48 KB por bloque, más que eso (hasta 64 KB en la T4)
+requiere cudaFuncSetAttribute. -->
 
 ---
 
@@ -3384,12 +3399,37 @@ compilador no lo puede hacer por nosotros. -->
 
 ¿Cómo aplicamos *loop unrolling* en el *kernel* de reducción paralela?
 
-Aplicamos una suma entre bloques **antes** de comenzar con el ciclo de la reducción dentro de los bloques.
+- Cada bloque toma **dos tramos** de `blockDim.x` elementos y los suma elemento a elemento **antes** del árbol.
+- El *grid* es el ciclo: con *unrolling* $\times 2$ cada bloque hace dos «iteraciones» y se lanzan **la mitad** de los bloques.
 
-<!-- NOTA — la idea: antes del árbol dentro del bloque, cada thread suma elementos
-de varios bloques de datos. Así el mismo número de threads reduce el doble (o
-4, u 8 veces) de datos, y se lanzan la mitad de bloques. Es el antecedente
-directo del grid-stride loop, que hace lo mismo sin un factor fijo. -->
+<!-- NOTA — ojo con la palabra "bloque": aquí un tramo es una porción del
+arreglo del tamaño de un bloque de threads (blockDim.x elementos), no un
+bloque de threads. Los bloques siguen sin comunicarse entre sí: lo que pasa
+es que UN bloque lee DOS tramos y los suma elemento a elemento antes de su
+árbol.
+
+Por qué se llama loop unrolling: en el ciclo secuencial, unrolling x2 hace
+dos iteraciones en una pasada. Aquí el ciclo es implícito: el grid es el
+ciclo, y cada bloque es una iteración sobre un tramo. Con x2 cada bloque
+hace dos iteraciones (dos tramos), así que hacen falta la mitad de bloques;
+x4 y x8 (reduccion_global7) son lo mismo con 4 y 8 tramos.
+
+Por qué ayuda: (1) menos threads ociosos: en el primer nivel del árbol de
+reduccion_global5 solo trabaja la mitad (threadIdx.x < 512), mientras que en
+el paso de unrolling suman los 1024; (2) más cargas de memoria en vuelo por
+thread: cada thread pide dos lecturas independientes a la vez (cuatro u
+ocho con x4/x8), lo que esconde latencia sin más warps, y es la razón
+principal, porque la reducción es memory bound; (3) la mitad de bloques y de
+parciales: con N = 2^24 y bloques de 1024, global5 lanza 16384 bloques y
+deja 16384 parciales, global6 lanza 8192 y deja 8192. Por bloque, el mismo
+número de threads reduce el doble de datos; en total el grid tiene la mitad
+de threads. Lo que NO cambia: cada elemento se sigue leyendo una sola vez,
+y el acceso sigue siendo contiguo.
+
+Es el antecedente directo del grid-stride loop: unrolling xk es "cada
+thread suma k elementos, con k fijo, antes del árbol"; el grid-stride hace
+lo mismo con tantos elementos como haga falta (reduccion-shuffle.cu, en la
+reducción completa). -->
 
 ---
 
@@ -3618,7 +3658,9 @@ Con esa línea sumamos valores en $2$ bloques (*loop unrolling* $\times 2$).
 <!-- NOTA — esta línea es todo el unrolling x2 del kernel: un thread suma dos
 elementos separados por un bloque. Notar que el acceso sigue siendo contiguo
 dentro del warp: threads consecutivos leen idx e idx + blockDim.x, los dos
-consecutivos. -->
+consecutivos. Y como idx empieza en blockIdx.x * blockDim.x * 2, idx +
+blockDim.x es el segundo tramo del MISMO bloque, no datos del bloque
+siguiente. -->
 
 ---
 
