@@ -3020,16 +3020,25 @@ requiere cudaFuncSetAttribute. -->
 
 <!-- NOTA — lo único que cambia respecto de reduccion_global5 es la memoria:
 el árbol y la condición threadIdx.x < stride son los mismos, para que la
-diferencia de tiempo se pueda atribuir a la memoria compartida. La indexación
-importa más que la memoria: una versión anterior de este kernel usaba la
-indexación de reduccion_global2 (idx_x % (2*stride) == 0) y, medida en la T4
-con ncu (2026-10), era 2 veces MÁS LENTA que reduccion_global5 (2.49 contra
-1.23 ms) con 3.1 veces sus instrucciones (158 contra 51 millones de
-instrucciones de warp), sin conflictos de bancos y sin divergencia de saltos
-(32 threads por instrucción): con %, todos los warps evalúan la condición en
-los 10 niveles y ninguno deja de trabajar. Además el árbol en memoria global
-de global4–5 ocupa 4 KB por bloque y casi todo se sirve desde caché, así que
-llevarlo a memoria compartida no gana tanto como se espera. Una
+diferencia de tiempo se pueda atribuir a la memoria compartida.
+
+Medido en la T4 con ncu --clock-control none (2026-10, primer lanzamiento,
+el de 16384 bloques): 1.34 ms, 62 millones de instrucciones de warp, 0
+conflictos de bancos y 32 threads por instrucción. reduccion_global5, medido
+en otra sesión: 1.23 ms y 51 millones. O sea, la memoria compartida NO le
+gana a global5 aquí: ejecuta más instrucciones (la copia a s_data y su
+__syncthreads()) y el árbol de global5, 4 KB por bloque, ya se sirve casi
+entero desde la caché L1, que en la T4 es el mismo hardware que la memoria
+compartida. Lo que sí gana: la suma termina en el GPU en 3 lanzamientos, y el
+kernel es correcto para cualquier N. La memoria compartida rinde cuando los
+datos se reutilizan muchas veces o cuando permite que el acceso a global sea
+contiguo, como en la transpuesta del capítulo de memoria.
+
+La indexación importa más que la memoria: la versión anterior de este kernel
+usaba la indexación de reduccion_global2 (idx_x % (2*stride) == 0) y era 1.9
+veces más lenta (2.49 ms) con 2.5 veces las instrucciones (158 millones), sin
+conflictos de bancos ni divergencia de saltos: con %, todos los warps evalúan
+la condición en los 10 niveles y ninguno deja de trabajar. Una
 diferencia con reduccion_global4 y 5: aquí el __syncthreads() está fuera de
 cualquier if, y el último bloque se completa con ceros al copiar, así que el
 kernel es correcto para cualquier N, no solo para múltiplos de blockDim.x.
