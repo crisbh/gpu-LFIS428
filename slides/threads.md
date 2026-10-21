@@ -1097,9 +1097,9 @@ d_in[0] después del último intercambio. -->
 <defs><marker id="fl-glob" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
 <text x="170" y="16" font-size="16" fill="#333">N = 8, n_threads = 4: n_bloques = 2</text>
 <path d="M170,56 L170,50 L376,50 L376,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="273" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 0</text>
+<text x="273" y="44" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 0</text>
 <path d="M386,56 L386,50 L592,50 L592,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="489" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 1</text>
+<text x="489" y="44" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 1</text>
 <line x1="192" y1="102" x2="192" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob)"/>
 <line x1="246" y1="102" x2="206.3" y2="127.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob)"/>
 <line x1="192" y1="153" x2="192" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob)"/>
@@ -1345,9 +1345,9 @@ Ejemplo: [reduccion_global2.cu](../code/threads/reduccion_global2.cu).
 <defs><marker id="fl-glob2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
 <text x="170" y="16" font-size="16" fill="#333">N = 8, n_threads = 4: n_bloques = 2</text>
 <path d="M170,56 L170,50 L376,50 L376,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="273" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 0</text>
+<text x="273" y="44" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 0</text>
 <path d="M386,56 L386,50 L592,50 L592,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="489" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 1</text>
+<text x="489" y="44" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 1</text>
 <line x1="192" y1="102" x2="192" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob2)"/>
 <line x1="246" y1="102" x2="206.3" y2="127.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob2)"/>
 <line x1="192" y1="153" x2="192" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob2)"/>
@@ -2008,9 +2008,9 @@ Ejemplo: [reduccion_global3.cu](../code/threads/reduccion_global3.cu).
 <defs><marker id="fl-glob3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
 <text x="170" y="16" font-size="16" fill="#333">N = 8, n_threads = 4: n_bloques = 2</text>
 <path d="M170,56 L170,50 L376,50 L376,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="273" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 0</text>
+<text x="273" y="44" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 0</text>
 <path d="M386,56 L386,50 L592,50 L592,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="489" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 1</text>
+<text x="489" y="44" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 1</text>
 <line x1="192" y1="102" x2="192" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob3)"/>
 <line x1="246" y1="102" x2="206.3" y2="127.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob3)"/>
 <line x1="192" y1="153" x2="192" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-glob3)"/>
@@ -3437,196 +3437,206 @@ reducción completa). -->
 
 Ejemplo: [reduccion_global6.cu](../code/threads/reduccion_global6.cu).
 
-<svg viewBox="0 0 1044 546" width="880" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
-<defs><marker id="fl-unr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
-<text x="170" y="16" font-size="16" fill="#333">N = 16, n_threads = 4, n_bloques = 2: cada bloque suma 2 &#215; 4 = 8 elementos</text>
-<path d="M170,56 L170,50 L592,50 L592,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="381" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 0 (idata = data + 0)</text>
-<path d="M602,56 L602,50 L1024,50 L1024,56" stroke="#555" stroke-width="1.4" fill="none"/>
-<text x="813" y="44" font-size="15" text-anchor="middle" fill="#333">Bloque 1 (idata = data + 8)</text>
-<line x1="192" y1="102" x2="192" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="408" y1="102" x2="208.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="192" y1="153" x2="192" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="246" y1="102" x2="246" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="462" y1="102" x2="262.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="246" y1="153" x2="246" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="300" y1="102" x2="300" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="516" y1="102" x2="316.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="300" y1="153" x2="300" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="354" y1="102" x2="354" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="570" y1="102" x2="370.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="354" y1="153" x2="354" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="102" x2="624" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="840" y1="102" x2="640.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="153" x2="624" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="678" y1="102" x2="678" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="894" y1="102" x2="694.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="678" y1="153" x2="678" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="732" y1="102" x2="732" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="948" y1="102" x2="748.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="732" y1="153" x2="732" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="786" y1="102" x2="786" y2="120" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="1002" y1="102" x2="802.8" y2="134.3" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="786" y1="153" x2="786" y2="171" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="192" y1="212" x2="192" y2="230" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="300" y1="212" x2="208.2" y2="241.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="192" y1="263" x2="192" y2="281" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="246" y1="212" x2="246" y2="230" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="354" y1="212" x2="262.2" y2="241.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="246" y1="263" x2="246" y2="281" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="212" x2="624" y2="230" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="732" y1="212" x2="640.2" y2="241.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="263" x2="624" y2="281" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="678" y1="212" x2="678" y2="230" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="786" y1="212" x2="694.2" y2="241.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="678" y1="263" x2="678" y2="281" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="192" y1="322" x2="192" y2="340" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="246" y1="322" x2="206.3" y2="347.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="192" y1="373" x2="192" y2="391" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="322" x2="624" y2="340" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="678" y1="322" x2="638.3" y2="347.8" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="373" x2="624" y2="391" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="192" y1="432" x2="192" y2="450" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="192" y1="483" x2="192" y2="501" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="432" x2="624" y2="450" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<line x1="624" y1="483" x2="246" y2="501" stroke="#444" stroke-width="1.4" marker-end="url(#fl-unr)"/>
-<rect x="170" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="192" y="88" font-size="18" text-anchor="middle" fill="#222">3</text>
-<rect x="224" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="246" y="88" font-size="18" text-anchor="middle" fill="#222">1</text>
-<rect x="278" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="300" y="88" font-size="18" text-anchor="middle" fill="#222">8</text>
-<rect x="332" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="354" y="88" font-size="18" text-anchor="middle" fill="#222">4</text>
-<rect x="386" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="408" y="88" font-size="18" text-anchor="middle" fill="#222">7</text>
-<rect x="440" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="462" y="88" font-size="18" text-anchor="middle" fill="#222">2</text>
-<rect x="494" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="516" y="88" font-size="18" text-anchor="middle" fill="#222">9</text>
-<rect x="548" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="570" y="88" font-size="18" text-anchor="middle" fill="#222">3</text>
-<rect x="602" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="624" y="88" font-size="18" text-anchor="middle" fill="#222">2</text>
-<rect x="656" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="678" y="88" font-size="18" text-anchor="middle" fill="#222">4</text>
-<rect x="710" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="732" y="88" font-size="18" text-anchor="middle" fill="#222">6</text>
-<rect x="764" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="786" y="88" font-size="18" text-anchor="middle" fill="#222">1</text>
-<rect x="818" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="840" y="88" font-size="18" text-anchor="middle" fill="#222">8</text>
-<rect x="872" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="894" y="88" font-size="18" text-anchor="middle" fill="#222">7</text>
-<rect x="926" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="948" y="88" font-size="18" text-anchor="middle" fill="#222">9</text>
-<rect x="980" y="62" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="1002" y="88" font-size="18" text-anchor="middle" fill="#222">5</text>
-<rect x="170" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="192" y="198" font-size="18" text-anchor="middle" fill="#222">10</text>
-<rect x="224" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="246" y="198" font-size="18" text-anchor="middle" fill="#222">3</text>
-<rect x="278" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="300" y="198" font-size="18" text-anchor="middle" fill="#222">17</text>
-<rect x="332" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="354" y="198" font-size="18" text-anchor="middle" fill="#222">7</text>
-<rect x="386" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="440" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="494" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="548" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="602" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="624" y="198" font-size="18" text-anchor="middle" fill="#222">10</text>
-<rect x="656" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="678" y="198" font-size="18" text-anchor="middle" fill="#222">11</text>
-<rect x="710" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="732" y="198" font-size="18" text-anchor="middle" fill="#222">15</text>
-<rect x="764" y="172" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="786" y="198" font-size="18" text-anchor="middle" fill="#222">6</text>
-<rect x="818" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="872" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="926" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="980" y="172" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="170" y="282" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="192" y="308" font-size="18" text-anchor="middle" fill="#222">27</text>
-<rect x="224" y="282" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="246" y="308" font-size="18" text-anchor="middle" fill="#222">10</text>
-<rect x="278" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="332" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="386" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="440" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="494" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="548" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="602" y="282" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="624" y="308" font-size="18" text-anchor="middle" fill="#222">25</text>
-<rect x="656" y="282" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="678" y="308" font-size="18" text-anchor="middle" fill="#222">17</text>
-<rect x="710" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="764" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="818" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="872" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="926" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="980" y="282" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="170" y="392" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="192" y="418" font-size="18" text-anchor="middle" fill="#222">37</text>
-<rect x="224" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="278" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="332" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="386" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="440" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="494" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="548" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="602" y="392" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="624" y="418" font-size="18" text-anchor="middle" fill="#222">42</text>
-<rect x="656" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="710" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="764" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="818" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="872" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="926" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="980" y="392" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
-<circle cx="192" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="192" y="143" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<circle cx="246" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="246" y="143" font-size="16" text-anchor="middle" fill="#fff">1</text>
-<circle cx="300" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="300" y="143" font-size="16" text-anchor="middle" fill="#fff">2</text>
-<circle cx="354" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="354" y="143" font-size="16" text-anchor="middle" fill="#fff">3</text>
-<circle cx="624" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="624" y="143" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<circle cx="678" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="678" y="143" font-size="16" text-anchor="middle" fill="#fff">1</text>
-<circle cx="732" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="732" y="143" font-size="16" text-anchor="middle" fill="#fff">2</text>
-<circle cx="786" cy="137" r="16" fill="#e8641b" stroke="#444"/>
-<text x="786" y="143" font-size="16" text-anchor="middle" fill="#fff">3</text>
-<circle cx="192" cy="247" r="16" fill="#e8641b" stroke="#444"/>
-<text x="192" y="253" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<circle cx="246" cy="247" r="16" fill="#e8641b" stroke="#444"/>
-<text x="246" y="253" font-size="16" text-anchor="middle" fill="#fff">1</text>
-<circle cx="624" cy="247" r="16" fill="#e8641b" stroke="#444"/>
-<text x="624" y="253" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<circle cx="678" cy="247" r="16" fill="#e8641b" stroke="#444"/>
-<text x="678" y="253" font-size="16" text-anchor="middle" fill="#fff">1</text>
-<circle cx="192" cy="357" r="16" fill="#e8641b" stroke="#444"/>
-<text x="192" y="363" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<circle cx="624" cy="357" r="16" fill="#e8641b" stroke="#444"/>
-<text x="624" y="363" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<circle cx="192" cy="467" r="16" fill="#e8641b" stroke="#444"/>
-<text x="192" y="473" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<circle cx="624" cy="467" r="16" fill="#e8641b" stroke="#444"/>
-<text x="624" y="473" font-size="16" text-anchor="middle" fill="#fff">0</text>
-<rect x="170" y="502" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="192" y="528" font-size="18" text-anchor="middle" fill="#222">37</text>
-<rect x="224" y="502" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="246" y="528" font-size="18" text-anchor="middle" fill="#222">42</text>
-<text x="284" y="528" font-size="16" fill="#333">el <tspan font-style="italic">host</tspan> suma 37 + 42 = 79</text>
-<text x="156" y="528" font-size="16" text-anchor="end" fill="#333">parcial</text>
-<text x="156" y="88" font-size="16" text-anchor="end" fill="#333">Memoria global</text>
-<text x="156" y="143" font-size="16" text-anchor="end" fill="#333">ID del thread</text>
-<text x="156" y="161" font-size="13" text-anchor="end" fill="#666" font-style="italic">unrolling</text>
-<text x="156" y="271" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 2</text>
-<text x="156" y="381" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 1</text>
+<svg viewBox="0 0 1044 584" width="860" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<defs><marker id="fl-unr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker><marker id="fl-unr-az" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f6fb2"/></marker></defs>
+<text x="170" y="16" font-size="16" fill="#333">N = 16, n_threads = 4, n_bloques = 2: <tspan font-weight="bold">4 threads y 8 elementos por bloque</tspan></text>
+<path d="M170,50 L170,44 L592,44 L592,50" stroke="#333" stroke-width="1.4" fill="none"/>
+<text x="381" y="38" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 0 (idata = data + 0)</text>
+<path d="M170,82 L170,76 L376,76 L376,82" stroke="#555" stroke-width="1.4" fill="none"/>
+<text x="273" y="70" font-size="13" text-anchor="middle" fill="#555">tramo 1: threads 0–3</text>
+<path d="M386,82 L386,76 L592,76 L592,82" stroke="#1f6fb2" stroke-width="1.4" fill="none"/>
+<text x="489" y="70" font-size="13" text-anchor="middle" fill="#1f6fb2">tramo 2: sin threads propios</text>
+<path d="M602,50 L602,44 L1024,44 L1024,50" stroke="#333" stroke-width="1.4" fill="none"/>
+<text x="813" y="38" font-size="15" text-anchor="middle" fill="#333">Datos del bloque 1 (idata = data + 8)</text>
+<path d="M602,82 L602,76 L808,76 L808,82" stroke="#555" stroke-width="1.4" fill="none"/>
+<text x="705" y="70" font-size="13" text-anchor="middle" fill="#555">tramo 1: threads 0–3</text>
+<path d="M818,82 L818,76 L1024,76 L1024,82" stroke="#1f6fb2" stroke-width="1.4" fill="none"/>
+<text x="921" y="70" font-size="13" text-anchor="middle" fill="#1f6fb2">tramo 2: sin threads propios</text>
+<line x1="192.0" y1="132.0" x2="192.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="408.0" y1="132.0" x2="207.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="192.0" y1="201.0" x2="192.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="246.0" y1="132.0" x2="246.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="462.0" y1="132.0" x2="261.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="246.0" y1="201.0" x2="246.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="300.0" y1="132.0" x2="300.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="516.0" y1="132.0" x2="315.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="300.0" y1="201.0" x2="300.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="354.0" y1="132.0" x2="354.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="570.0" y1="132.0" x2="369.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="354.0" y1="201.0" x2="354.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="624.0" y1="132.0" x2="624.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="840.0" y1="132.0" x2="639.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="624.0" y1="201.0" x2="624.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="678.0" y1="132.0" x2="678.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="894.0" y1="132.0" x2="693.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="678.0" y1="201.0" x2="678.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="732.0" y1="132.0" x2="732.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="948.0" y1="132.0" x2="747.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="732.0" y1="201.0" x2="732.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="786.0" y1="132.0" x2="786.0" y2="171.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="1002.0" y1="132.0" x2="801.5" y2="183.1" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="786.0" y1="201.0" x2="786.0" y2="231.0" stroke="#1f6fb2" stroke-width="1.5" marker-end="url(#fl-unr-az)"/>
+<line x1="192.0" y1="272.0" x2="192.0" y2="287.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="300.0" y1="272.0" x2="207.4" y2="298.6" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="192.0" y1="317.0" x2="192.0" y2="333.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="246.0" y1="272.0" x2="246.0" y2="287.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="354.0" y1="272.0" x2="261.4" y2="298.6" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="246.0" y1="317.0" x2="246.0" y2="333.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="624.0" y1="272.0" x2="624.0" y2="287.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="732.0" y1="272.0" x2="639.4" y2="298.6" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="624.0" y1="317.0" x2="624.0" y2="333.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="678.0" y1="272.0" x2="678.0" y2="287.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="786.0" y1="272.0" x2="693.4" y2="298.6" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="678.0" y1="317.0" x2="678.0" y2="333.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="192.0" y1="374.0" x2="192.0" y2="389.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="246.0" y1="374.0" x2="205.9" y2="397.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="192.0" y1="419.0" x2="192.0" y2="435.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="624.0" y1="374.0" x2="624.0" y2="389.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="678.0" y1="374.0" x2="637.9" y2="397.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="624.0" y1="419.0" x2="624.0" y2="435.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="192.0" y1="476.0" x2="192.0" y2="491.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="192.0" y1="521.0" x2="192.0" y2="537.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="624.0" y1="476.0" x2="624.0" y2="491.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<line x1="624.0" y1="521.0" x2="246.0" y2="537.0" stroke="#444" stroke-width="1.5" marker-end="url(#fl-unr)"/>
+<rect x="170" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="192" y="118" font-size="18" text-anchor="middle" fill="#222">3</text>
+<rect x="224" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="246" y="118" font-size="18" text-anchor="middle" fill="#222">1</text>
+<rect x="278" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="300" y="118" font-size="18" text-anchor="middle" fill="#222">8</text>
+<rect x="332" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="354" y="118" font-size="18" text-anchor="middle" fill="#222">4</text>
+<rect x="386" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="408" y="118" font-size="18" text-anchor="middle" fill="#222">7</text>
+<rect x="440" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="462" y="118" font-size="18" text-anchor="middle" fill="#222">2</text>
+<rect x="494" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="516" y="118" font-size="18" text-anchor="middle" fill="#222">9</text>
+<rect x="548" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="570" y="118" font-size="18" text-anchor="middle" fill="#222">3</text>
+<rect x="602" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="624" y="118" font-size="18" text-anchor="middle" fill="#222">2</text>
+<rect x="656" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="678" y="118" font-size="18" text-anchor="middle" fill="#222">4</text>
+<rect x="710" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="732" y="118" font-size="18" text-anchor="middle" fill="#222">6</text>
+<rect x="764" y="92" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="786" y="118" font-size="18" text-anchor="middle" fill="#222">1</text>
+<rect x="818" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="840" y="118" font-size="18" text-anchor="middle" fill="#222">8</text>
+<rect x="872" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="894" y="118" font-size="18" text-anchor="middle" fill="#222">7</text>
+<rect x="926" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="948" y="118" font-size="18" text-anchor="middle" fill="#222">9</text>
+<rect x="980" y="92" width="44" height="40" rx="3" fill="#d6e6f7" stroke="#555"/>
+<text x="1002" y="118" font-size="18" text-anchor="middle" fill="#222">5</text>
+<rect x="170" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="192" y="258" font-size="18" text-anchor="middle" fill="#222">10</text>
+<rect x="224" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="246" y="258" font-size="18" text-anchor="middle" fill="#222">3</text>
+<rect x="278" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="300" y="258" font-size="18" text-anchor="middle" fill="#222">17</text>
+<rect x="332" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="354" y="258" font-size="18" text-anchor="middle" fill="#222">7</text>
+<rect x="386" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="440" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="494" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="548" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="602" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="624" y="258" font-size="18" text-anchor="middle" fill="#222">10</text>
+<rect x="656" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="678" y="258" font-size="18" text-anchor="middle" fill="#222">11</text>
+<rect x="710" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="732" y="258" font-size="18" text-anchor="middle" fill="#222">15</text>
+<rect x="764" y="232" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="786" y="258" font-size="18" text-anchor="middle" fill="#222">6</text>
+<rect x="818" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="872" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="926" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="980" y="232" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="170" y="334" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="192" y="360" font-size="18" text-anchor="middle" fill="#222">27</text>
+<rect x="224" y="334" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="246" y="360" font-size="18" text-anchor="middle" fill="#222">10</text>
+<rect x="278" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="332" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="386" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="440" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="494" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="548" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="602" y="334" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="624" y="360" font-size="18" text-anchor="middle" fill="#222">25</text>
+<rect x="656" y="334" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="678" y="360" font-size="18" text-anchor="middle" fill="#222">17</text>
+<rect x="710" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="764" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="818" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="872" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="926" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="980" y="334" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="170" y="436" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="192" y="462" font-size="18" text-anchor="middle" fill="#222">37</text>
+<rect x="224" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="278" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="332" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="386" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="440" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="494" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="548" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="602" y="436" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="624" y="462" font-size="18" text-anchor="middle" fill="#222">42</text>
+<rect x="656" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="710" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="764" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="818" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="872" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="926" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="980" y="436" width="44" height="40" rx="3" fill="#e9e1f0" stroke="#555"/>
+<rect x="170" y="538" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="192" y="564" font-size="18" text-anchor="middle" fill="#222">37</text>
+<rect x="224" y="538" width="44" height="40" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="246" y="564" font-size="18" text-anchor="middle" fill="#222">42</text>
+<text x="284" y="564" font-size="16" fill="#333">el <tspan font-style="italic">host</tspan> suma 37 + 42 = 79</text>
+<circle cx="192" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="192" y="192" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="246" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="246" y="192" font-size="14" text-anchor="middle" fill="#fff">1</text>
+<circle cx="300" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="300" y="192" font-size="14" text-anchor="middle" fill="#fff">2</text>
+<circle cx="354" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="354" y="192" font-size="14" text-anchor="middle" fill="#fff">3</text>
+<circle cx="624" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="624" y="192" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="678" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="678" y="192" font-size="14" text-anchor="middle" fill="#fff">1</text>
+<circle cx="732" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="732" y="192" font-size="14" text-anchor="middle" fill="#fff">2</text>
+<circle cx="786" cy="187" r="14" fill="#e8641b" stroke="#1f6fb2" stroke-width="1.5"/>
+<text x="786" y="192" font-size="14" text-anchor="middle" fill="#fff">3</text>
+<circle cx="192" cy="303" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="192" y="308" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="246" cy="303" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="246" y="308" font-size="14" text-anchor="middle" fill="#fff">1</text>
+<circle cx="624" cy="303" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="624" y="308" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="678" cy="303" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="678" y="308" font-size="14" text-anchor="middle" fill="#fff">1</text>
+<circle cx="192" cy="405" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="192" y="410" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="624" cy="405" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="624" y="410" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="192" cy="507" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="192" y="512" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="624" cy="507" r="14" fill="#e8641b" stroke="#444" stroke-width="1.5"/>
+<text x="624" y="512" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<text x="156" y="118" font-size="16" text-anchor="end" fill="#333">Memoria global</text>
+<text x="156" y="173" font-size="15" text-anchor="end" fill="#1f6fb2" font-weight="bold">unrolling ×2</text>
+<text x="156" y="193" font-size="13" text-anchor="end" fill="#1f6fb2">suma el elemento</text>
+<text x="156" y="209" font-size="13" text-anchor="end" fill="#1f6fb2" font-family="monospace">idx + blockDim.x</text>
+<text x="156" y="308" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 2</text>
+<text x="156" y="410" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 1</text>
+<text x="156" y="512" font-size="13" text-anchor="end" fill="#666" font-style="italic">parcial[blockIdx.x]</text>
+<text x="156" y="564" font-size="16" text-anchor="end" fill="#333">parcial</text>
 </svg>
 
 <!-- NOTA — reduccion_global6.cu: cada bloque procesa 2*blockDim elementos. Primero
@@ -3639,7 +3649,9 @@ están verificadas. Unrolling (data[idx] += data[idx +
 blockDim.x]): bloque 0 → 3+7=10, 1+2=3, 8+9=17, 4+3=7; bloque 1 → 2+8=10,
 4+7=11, 6+9=15, 1+5=6. Stride 2 → 27, 10 y 25, 17; stride 1 → 37 y 42. Los
 círculos son threadIdx.x (0 a 3 en cada bloque); las casillas lila, datos que
-ya no se usan. La última fila es el arreglo APARTE parcial, como en el
+ya no se usan. El paso de unrolling va en azul: cada bloque tiene 4 threads y
+8 elementos, y el tramo 2 (casillas celestes) no tiene threads propios; los
+threads del tramo 1 lo suman sobre el suyo antes del árbol. La última fila es el arreglo APARTE parcial, como en el
 código actual; la figura original del libro escribía 42 en data[1], que es
 la carrera corregida en reduccion_global4–8 (el bloque 1 podría
 escribir ahí mientras el bloque 0 todavía lee data[1]). El host suma los
@@ -3653,14 +3665,34 @@ parciales: 37 + 42 = 79, la suma de los 16 datos. -->
 if (idx + blockDim.x < N) data[idx] += data[idx + blockDim.x];
 ```
 
-Con esa línea sumamos valores en $2$ bloques (*loop unrolling* $\times 2$).
+Con esa línea sumamos valores en $2$ tramos (*loop unrolling* $\times 2$).
+
+Es el primer nivel del barrido de `reduccion_global5`, pero con el doble de elementos que *threads*: **todos** trabajan.
 
 <!-- NOTA — esta línea es todo el unrolling x2 del kernel: un thread suma dos
 elementos separados por un bloque. Notar que el acceso sigue siendo contiguo
 dentro del warp: threads consecutivos leen idx e idx + blockDim.x, los dos
 consecutivos. Y como idx empieza en blockIdx.x * blockDim.x * 2, idx +
 blockDim.x es el segundo tramo del MISMO bloque, no datos del bloque
-siguiente. -->
+siguiente.
+
+Relación con el barrido de reduccion_global5: esta línea es un nivel más del
+mismo barrido (idata[t] += idata[t + stride] con stride = blockDim.x). La
+diferencia está en cuántos elementos tiene cada thread. En global5 un bloque
+de 1024 threads cubre 1024 elementos, y en su primer nivel (stride 512) solo
+trabaja la mitad. En global6 los mismos 1024 threads cubren 2048, y este
+nivel extra es el único en que trabajan todos; después sigue el barrido de
+global5 sobre los primeros 1024. Se podría obtener lo mismo empezando el
+ciclo en stride = blockDim.x; escribirlo aparte deja claro qué hace y le da
+su propia verificación de límites. Con x4 y x8 la diferencia con el barrido
+es mayor: x8 equivale a tres niveles del barrido (8 → 4 → 2 → 1 por
+thread), pero en un solo paso, sin __syncthreads() entre ellos (las sumas
+parciales quedan en registros del mismo thread), con las 8 lecturas
+independientes en vuelo a la vez y con todos los threads ocupados. El
+barrido reparte el trabajo entre threads y necesita una barrera por nivel;
+el unrolling primero hace que cada thread sume varios elementos por su
+cuenta, y después el barrido termina. Es la idea del grid-stride de la
+reducción completa. -->
 
 ---
 
@@ -3677,7 +3709,7 @@ if (idx + 3 * blockDim.x < N)
 }
 ```
 
-Aquí usamos valores en $4$ bloques (*loop unrolling* $\times 4$).
+Aquí usamos valores en $4$ tramos (*loop unrolling* $\times 4$).
 
 <!-- NOTA — con x4 conviene cargar primero los cuatro valores en variables y
 sumarlos después: las cuatro cargas son independientes y pueden estar en vuelo
@@ -3703,7 +3735,7 @@ if (idx + 7 * blockDim.x < N)
 }
 ```
 
-Aquí usamos valores en $8$ bloques (*loop unrolling* $\times 8$).
+Aquí usamos valores en $8$ tramos (*loop unrolling* $\times 8$).
 
 <!-- NOTA — x8 lleva la idea al extremo: ocho cargas independientes por thread y un
 octavo de los bloques. A partir de cierto factor la ganancia se satura, porque
