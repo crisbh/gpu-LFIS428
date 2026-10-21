@@ -1490,7 +1490,7 @@ contiguos. Todavía sin medir en la T4. -->
 
 ## **Divergencia de warps**
 
-Este método también sufre de un problema: **divergencia de threads**.
+Este método sufre de **divergencia de threads**.
 
 Si en un programa de CUDA tenemos algo como:
 
@@ -2127,7 +2127,7 @@ donde con stride 1 suman los threads 0, 2, 4, 6. -->
 
 @include[cuda]{static/code/threads/reduccion_global2.cu:7-9}
 
-`reduccion_global3`: suman los `idx` $< N/(2s)$: cada *warp* queda **completo o vacío**.
+`reduccion_global3`: el *thread* `idx` suma en `index` $= 2s \cdot$ `idx`, y `index < N` deja activos solo los `idx` $< N/(2s)$: cada *warp* queda **completo o vacío**.
 
 @include[cuda]{static/code/threads/reduccion_global3.cu:10-13}
 
@@ -2162,7 +2162,7 @@ reduccion_global2.x y reduccion_global3.x. Todavía sin medir en la T4. -->
 
 @include[cuda]{static/code/threads/reduccion_global3.cu:6-13}
 
-Con un arreglo de largo $N=2^24$:
+Con un arreglo de largo $N=2^{24}$:
 - **Todos** los *threads* calculan `index`: hasta $2^{24} \cdot 2^{24} = 2^{48}$.
 - En $32$ bits, `stride` $= 2^{23}$ e `idx` $= 256$ dan $2^{32} \to 0$.
 - Ese *thread* también suma en `data[0]`: **resultado incorrecto**.
