@@ -77,6 +77,16 @@ int main() {
   cudaMalloc((void **)&d_salida, (N + n_threads - 1) / n_threads * sizeof(float));
   cudaMemcpy(d_array, h_array, N * sizeof(float), cudaMemcpyHostToDevice);
 
+  // medir el tiempo de los kernels con eventos de CUDA (los veremos en la
+  // clase de streams); cudaFuncGetAttributes carga el kernel antes de medir
+  cudaFuncAttributes attr;
+  cudaFuncGetAttributes(&attr, reduccion_memoria_compartida);
+  cudaEvent_t inicio, fin;
+  cudaEventCreate(&inicio);
+  cudaEventCreate(&fin);
+  float ms;
+  cudaEventRecord(inicio);
+
   // Calcular reducción en el GPU: cada pasada lee de "entrada" y escribe un
   // resultado por bloque en "salida"; después se intercambian los punteros
   float *entrada = d_array, *salida = d_salida;
@@ -91,6 +101,10 @@ int main() {
     salida = tmp;
   }
 
+  cudaEventRecord(fin);
+  cudaEventSynchronize(fin);
+  cudaEventElapsedTime(&ms, inicio, fin);
+
   // Copiar resultado del GPU
   cudaMemcpy(&resultado_gpu, &entrada[0], sizeof(float),
              cudaMemcpyDeviceToHost);
@@ -99,6 +113,10 @@ int main() {
   // Ojo: usamos Nt ya que N está modificado en la invocación del kernel
   resultado_host = resultado_cpu(h_array, Nt);
   printf("host: %f, device %f\n", resultado_host, resultado_gpu);
+  printf("tiempo GPU: %.3f ms\n", ms);
+
+  cudaEventDestroy(inicio);
+  cudaEventDestroy(fin);
 
   // Liberar memoria
   cudaFree(d_array);
