@@ -2940,8 +2940,7 @@ stride = blockDim/2 y lo va dividiendo por 2, y suma el thread threadIdx.x con
 threadIdx.x + stride. Así los threads activos son siempre los primeros (sin
 divergencia) Y cada warp lee posiciones consecutivas (acceso contiguo), lo
 que conecta con el capítulo de memoria. Es el patrón que se usa en todas las
-versiones con memoria global que siguen (la de memoria compartida, que viene
-ahora, vuelve a propósito a la indexación de reduccion_global2). -->
+versiones que siguen, incluida la de memoria compartida. -->
 
 <!-- NOTA — la figura (redibujada en SVG a partir de la del libro); las sumas están verificadas: con stride 4, 3+4=7, 1+1=2, 7+6=13 y 0+3=3; con
 stride 2, 7+13=20 y 2+3=5; con stride 1, 20+5=25, que es la suma de los ocho
@@ -2982,9 +2981,9 @@ Ahora un ejemplo con memoria compartida: [reduccion_compartida.cu](../code/threa
 - Cada bloque copia su parte: **cada elemento se lee desde la memoria global una sola vez**.
 
 <!-- NOTA — reduccion_compartida.cu copia el bloque a memoria compartida y hace el
-árbol ahí, así la memoria global se lee una sola vez por elemento. Es una
-versión más simple que las anteriores (usa la indexación con divergencia de
-reduccion_global2) para aislar la idea de memoria compartida. Se lanza en
+árbol ahí, así la memoria global se lee una sola vez por elemento. Usa la
+misma indexación contigua de reduccion_global5, así que lo único que cambia
+respecto de global5 es dónde vive el árbol. Se lanza en
 varias pasadas hasta que queda un número; desde la corrección, cada pasada
 escribe sus parciales en otro arreglo y los punteros se intercambian.
 
@@ -3016,15 +3015,21 @@ requiere cudaFuncSetAttribute. -->
 
 @include[cuda]{static/code/threads/reduccion_compartida.cu:20-29}
 
-- El mismo árbol de `reduccion_global2` (con su divergencia, a propósito), ahora sobre `s_data`.
+- El mismo árbol contiguo de `reduccion_global5`, ahora sobre `s_data`.
 - Al final, `salida[blockIdx.x] = s_data[0]`: un resultado por bloque.
 
-<!-- NOTA — lo único que cambia respecto de reduccion_global2 es la memoria:
-el árbol, la condición y la divergencia son los mismos, para que la
-diferencia de tiempo se pueda atribuir a la memoria compartida. La
-condición usa idx_x (el índice global) y no threadIdx.x, pero da lo mismo:
-idx_x = blockIdx.x * blockDim.x + threadIdx.x, y blockDim.x es múltiplo de
-2*stride, así que idx_x % (2*stride) == threadIdx.x % (2*stride). Una
+<!-- NOTA — lo único que cambia respecto de reduccion_global5 es la memoria:
+el árbol y la condición threadIdx.x < stride son los mismos, para que la
+diferencia de tiempo se pueda atribuir a la memoria compartida. La indexación
+importa más que la memoria: una versión anterior de este kernel usaba la
+indexación de reduccion_global2 (idx_x % (2*stride) == 0) y, medida en la T4
+con ncu (2026-10), era 2 veces MÁS LENTA que reduccion_global5 (2.49 contra
+1.23 ms) con 3.1 veces sus instrucciones (158 contra 51 millones de
+instrucciones de warp), sin conflictos de bancos y sin divergencia de saltos
+(32 threads por instrucción): con %, todos los warps evalúan la condición en
+los 10 niveles y ninguno deja de trabajar. Además el árbol en memoria global
+de global4–5 ocupa 4 KB por bloque y casi todo se sirve desde caché, así que
+llevarlo a memoria compartida no gana tanto como se espera. Una
 diferencia con reduccion_global4 y 5: aquí el __syncthreads() está fuera de
 cualquier if, y el último bloque se completa con ceros al copiar, así que el
 kernel es correcto para cualquier N, no solo para múltiplos de blockDim.x.
@@ -3061,50 +3066,50 @@ bloque todavía no copia. -->
 <line x1="914.0" y1="74.0" x2="914.0" y2="112.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="964.0" y1="74.0" x2="964.0" y2="112.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="200.0" y1="178.0" x2="200.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="250.0" y1="178.0" x2="213.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="400.0" y1="178.0" x2="214.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="200.0" y1="213.0" x2="200.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="250.0" y1="178.0" x2="250.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="450.0" y1="178.0" x2="264.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="250.0" y1="213.0" x2="250.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="300.0" y1="178.0" x2="300.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="350.0" y1="178.0" x2="313.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="500.0" y1="178.0" x2="314.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="300.0" y1="213.0" x2="300.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="400.0" y1="178.0" x2="400.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="450.0" y1="178.0" x2="413.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="400.0" y1="213.0" x2="400.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="500.0" y1="178.0" x2="500.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="550.0" y1="178.0" x2="513.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="500.0" y1="213.0" x2="500.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="350.0" y1="178.0" x2="350.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="550.0" y1="178.0" x2="364.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="350.0" y1="213.0" x2="350.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="614.0" y1="178.0" x2="614.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="664.0" y1="178.0" x2="627.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="814.0" y1="178.0" x2="628.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="614.0" y1="213.0" x2="614.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="664.0" y1="178.0" x2="664.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="864.0" y1="178.0" x2="678.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="664.0" y1="213.0" x2="664.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="714.0" y1="178.0" x2="714.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="764.0" y1="178.0" x2="727.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="914.0" y1="178.0" x2="728.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="714.0" y1="213.0" x2="714.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="814.0" y1="178.0" x2="814.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="864.0" y1="178.0" x2="827.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="814.0" y1="213.0" x2="814.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="914.0" y1="178.0" x2="914.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="964.0" y1="178.0" x2="927.8" y2="193.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="914.0" y1="213.0" x2="914.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<text x="160" y="204" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 1</text>
+<line x1="764.0" y1="178.0" x2="764.0" y2="184.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="964.0" y1="178.0" x2="778.9" y2="197.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="764.0" y1="213.0" x2="764.0" y2="219.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<text x="160" y="204" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 4</text>
 <line x1="200.0" y1="254.0" x2="200.0" y2="260.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="300.0" y1="254.0" x2="214.7" y2="271.9" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="200.0" y1="289.0" x2="200.0" y2="295.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="400.0" y1="254.0" x2="400.0" y2="260.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="500.0" y1="254.0" x2="414.7" y2="271.9" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="400.0" y1="289.0" x2="400.0" y2="295.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="250.0" y1="254.0" x2="250.0" y2="260.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="350.0" y1="254.0" x2="264.7" y2="271.9" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="250.0" y1="289.0" x2="250.0" y2="295.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="614.0" y1="254.0" x2="614.0" y2="260.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="714.0" y1="254.0" x2="628.7" y2="271.9" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="614.0" y1="289.0" x2="614.0" y2="295.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="814.0" y1="254.0" x2="814.0" y2="260.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="914.0" y1="254.0" x2="828.7" y2="271.9" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="814.0" y1="289.0" x2="814.0" y2="295.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="664.0" y1="254.0" x2="664.0" y2="260.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="764.0" y1="254.0" x2="678.7" y2="271.9" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="664.0" y1="289.0" x2="664.0" y2="295.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <text x="160" y="280" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 2</text>
 <line x1="200.0" y1="330.0" x2="200.0" y2="336.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="400.0" y1="330.0" x2="214.9" y2="349.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="250.0" y1="330.0" x2="213.8" y2="345.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="200.0" y1="365.0" x2="200.0" y2="371.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="614.0" y1="330.0" x2="614.0" y2="336.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<line x1="814.0" y1="330.0" x2="628.9" y2="349.4" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
+<line x1="664.0" y1="330.0" x2="627.8" y2="345.2" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
 <line x1="614.0" y1="365.0" x2="614.0" y2="371.0" stroke="#444" stroke-width="1.4" marker-end="url(#fl-comp)"/>
-<text x="160" y="356" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 4</text>
+<text x="160" y="356" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 1</text>
 <rect x="180" y="144" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
 <text x="200" y="167" font-size="17" text-anchor="middle" fill="#222">3</text>
 <rect x="230" y="144" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
@@ -3138,46 +3143,46 @@ bloque todavía no copia. -->
 <rect x="944" y="144" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
 <text x="964" y="167" font-size="17" text-anchor="middle" fill="#222">5</text>
 <rect x="180" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="200" y="243" font-size="17" text-anchor="middle" fill="#222">4</text>
-<rect x="230" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
+<text x="200" y="243" font-size="17" text-anchor="middle" fill="#222">10</text>
+<rect x="230" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="250" y="243" font-size="17" text-anchor="middle" fill="#222">3</text>
 <rect x="280" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="300" y="243" font-size="17" text-anchor="middle" fill="#222">12</text>
-<rect x="330" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="380" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="400" y="243" font-size="17" text-anchor="middle" fill="#222">9</text>
+<text x="300" y="243" font-size="17" text-anchor="middle" fill="#222">17</text>
+<rect x="330" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="350" y="243" font-size="17" text-anchor="middle" fill="#222">7</text>
+<rect x="380" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="430" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="480" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="500" y="243" font-size="17" text-anchor="middle" fill="#222">12</text>
+<rect x="480" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="530" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="594" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="614" y="243" font-size="17" text-anchor="middle" fill="#222">6</text>
-<rect x="644" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
+<text x="614" y="243" font-size="17" text-anchor="middle" fill="#222">10</text>
+<rect x="644" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="664" y="243" font-size="17" text-anchor="middle" fill="#222">11</text>
 <rect x="694" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="714" y="243" font-size="17" text-anchor="middle" fill="#222">7</text>
-<rect x="744" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="794" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="814" y="243" font-size="17" text-anchor="middle" fill="#222">15</text>
+<text x="714" y="243" font-size="17" text-anchor="middle" fill="#222">15</text>
+<rect x="744" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="764" y="243" font-size="17" text-anchor="middle" fill="#222">6</text>
+<rect x="794" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="844" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="894" y="220" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="914" y="243" font-size="17" text-anchor="middle" fill="#222">14</text>
+<rect x="894" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="944" y="220" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="180" y="296" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="200" y="319" font-size="17" text-anchor="middle" fill="#222">16</text>
-<rect x="230" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
+<text x="200" y="319" font-size="17" text-anchor="middle" fill="#222">27</text>
+<rect x="230" y="296" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="250" y="319" font-size="17" text-anchor="middle" fill="#222">10</text>
 <rect x="280" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="330" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="380" y="296" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="400" y="319" font-size="17" text-anchor="middle" fill="#222">21</text>
+<rect x="380" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="430" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="480" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="530" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="594" y="296" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="614" y="319" font-size="17" text-anchor="middle" fill="#222">13</text>
-<rect x="644" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
+<text x="614" y="319" font-size="17" text-anchor="middle" fill="#222">25</text>
+<rect x="644" y="296" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
+<text x="664" y="319" font-size="17" text-anchor="middle" fill="#222">17</text>
 <rect x="694" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="744" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
-<rect x="794" y="296" width="40" height="34" rx="3" fill="#eef3df" stroke="#555"/>
-<text x="814" y="319" font-size="17" text-anchor="middle" fill="#222">29</text>
+<rect x="794" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="844" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="894" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <rect x="944" y="296" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
@@ -3201,28 +3206,28 @@ bloque todavía no copia. -->
 <rect x="944" y="372" width="40" height="34" rx="3" fill="#e9e1f0" stroke="#555"/>
 <circle cx="200" cy="199" r="14" fill="#e8641b" stroke="#444"/>
 <text x="200" y="204" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="250" cy="199" r="14" fill="#e8641b" stroke="#444"/>
+<text x="250" y="204" font-size="14" text-anchor="middle" fill="#fff">1</text>
 <circle cx="300" cy="199" r="14" fill="#e8641b" stroke="#444"/>
 <text x="300" y="204" font-size="14" text-anchor="middle" fill="#fff">2</text>
-<circle cx="400" cy="199" r="14" fill="#e8641b" stroke="#444"/>
-<text x="400" y="204" font-size="14" text-anchor="middle" fill="#fff">4</text>
-<circle cx="500" cy="199" r="14" fill="#e8641b" stroke="#444"/>
-<text x="500" y="204" font-size="14" text-anchor="middle" fill="#fff">6</text>
+<circle cx="350" cy="199" r="14" fill="#e8641b" stroke="#444"/>
+<text x="350" y="204" font-size="14" text-anchor="middle" fill="#fff">3</text>
 <circle cx="614" cy="199" r="14" fill="#e8641b" stroke="#444"/>
 <text x="614" y="204" font-size="14" text-anchor="middle" fill="#fff">0</text>
+<circle cx="664" cy="199" r="14" fill="#e8641b" stroke="#444"/>
+<text x="664" y="204" font-size="14" text-anchor="middle" fill="#fff">1</text>
 <circle cx="714" cy="199" r="14" fill="#e8641b" stroke="#444"/>
 <text x="714" y="204" font-size="14" text-anchor="middle" fill="#fff">2</text>
-<circle cx="814" cy="199" r="14" fill="#e8641b" stroke="#444"/>
-<text x="814" y="204" font-size="14" text-anchor="middle" fill="#fff">4</text>
-<circle cx="914" cy="199" r="14" fill="#e8641b" stroke="#444"/>
-<text x="914" y="204" font-size="14" text-anchor="middle" fill="#fff">6</text>
+<circle cx="764" cy="199" r="14" fill="#e8641b" stroke="#444"/>
+<text x="764" y="204" font-size="14" text-anchor="middle" fill="#fff">3</text>
 <circle cx="200" cy="275" r="14" fill="#e8641b" stroke="#444"/>
 <text x="200" y="280" font-size="14" text-anchor="middle" fill="#fff">0</text>
-<circle cx="400" cy="275" r="14" fill="#e8641b" stroke="#444"/>
-<text x="400" y="280" font-size="14" text-anchor="middle" fill="#fff">4</text>
+<circle cx="250" cy="275" r="14" fill="#e8641b" stroke="#444"/>
+<text x="250" y="280" font-size="14" text-anchor="middle" fill="#fff">1</text>
 <circle cx="614" cy="275" r="14" fill="#e8641b" stroke="#444"/>
 <text x="614" y="280" font-size="14" text-anchor="middle" fill="#fff">0</text>
-<circle cx="814" cy="275" r="14" fill="#e8641b" stroke="#444"/>
-<text x="814" y="280" font-size="14" text-anchor="middle" fill="#fff">4</text>
+<circle cx="664" cy="275" r="14" fill="#e8641b" stroke="#444"/>
+<text x="664" y="280" font-size="14" text-anchor="middle" fill="#fff">1</text>
 <circle cx="200" cy="351" r="14" fill="#e8641b" stroke="#444"/>
 <text x="200" y="356" font-size="14" text-anchor="middle" fill="#fff">0</text>
 <circle cx="614" cy="351" r="14" fill="#e8641b" stroke="#444"/>
@@ -3278,13 +3283,12 @@ bloque todavía no copia. -->
 elemento de data (memoria global) a s_data, la memoria compartida de su
 bloque, y __syncthreads() espera a que la copia esté completa; es la única
 lectura de memoria global de cada elemento. (2) El árbol se hace entero en
-s_data, con la misma indexación de reduccion_global2 (suman los threadIdx.x
-múltiplos de 2*stride), así que con warps de 32 hay divergencia, a
-propósito: lo único que cambia respecto de global2 es la memoria. Las
-casillas lila ya no se usan. (3) El thread 0 de cada bloque escribe
+s_data, con la indexación contigua de reduccion_global5 (suman los
+threadIdx.x < stride, con stride = 4, 2, 1): lo único que cambia respecto de
+global5 es la memoria. Las casillas lila ya no se usan. (3) El thread 0 de cada bloque escribe
 s_data[0] en salida[blockIdx.x], en memoria global y en un arreglo aparte.
-Las sumas: bloque 0 → 4, 12, 9, 12; 16, 21; 37. Bloque 1 → 6, 7, 15, 14;
-13, 29; 42. Con N = 2^24 la primera pasada deja 16384 valores en salida, y
+Las sumas: bloque 0 → 10, 3, 17, 7; 27, 10; 37. Bloque 1 → 10, 11, 15, 6;
+25, 17; 42. Con N = 2^24 la primera pasada deja 16384 valores en salida, y
 el host vuelve a lanzar el kernel sobre ellos (diapositiva siguiente) hasta
 que queda uno. Cada bloque tiene su propia memoria compartida: el bloque 1
 no ve el s_data del bloque 0, y por eso hace falta escribir en global para

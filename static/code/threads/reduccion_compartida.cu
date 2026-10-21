@@ -15,12 +15,12 @@ __global__ void reduccion_memoria_compartida(float *salida, const float *data,
   // antes de comenzar con el cálculo
   __syncthreads();
 
-  // calcular la reducción, incrementando el stride hasta que es igual
-  // a (uno menos) el tamaño de los bloques
-  for (unsigned int stride = 1; stride < blockDim.x; stride *= 2) {
-    // un subconjunto de threads suman sus valores con otro valor
-    // a una distancia "stride" del thread actual.
-    if ((idx_x % (stride * 2)) == 0)
+  // calcular la reducción con la indexación contigua de reduccion_global5:
+  // el stride parte en la mitad del bloque y se divide por 2 en cada nivel
+  for (unsigned int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+    // la primera mitad de los threads activos suma el valor que está
+    // a una distancia "stride"; los warps sin threads activos no trabajan
+    if (threadIdx.x < stride)
       s_data[threadIdx.x] += s_data[threadIdx.x + stride];
 
     // Ya que la suma se realiza en la memoria compartida
