@@ -1093,7 +1093,7 @@ d_in[0] después del último intercambio. -->
 
 ## **Reducción paralela: memoria global**
 
-<svg viewBox="0 0 612 436" width="540" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<svg viewBox="0 0 612 436" width="600" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-glob" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
 <text x="170" y="16" font-size="16" fill="#333">N = 8, n_threads = 4: n_bloques = 2</text>
 <path d="M170,56 L170,50 L376,50 L376,56" stroke="#555" stroke-width="1.4" fill="none"/>
