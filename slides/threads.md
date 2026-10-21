@@ -2619,7 +2619,7 @@ Ejemplo: [reduccion_global5.cu](../code/threads/reduccion_global5.cu).
 <text x="156" y="329" font-size="13" text-anchor="end" fill="#666" font-style="italic">stride = 1</text>
 </svg>
 
-Este tipo de *stride* es llamado 'barrido' (desde derecha a izquierda).
+Esta reducción es del tipo 'barrido' (desde derecha a izquierda).
 
 <!-- <p class="credit">Fuente: adaptado de <em>Professional CUDA C Programming</em></p> -->
 
@@ -2662,7 +2662,8 @@ a memoria. -->
 
 ## **Reducción paralela: memoria compartida**
 
-Hasta ahora, memoria global en todos los *kernels*. Ejemplo: [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu).
+Hasta ahora, memoria global en todos los *kernels*.
+Ahora un ejemplo con memoria compartida: [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu).
 
 @include[cuda]{static/code/threads/reduccion_compartida.cu:9-16}
 
