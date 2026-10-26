@@ -34,10 +34,11 @@ Programas de ejemplo para las clases:
 
 - [cuda_thread_block.cu](../code/threads/cuda_thread_block.cu) · [matriz_mult.cu](../code/threads/matriz_mult.cu)
 - Reducción (memoria global): [reduccion_global.cu](../code/threads/reduccion_global.cu) · [reduccion_global2.cu](../code/threads/reduccion_global2.cu) · [reduccion_global3.cu](../code/threads/reduccion_global3.cu) · [reduccion_global4.cu](../code/threads/reduccion_global4.cu) · [reduccion_global5.cu](../code/threads/reduccion_global5.cu) · [reduccion_global6.cu](../code/threads/reduccion_global6.cu) · [reduccion_global7.cu](../code/threads/reduccion_global7.cu) · [reduccion_global8.cu](../code/threads/reduccion_global8.cu)
-<!-- - Reducción (memoria compartida): [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu) · [reduccion_compartida_new.cu](../code/threads/reduccion_compartida_new.cu) · [reduction.h](../code/threads/reduction.h) -->
+- Reducción (memoria compartida): [reduccion_compartida.cu](../code/threads/reduccion_compartida.cu)
+- Warp primitives: [warp_shuffle_down.cu](../code/threads/warp_shuffle_down.cu) · [warp_shuffle_up.cu](../code/threads/warp_shuffle_up.cu) · [warp_shuffle_xor.cu](../code/threads/warp_shuffle_xor.cu)
+- Reducción completa (con shuffle): [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu) 
+- Ejemplo: [histograma.cu](../code/threads/histograma.cu)
 <!-- - [grid_stride.cu](../code/threads/grid_stride.cu) -->
-<!-- - Reducción completa y atómicas: [reduccion-shuffle.cu](../code/threads/reduccion-shuffle.cu) · [histograma.cu](../code/threads/histograma.cu) -->
-<!-- - Warp primitives: [warp_shuffle_down.cu](../code/threads/warp_shuffle_down.cu) · [warp_shuffle_up.cu](../code/threads/warp_shuffle_up.cu) · [warp_shuffle_xor.cu](../code/threads/warp_shuffle_xor.cu) -->
 <!-- - Errores (PyCUDA): [gpu_suma_error.py](../code/threads/gpu_suma_error.py) · [gpu_producto_punto_error.py](../code/threads/gpu_producto_punto_error.py) -->
 
 <!-- ###################################### -->

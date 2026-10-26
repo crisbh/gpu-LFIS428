@@ -11,7 +11,6 @@ theme: curso
 
 Streams, eventos y sincronización
 
-
 <!-- ## **Códigos** -->
 <!---->
 <!-- Los códigos de esta clase están disponibles para descargar: -->
@@ -27,6 +26,126 @@ y cuda_pipelining.cu) están escritos para este curso: en español, sin
 dependencias externas, y se compilan con nvcc -arch=sm_75. Los del apéndice
 vienen del material original; varios necesitan los headers de los CUDA
 samples (ver Compilar los ejemplos del apéndice). -->
+<!-- ## **Códigos** -->
+<!---->
+<!-- Los códigos de esta clase están disponibles para descargar: -->
+<!---->
+<!-- - Streams: [cuda_default_stream.cu](../code/kernels/cuda_default_stream.cu) · [cuda_multi_stream.cu](../code/kernels/cuda_multi_stream.cu) · [cuda_multi_stream_with_sync.cu](../code/kernels/cuda_multi_stream_with_sync.cu) · [cuda_multi_stream_with_default.cu](../code/kernels/cuda_multi_stream_with_default.cu) · [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu) · [prioritized_cuda_stream.cu](../code/kernels/prioritized_cuda_stream.cu) -->
+<!-- - Callbacks/eventos: [cuda_callback.cu](../code/kernels/cuda_callback.cu) · [cuda_event.cu](../code/kernels/cuda_event.cu) · [cuda_event_with_streams.cu](../code/kernels/cuda_event_with_streams.cu) -->
+<!-- - Paralelismo dinámico: [dynamic_parallelism.cu](../code/kernels/dynamic_parallelism.cu) · [recursion.cu](../code/kernels/recursion.cu) -->
+<!-- - OpenMP / MPI: [openmp.cu](../code/kernels/openmp.cu) · [openmp_default_stream.cu](../code/kernels/openmp_default_stream.cu) · [simpleMPI.cu](../code/kernels/simpleMPI.cu) -->
+<!-- - Overhead: [cuda_kernel.cu](../code/kernels/cuda_kernel.cu) -->
+
+<!-- NOTA — solo cuda_event.cu y cuda_pipelining.cu se reescribieron para este
+curso (en español, sin dependencias externas y con un kernel que hace trabajo
+real). El resto viene del material original y necesita los headers de los CUDA
+samples: ver la diapositiva siguiente. -->
+
+---
+
+## **Compilar los ejemplos**
+
+Los programas que incluyen `helper_timer.h` (todos menos `cuda_event.cu` y `cuda_pipelining.cu`) necesitan los *headers* de los CUDA *samples*:
+
+```bash
+git clone --depth 1 https://github.com/NVIDIA/cuda-samples
+nvcc -arch=sm_75 -I cuda-samples/Common programa.cu -o programa.x
+```
+
+<!-- NOTA — helper_timer.h es un archivo de los ejemplos oficiales de NVIDIA (cuda-
+samples), no del toolkit, así que Colab no lo trae. Clonar el repositorio una
+vez por sesión basta; --depth 1 evita bajar toda la historia.
+dynamic_parallelism.cu y recursion.cu además necesitan -rdc=true -lcudadevrt,
+y simpleMPI.cu necesita MPI, que Colab no trae instalado. -->
+
+---
+
+# Eventos
+
+---
+
+## **Eventos de CUDA**
+
+- Un evento es una marca en la fila de un *stream*: el GPU anota cuándo la alcanza.
+- La diferencia entre dos eventos mide el tiempo **en el GPU**, sin el ruido del *host*.
+
+```cuda
+cudaEventRecord(inicio);
+kernel<<<grid, bloque>>>(...);
+cudaEventRecord(fin);
+cudaEventSynchronize(fin);              // esperar a que el GPU llegue a "fin"
+cudaEventElapsedTime(&ms, inicio, fin);
+```
+
+Ejemplo: [cuda_event.cu](../code/kernels/cuda_event.cu) (lo compara con un cronómetro del *host*).
+
+<!-- NOTA — hasta ahora medimos con segundos(), un cronómetro del host, y
+vimos que los tiempos variaban bastante entre corridas en Colab. El
+cronómetro del host mide también el lanzamiento, la sincronización y
+cualquier pausa del CPU virtual. Los eventos los registra el propio GPU en la
+fila del stream, así que miden solo lo que pasó entre las dos marcas. Siguen
+sujetos a la variabilidad de los relojes del GPU (el calentamiento sigue
+haciendo falta), pero sacan del medio al host. Los vamos a usar para medir los
+streams. -->
+=======
+<!-- - Streams: [cuda_default_stream.cu](../code/kernels/cuda_default_stream.cu) · [cuda_multi_stream.cu](../code/kernels/cuda_multi_stream.cu) · [cuda_multi_stream_with_sync.cu](../code/kernels/cuda_multi_stream_with_sync.cu) · [cuda_multi_stream_with_default.cu](../code/kernels/cuda_multi_stream_with_default.cu) · [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu) · [prioritized_cuda_stream.cu](../code/kernels/prioritized_cuda_stream.cu) -->
+<!-- - Callbacks/eventos: [cuda_callback.cu](../code/kernels/cuda_callback.cu) · [cuda_event.cu](../code/kernels/cuda_event.cu) · [cuda_event_with_streams.cu](../code/kernels/cuda_event_with_streams.cu) -->
+<!-- - Paralelismo dinámico: [dynamic_parallelism.cu](../code/kernels/dynamic_parallelism.cu) · [recursion.cu](../code/kernels/recursion.cu) -->
+<!-- - OpenMP / MPI: [openmp.cu](../code/kernels/openmp.cu) · [openmp_default_stream.cu](../code/kernels/openmp_default_stream.cu) · [simpleMPI.cu](../code/kernels/simpleMPI.cu) -->
+<!-- - Overhead: [cuda_kernel.cu](../code/kernels/cuda_kernel.cu) -->
+
+<!-- NOTA — solo cuda_event.cu y cuda_pipelining.cu se reescribieron para este
+curso (en español, sin dependencias externas y con un kernel que hace trabajo
+real). El resto viene del material original y necesita los headers de los CUDA
+samples: ver la diapositiva siguiente. -->
+
+---
+
+## **Compilar los ejemplos**
+
+Los programas que incluyen `helper_timer.h` (todos menos `cuda_event.cu` y `cuda_pipelining.cu`) necesitan los *headers* de los CUDA *samples*:
+
+```bash
+git clone --depth 1 https://github.com/NVIDIA/cuda-samples
+nvcc -arch=sm_75 -I cuda-samples/Common programa.cu -o programa.x
+```
+
+<!-- NOTA — helper_timer.h es un archivo de los ejemplos oficiales de NVIDIA (cuda-
+samples), no del toolkit, así que Colab no lo trae. Clonar el repositorio una
+vez por sesión basta; --depth 1 evita bajar toda la historia.
+dynamic_parallelism.cu y recursion.cu además necesitan -rdc=true -lcudadevrt,
+y simpleMPI.cu necesita MPI, que Colab no trae instalado. -->
+
+---
+
+# Eventos
+
+---
+
+## **Eventos de CUDA**
+
+- Un evento es una marca en la fila de un *stream*: el GPU anota cuándo la alcanza.
+- La diferencia entre dos eventos mide el tiempo **en el GPU**, sin el ruido del *host*.
+
+```cuda
+cudaEventRecord(inicio);
+kernel<<<grid, bloque>>>(...);
+cudaEventRecord(fin);
+cudaEventSynchronize(fin);              // esperar a que el GPU llegue a "fin"
+cudaEventElapsedTime(&ms, inicio, fin);
+```
+
+Ejemplo: [cuda_event.cu](../code/kernels/cuda_event.cu) (lo compara con un cronómetro del *host*).
+
+<!-- NOTA — hasta ahora medimos con segundos(), un cronómetro del host, y
+vimos que los tiempos variaban bastante entre corridas en Colab. El
+cronómetro del host mide también el lanzamiento, la sincronización y
+cualquier pausa del CPU virtual. Los eventos los registra el propio GPU en la
+fila del stream, así que miden solo lo que pasó entre las dos marcas. Siguen
+sujetos a la variabilidad de los relojes del GPU (el calentamiento sigue
+haciendo falta), pero sacan del medio al host. Los vamos a usar para medir los
+streams. -->
+>>>>>>> Stashed changes
 
 ---
 
