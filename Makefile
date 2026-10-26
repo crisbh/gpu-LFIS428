@@ -22,9 +22,19 @@ CODE := $(shell find static/code -type f 2>/dev/null)
 MARP_CMD := marp --html --theme $(THEME)
 HUGO_CMD := hugo server --minify --theme hugo-book
 
+# A file inside the theme submodule, used to detect whether it is checked out
+THEME_STAMP := themes/hugo-book/theme.toml
+
 # Build website with hugo
-site: slides
+site: slides $(THEME_STAMP)
+	@echo "Sitio local: http://localhost:1313/gpu-LFIS428/"
 	$(HUGO_CMD)
+
+# The hugo-book theme is a git submodule; without it hugo builds no pages and
+# every URL is "page not found". Check it out only if it is missing (only this
+# submodule: themes/relearn is unused and slow to clone).
+$(THEME_STAMP):
+	git submodule update --init --recursive themes/hugo-book
 
 # Default target: Build all slides
 all: slides site
