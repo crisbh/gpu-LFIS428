@@ -42,13 +42,21 @@ Programas de ejemplo para las clases:
 <!-- - Errores (PyCUDA): [gpu_suma_error.py](../code/threads/gpu_suma_error.py) · [gpu_producto_punto_error.py](../code/threads/gpu_producto_punto_error.py) -->
 
 <!-- ###################################### -->
-<!-- ## Invocación de los kernels -->
-<!---->
-<!-- - Streams: [cuda_default_stream.cu](../code/kernels/cuda_default_stream.cu) · [cuda_multi_stream.cu](../code/kernels/cuda_multi_stream.cu) · [cuda_multi_stream_with_sync.cu](../code/kernels/cuda_multi_stream_with_sync.cu) · [cuda_multi_stream_with_default.cu](../code/kernels/cuda_multi_stream_with_default.cu) · [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu) · [prioritized_cuda_stream.cu](../code/kernels/prioritized_cuda_stream.cu) -->
-<!-- - Callbacks y eventos: [cuda_callback.cu](../code/kernels/cuda_callback.cu) · [cuda_event.cu](../code/kernels/cuda_event.cu) · [cuda_event_with_streams.cu](../code/kernels/cuda_event_with_streams.cu) -->
-<!-- - Paralelismo dinámico: [dynamic_parallelism.cu](../code/kernels/dynamic_parallelism.cu) · [recursion.cu](../code/kernels/recursion.cu) -->
-<!-- - OpenMP / MPI: [openmp.cu](../code/kernels/openmp.cu) · [openmp_default_stream.cu](../code/kernels/openmp_default_stream.cu) · [simpleMPI.cu](../code/kernels/simpleMPI.cu) -->
-<!-- - Overhead de ejecución: [cuda_kernel.cu](../code/kernels/cuda_kernel.cu) -->
+## 4. Invocación de los kernels
+
+- Eventos: [cuda_event.cu](../code/kernels/cuda_event.cu)
+- *Default stream* y concurrencia: [streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu) (ejercicio 1)
+- *Pipelining*: [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu) (ejercicio 2)
+
+Apéndice (para estudiar por cuenta propia; ver en las diapositivas cómo compilarlos):
+
+- *Callbacks*: [cuda_callback.cu](../code/kernels/cuda_callback.cu)
+- Prioridad de los *streams*: [prioritized_cuda_stream.cu](../code/kernels/prioritized_cuda_stream.cu)
+- Eventos en varios *streams*: [cuda_event_with_streams.cu](../code/kernels/cuda_event_with_streams.cu)
+- Paralelismo dinámico: [dynamic_parallelism.cu](../code/kernels/dynamic_parallelism.cu) · [recursion.cu](../code/kernels/recursion.cu)
+- CUDA y OpenMP: [openmp.cu](../code/kernels/openmp.cu) · [openmp_default_stream.cu](../code/kernels/openmp_default_stream.cu)
+- MPS: [simpleMPI.cu](../code/kernels/simpleMPI.cu)
+- Costo de lanzar un *kernel*: [cuda_kernel.cu](../code/kernels/cuda_kernel.cu)
 
 <!-- ###################################### -->
 <!-- ## Librerías de CUDA y Python -->
