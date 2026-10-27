@@ -58,24 +58,6 @@ vez por sesión basta; --depth 1 evita bajar toda la historia.
 dynamic_parallelism.cu y recursion.cu además necesitan -rdc=true -lcudadevrt,
 y simpleMPI.cu necesita MPI, que Colab no trae instalado. -->
 
-
----
-
-## **Compilar los ejemplos**
-
-Los programas que incluyen `helper_timer.h` (todos menos `cuda_event.cu` y `cuda_pipelining.cu`) necesitan los *headers* de los CUDA *samples*:
-
-```bash
-git clone --depth 1 https://github.com/NVIDIA/cuda-samples
-nvcc -arch=sm_75 -I cuda-samples/Common programa.cu -o programa.x
-```
-
-<!-- NOTA — helper_timer.h es un archivo de los ejemplos oficiales de NVIDIA (cuda-
-samples), no del toolkit, así que Colab no lo trae. Clonar el repositorio una
-vez por sesión basta; --depth 1 evita bajar toda la historia.
-dynamic_parallelism.cu y recursion.cu además necesitan -rdc=true -lcudadevrt,
-y simpleMPI.cu necesita MPI, que Colab no trae instalado. -->
-
 ---
 
 # Streams
@@ -111,7 +93,8 @@ cudaMemcpy(h_x, d_x, bytes, cudaMemcpyDeviceToHost);
 <tr><th>stream 2</th><td class="s2">kernelB</td><td></td><td></td><td></td></tr>
 </table>
 
-- Lo que está en el mismo *stream* se ejecuta **en orden**; lo que está en *streams* distintos **puede** ejecutarse a la vez.
+- Lo que está en el mismo *stream* se ejecuta **en orden**.
+- Lo que está en *streams* distintos **puede** ejecutarse a la vez.
 
 <!-- NOTA — es la misma idea del occupancy y de esconder la latencia, un nivel
 más arriba: allá, más warps esconden la espera de la memoria; acá, más
@@ -128,7 +111,7 @@ pipelining, más adelante). La T4 admite hasta 128 grids residentes a la vez
 
 ## **Streams**
 
-- El *stream* es el cuarto argumento al lanzar el *kernel*:
+- El *stream* es el **cuarto** argumento al lanzar el *kernel*:
 
 ```cuda
 kernel<<< grid_size, block_size, shared_memory, stream >>>();
@@ -160,7 +143,11 @@ pinned para ser de verdad asincrónica; lo vemos con el pipelining. -->
 
 - Lanzar un *kernel* devuelve el control al *host* **de inmediato**, en cualquier *stream* (también en el *default*).
 - El *host* sigue con su trabajo mientras el GPU calcula.
-- Solo espera cuando se lo pedimos (rayado): `cudaDeviceSynchronize()`, `cudaStreamSynchronize()`, `cudaEventSynchronize()`, o un `cudaMemcpy`.
+- Solo espera cuando se lo pedimos (achurado), por ejemplo: 
+  - `cudaDeviceSynchronize()`
+  - `cudaStreamSynchronize()`
+  - `cudaEventSynchronize()`
+  - `cudaMemcpy`
 
 <!-- NOTA — esta es la primera forma de paralelismo que dan los streams, y existe
 aunque usemos uno solo: host y GPU trabajan a la vez. Lanzar un kernel tarda
@@ -174,7 +161,9 @@ cuánto tardó el GPU en terminarlos. -->
 
 ## **Eventos de CUDA**
 
-Como lanzar no espera, para medir un *kernel* hace falta que **el GPU** anote la hora: un evento es una marca en la fila de un *stream*. `cudaEventRecord(e)` la pone en el *default*; `cudaEventRecord(e, s)`, en el *stream* `s`.
+- Como lanzar no espera, para medir un *kernel* hace falta que **el GPU** anote la hora: un **evento** es una **marca** en la fila de un *stream*. 
+
+- `cudaEventRecord(e, s)` marca el *stream* `s` (si se omite: *default stream*).
 
 @include[cuda]{static/code/kernels/cuda_event.cu:66-72}
 
@@ -275,9 +264,15 @@ entre streams. El cudaMemcpy de la última fila es la sincronización
 
 ## **Streams: pipelining**
 
-Una aplicación de los *streams*:
+En general, los programas de CUDA funcionan con 3 etapas:
+
+1. Copia Host -> Device.
+2. Cómputo en Device.
+3. Copia Device -> Host.
+
+Una aplicación de los *streams* para la optimización:
 - Las transferencias de datos en unos *streams* coinciden con cómputos en otros.
-- Otra manera de "esconder" la latencia.
+- Es otra manera de "esconder" la latencia.
 
 <!-- NOTA — la idea es la de una línea de producción: si el trabajo se divide en
 pedazos, la copia del pedazo 2 puede hacerse mientras se calcula el pedazo 1.
@@ -332,7 +327,8 @@ detrás del cómputo. -->
 </svg>
 
 - Dentro de un *stream*, en orden. Entre *streams*, cada motor puede atender a uno distinto **al mismo tiempo**.
-- `asyncEngineCount`: cuántos motores de copia tiene el GPU (`cuda_pipelining.x` lo imprime).
+- `asyncEngineCount`: cuántos motores de copia tiene el GPU 
+  - `cuda_pipelining.x` lo imprime.
 
 <!-- NOTA — el GPU tiene hardware separado para copiar y para calcular: los
 motores de copia (DMA) mueven datos por el PCIe sin ocupar los SMs. Con un
@@ -347,7 +343,7 @@ Colab: lo dice la primera línea de cuda_pipelining.x). -->
 
 ## **Streams: pipelining**
 
-Copiar $\to$ calcular $\to$ copiar de vuelta, con los datos en $4$ pedazos:
+Copiar $\to$ calcular $\to$ copiar de vuelta, con los datos en $4$ partes (trozos):
 
 <table class="timeline">
 <tr><th>1 stream</th><td colspan="12" style="border:none;background:transparent !important"></td></tr>
@@ -360,7 +356,10 @@ Copiar $\to$ calcular $\to$ copiar de vuelta, con los datos en $4$ pedazos:
 <tr><th>Copia D→H</th><td></td><td></td><td class="s1">1</td><td class="s2">2</td><td class="s3">3</td><td class="s4">4</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 </table>
 
-Con varios *streams*, mientras uno calcula otro ya está copiando: el total baja de $12$ a $6$ tiempos.
+- Con varios *streams*, podemos solapar ("escalonar") el trabajo.
+- Mientras uno calcula otro ya está copiando.
+
+El tiempo total de ejecución baja de $12$ a $6$ tiempos.
 
 <!-- NOTA — cada casilla es el tiempo de procesar un pedazo en esa etapa. Con
 un solo stream las tres etapas van una detrás de otra (12 casillas). Con un
@@ -393,10 +392,10 @@ el stream llega a él, aunque la copia todavía espere al motor. -->
 
 ## **Streams: pipelining**
 
-**3 requisitos:**
+Para el pipelining existen **3 requisitos:**
 - La memoria en el *host* debe ser ***pinned***: `cudaMallocHost()`.
 - La transferencia de datos debe ser asincrónica: `cudaMemcpyAsync()`.
-- Las operaciones de CUDA deben estar en *streams* diferentes (y nada en el *default stream*).
+- Las operaciones de CUDA deben estar en *streams* diferentes (y nada en el *default stream*, porque bloquea a todos).
 
 Ejemplo: [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu). Mide el mismo trabajo con $1$ *stream* y con varios (ejercicio 2).
 
