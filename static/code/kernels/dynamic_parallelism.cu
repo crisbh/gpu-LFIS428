@@ -19,8 +19,8 @@ __global__ void parent_kernel(int *data) {
     child_kernel<<<child_size / BLOCKDIM, BLOCKDIM>>>(
         &data[child_size * blockIdx.x], blockIdx.x + 1);
   }
-  // synchronization for other parent's kernel output
-  cudaDeviceSynchronize();
+  // no device-side cudaDeviceSynchronize() (removed in CUDA 12): the parent
+  // grid does not complete until its child grids complete
 }
 
 int main() {

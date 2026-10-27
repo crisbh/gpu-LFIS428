@@ -25,8 +25,9 @@ __global__ void recursive_kernel(int *data, int block_size, int depth) {
       printf("depth: [%2d], offset: %4d, block_idx: %2d, block_size: %3d\n",
              depth, x_0, blockIdx.x, block_size);
 
+      // no device-side cudaDeviceSynchronize() (removed in CUDA 12): the
+      // parent grid does not complete until its child grids complete
       recursive_kernel<<<dimGrid, dimBlock>>>(&data[x_0], dimBlock, depth - 1);
-      cudaDeviceSynchronize();
     }
     __syncthreads();
   }
@@ -44,6 +45,7 @@ int main() {
   int max_depth = 3;
 
   cudaMallocManaged((void **)&data, size * sizeof(int));
+  cudaMemset(data, 0, size * sizeof(int));
 
   int dimBlock = 512;
   int dimGrid = size / dimBlock;

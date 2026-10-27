@@ -147,6 +147,12 @@ int main(int argc, char *argv[]) {
   int n = 1 << 24;
   size_t bytes = n * sizeof(float);
   int n_streams = (argc > 1) ? atoi(argv[1]) : 4;
+  // procesar() reparte n en pedazos iguales: n_streams debe dividir a n
+  if (n_streams < 1 || n % n_streams != 0) {
+    printf("ERROR: el número de streams debe dividir a %d (p. ej. 2, 4, 8)\n",
+           n);
+    return 1;
+  }
 
   // memoria pinned en el host: sin ella, cudaMemcpyAsync no se solapa
   float *h_a, *h_b, *h_c;
