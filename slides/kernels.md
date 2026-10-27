@@ -33,9 +33,9 @@ samples (ver Compilar los ejemplos del apéndice). -->
 
 ---
 
-## **Default stream**
+## **Hasta ahora: todo en fila**
 
-- Cuando el *host* lanza un kernel, este retoma el control del programa sin esperar a que termine de ejecutarse.
+- Lanzar un *kernel* no bloquea: el *host* retoma el control del programa sin esperar a que el *kernel* termine.
 - Si el *host* lanza un segundo kernel, por *default* su ejecución tiene que esperar.
   - Esto ocurre incluso si **el segundo kernel no depende de los resultados del primero**.
 
@@ -46,17 +46,21 @@ kernelB<<<grid, bloque>>>(d_y);   // no usa nada de kernelA
 cudaMemcpy(h_x, d_x, bytes, cudaMemcpyDeviceToHost);
 ```
 
+<!-- NOTA — que los kernels corren asincrónicamente lo vimos en la
+introducción; lo nuevo es que, aunque el host no espere, el GPU sí ejecuta
+todo en fila: H->D, kernelA, kernelB y D->H, uno detrás de otro. -->
+
 ---
 
 ## **Streams**
 
 - Para lograr paralelismo a nivel de kernels (y otras operaciones de CUDA) usamos los *streams*.
 - Un *stream* es una 'fila' de comandos para el GPU: copias, *kernels*, ...
-- Si no decimos nada, todo va al *default stream* (número 0).
+- Si no decimos nada, todo va al *default stream*.
 
 <table class="timeline">
 <tr><th><em>default stream</em></th><td colspan="4" style="border:none;background:transparent !important"></td></tr>
-<tr><th>GPU</th><td class="s3">H→D</td><td class="s3">kernelA</td><td class="s3">kernelB</td><td class="s3">D→H</td></tr>
+<tr><th>GPU</th><td class="s0">H→D</td><td class="s0">kernelA</td><td class="s0">kernelB</td><td class="s0">D→H</td></tr>
 <tr><th>con <em>streams</em></th><td colspan="4" style="border:none;background:transparent !important"></td></tr>
 <tr><th>stream 1</th><td class="s1">H→D</td><td class="s1">kernelA</td><td class="s1">D→H</td><td></td></tr>
 <tr><th>stream 2</th><td class="s2">kernelB</td><td></td><td></td><td></td></tr>
@@ -74,7 +78,9 @@ que espere; en el default stream espera igual. Ojo: dos kernels solo corren a
 la vez si hay recursos libres. Un kernel que llena el GPU no deja espacio para
 otro, así que la ganancia más clara es solapar copias con cálculo (el
 pipelining, más adelante). La T4 admite hasta 128 grids residentes a la vez
-(compute capability 7.5). -->
+(compute capability 7.5). En el código, el default stream se escribe 0 o
+se omite; en las figuras de esta clase va siempre en gris, y cada color es
+un stream creado. -->
 
 ---
 
@@ -106,16 +112,16 @@ pinned para ser de verdad asincrónica; lo vemos con el pipelining. -->
 ## **Ejecución asincrónica**
 
 <table class="timeline">
-<tr><th>Host</th><td class="s1">lanza 1</td><td class="s2">lanza 2</td><td>CPU</td><td>CPU</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td>sigue</td></tr>
-<tr><th>GPU</th><td></td><td class="s1">kernel 1</td><td class="s1"></td><td class="s1"></td><td class="s2">kernel 2</td><td class="s2"></td><td class="s2"></td><td></td></tr>
+<tr><th>Host</th><td class="s0">lanza 1</td><td class="s0">lanza 2</td><td>CPU</td><td>CPU</td><td class="espera"></td><td class="espera"></td><td class="espera"></td><td>sigue</td></tr>
+<tr><th>GPU</th><td></td><td class="s0" colspan="3">kernel 1</td><td class="s0" colspan="3">kernel 2</td><td></td></tr>
 </table>
 
 - Lanzar un *kernel* devuelve el control al *host* **de inmediato**, en cualquier *stream* (también en el *default*).
 - El *host* sigue con su trabajo mientras el GPU calcula.
-- Solo espera cuando se lo pedimos (achurado), por ejemplo: 
+- Solo espera cuando se lo pedimos (achurado), por ejemplo:
   - `cudaDeviceSynchronize()`
   - `cudaStreamSynchronize()`
-  - `cudaEventSynchronize()`
+  - `cudaEventSynchronize()` (eventos: a continuación)
   - `cudaMemcpy`
 
 <!-- NOTA — esta es la primera forma de paralelismo que dan los streams, y existe
@@ -130,13 +136,13 @@ cuánto tardó el GPU en terminarlos. -->
 
 ## **Eventos de CUDA**
 
-- Como lanzar no espera, para medir un *kernel* hace falta que **el GPU** anote la hora: un **evento** es una **marca** en la fila de un *stream*. 
+- Como lanzar no espera, para medir un *kernel* hace falta que **el GPU** anote la hora: un **evento** es una **marca** en la fila de un *stream*.
 
 - `cudaEventRecord(e, s)` marca el *stream* `s` (si se omite: *default stream*).
 
 @include[cuda]{static/code/kernels/cuda_event.cu:66-72}
 
-`cudaEventElapsedTime(&ms, inicio, fin)` da la diferencia en ms. 
+`cudaEventElapsedTime(&ms, inicio, fin)` da la diferencia en ms.
 
 ---
 
@@ -144,7 +150,7 @@ cuánto tardó el GPU en terminarlos. -->
 
 Ejemplo: [cuda_event.cu](../code/kernels/cuda_event.cu).
 
-<!-- NOTA — la diapositiva anterior muestra el problema: el host recupera el
+<!-- NOTA — Ejecución asincrónica mostró el problema: el host recupera el
 control apenas lanza, así que un cronómetro del host sin sincronizar mide solo
 el lanzamiento, y sincronizando mide además la espera y cualquier pausa del
 CPU virtual (por eso variaban tanto los tiempos del capítulo de memoria,
@@ -163,23 +169,23 @@ antes de que el GPU llegue a él. -->
 <div class="lado-a-lado">
 <table class="timeline">
 <tr><th colspan="6" style="text-align:center">1. todo en el <em>default</em></th></tr>
-<tr><th>default</th><td class="s3">0</td><td class="s3">1</td><td class="s3">2</td><td class="s3">3</td><td class="s3">4</td></tr>
+<tr><th>default</th><td class="s0">0</td><td class="s0">1</td><td class="s0">2</td><td class="s0">3</td><td class="s0">4</td></tr>
 </table>
 <table class="timeline">
 <tr><th colspan="6" style="text-align:center">2. un <em>stream</em> por <em>kernel</em></th></tr>
 <tr><th>s0</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s1</th><td class="s1">1</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s2</th><td class="s1">2</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s3</th><td class="s1">3</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s4</th><td class="s1">4</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s1</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s2</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s3</th><td class="s4">3</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s4</th><td class="s5">4</td><td></td><td></td><td></td><td></td></tr>
 </table>
 <table class="timeline">
 <tr><th colspan="6" style="text-align:center">4. el <em>kernel</em> 3 en el <em>default</em></th></tr>
 <tr><th>s0</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s1</th><td class="s1">1</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s2</th><td class="s1">2</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>default</th><td></td><td class="s3">3</td><td></td><td></td><td></td></tr>
-<tr><th>s4</th><td></td><td></td><td class="s1">4</td><td></td><td></td></tr>
+<tr><th>s1</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s2</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>default</th><td></td><td class="s0">3</td><td></td><td></td><td></td></tr>
+<tr><th>s4</th><td></td><td></td><td class="s5">4</td><td></td><td></td></tr>
 </table>
 </div>
 
@@ -198,8 +204,8 @@ recursos). Caso 1: todo en una sola fila, 5T. Caso 2: cinco filas
 independientes, T. Caso 4: los kernels 0-2 corren juntos; el 3, en el default
 stream, espera a que terminen; el 4 espera al 3. Total 3T, aunque solo UN
 kernel cambió de stream. Esto es el "legacy default stream", el
-comportamiento por omisión. Hay dos salidas: streams non-blocking (caso 5 del
-programa, vuelve a T), o compilar con nvcc --default-stream per-thread, que
+comportamiento por omisión. Hay dos salidas: streams non-blocking (el caso 5
+del programa: no decir cuánto da, que lo predigan), o compilar con nvcc --default-stream per-thread, que
 le da a cada thread del host su propio default stream, normal. Los casos 3 y
 5 no están en la figura: son para que los predigan en el ejercicio. -->
 
@@ -235,9 +241,9 @@ entre streams. El cudaMemcpy de la última fila es la sincronización
 
 En general, los programas de CUDA funcionan con 3 etapas:
 
-1. Copia Host -> Device.
-2. Cómputo en Device.
-3. Copia Device -> Host.
+1. Copia *host* → *device*.
+2. Cómputo en el *device*.
+3. Copia *device* → *host*.
 
 Una aplicación de los *streams* para la optimización:
 - Las transferencias de datos en unos *streams* coinciden con cómputos en otros.
@@ -296,7 +302,7 @@ detrás del cómputo. -->
 </svg>
 
 - Dentro de un *stream*, en orden. Entre *streams*, cada motor puede atender a uno distinto **al mismo tiempo**.
-- `asyncEngineCount`: cuántos motores de copia tiene el GPU 
+- `asyncEngineCount`: cuántos motores de copia tiene el GPU
   - `cuda_pipelining.x` lo imprime.
 
 <!-- NOTA — el GPU tiene hardware separado para copiar y para calcular: los
@@ -372,8 +378,10 @@ Ejemplo: [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu). Mide el mismo
 opcional para cudaMemcpy (solo más rápida), pero para solapar es obligatoria.
 Desde memoria paginable, el driver tiene que pasar los datos por su buffer
 pinned propio, y cudaMemcpyAsync se comporta como una copia sincrónica: el
-pipeline se rompe. Es la pregunta 3 del ejercicio. Lo del default stream es
-la barrera de hace unas diapositivas. -->
+pipeline se rompe. Es la pregunta 3 del ejercicio 2. Lo del default stream es
+la barrera de hace unas diapositivas; cuda_pipelining.cu igual pone ahí los
+eventos inicio y fin, a propósito: fin espera a todos los streams, que es
+justo lo que se quiere medir. -->
 
 ---
 
@@ -425,16 +433,16 @@ kernelB, también es correcta pero deja al host parado. -->
 
 Descargar: [streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu): $5$ *kernels* de duración $T$, lanzados de cinco formas (ver el comentario al inicio del código).
 
-1. **Antes de ejecutar:** predecir el tiempo de cada caso (en unidades de $T$).
-2. Ejecutar y comparar. ¿Qué predicción falló, y por qué?
-3. Caso 3: cada *kernel* tiene su *stream*. ¿Por qué no se solapan?
+1. **Antes de ejecutar:** predecir el tiempo de los casos 3 y 5 (en unidades de $T$); los casos 1, 2 y 4 están en la figura del *default stream*.
+2. Ejecutar y comparar con las predicciones y con la figura. ¿Qué predicción falló, y por qué?
+3. Explicar el resultado del caso 3: ¿para qué sirven ahí los *streams*?
 4. ¿Qué cambia entre los casos 4 y 5?
 5. ¿Cuánto tarda el *host* en lanzar los $5$ *kernels* (penúltima línea)?
 
 <!-- RESPUESTAS — TODO: medir en la T4. Lo esperado: casos 1 a 5 = 5T, T, 5T,
-3T, T. (1-2) El que suele fallar es el 4: se espera T o 2T y da 3T, porque
-el default stream es una barrera en las dos direcciones (el kernel 3 espera a
-0-2 y el 4 espera al 3). (3) cudaStreamSynchronize bloquea al HOST hasta que
+3T, T. (1-2) Los casos 1, 2 y 4 confirman la figura (5T, T y 3T: el default
+stream es una barrera en las dos direcciones). El que suele fallar es el 3:
+cada kernel tiene su stream, así que se espera T, y da 5T. (3) cudaStreamSynchronize bloquea al HOST hasta que
 termina ese stream, así que el kernel siguiente se lanza recién cuando el
 anterior terminó: los streams distintos no sirven de nada si el host no deja
 de esperar. (4) En el 5 los streams son non-blocking: no se sincronizan con
@@ -456,11 +464,15 @@ Descargar: [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu)
 4. La copia H→D mueve `a` y `b`; la D→H, solo `c`. ¿Cuál es la mayor ganancia posible?
 
 <!-- RESPUESTAS — TODO: medir en la T4. (1) Con más streams el tiempo baja,
-pero la ganancia se satura: pasado cierto número de pedazos, cada uno es tan
-chico que el costo fijo de cada copia y lanzamiento pesa más. (2) En la línea
+pero la ganancia se satura: el llenado y vaciado del pipeline (la primera
+copia y la última, que no se solapan con nada) se achica como 1/N, y el total
+tiende a la etapa más larga. El costo fijo de cada copia y lanzamiento
+pesaría recién con muchos más pedazos: con 8 streams cada uno tiene 8 MB. (2) En la línea
 de N streams, la fila del kernel empieza antes de que termine la fila H->D:
 mientras el stream s calcula, el s+1 copia. Si asyncEngineCount >= 2, la
-copia D->H de un pedazo también coincide con la H->D de otro. (3) Con memoria
+copia D->H de un pedazo también coincide con la H->D de otro. Ojo: la línea
+de tiempo deduce los comienzos suponiendo un motor por sentido de copia; con
+asyncEngineCount = 1 podría dibujar un solape de copias que no ocurrió. (3) Con memoria
 paginable cudaMemcpyAsync deja de ser asincrónica: las copias pasan por el
 buffer pinned del driver y el pipeline se rompe, así que el tiempo vuelve a
 ser el de 1 stream o peor (las copias además son más lentas: 4.8 contra
@@ -468,7 +480,9 @@ ser el de 1 stream o peor (las copias además son más lentas: 4.8 contra
 dejan de superponerse. (4) El total no puede bajar de la duración de la etapa
 más larga. Si la copia H->D dura 2 unidades, la D->H 1 y el kernel k, la
 ganancia máxima es (3 + k) / max(2, k): 2.5x si el kernel dura lo mismo que
-la copia H->D, y menos cuanto más se desequilibren. -->
+la copia H->D, y menos cuanto más se desequilibren. Eso supone dos motores
+de copia (H->D y D->H a la vez); con uno solo las dos copias comparten
+motor, el límite es (3 + k) / max(3, k) y la ganancia no pasa de 2x. -->
 
 ---
 
@@ -495,8 +509,8 @@ samples), no del toolkit, así que Colab no lo trae. Clonar el repositorio una
 vez por sesión basta; --depth 1 evita bajar toda la historia.
 dynamic_parallelism.cu, recursion.cu y cuda_kernel.cu además necesitan
 -rdc=true -lcudadevrt (lanzan kernels desde el GPU); los OpenMP, -Xcompiler
--fopenmp; y simpleMPI.cu necesita MPI, que Colab no trae instalado. Estos
-programas vienen del material original y están en inglés; varios usan como
+-fopenmp; y simpleMPI.cu necesita MPI, que Colab no trae instalado. Los que
+usan helper_timer.h vienen del material original y están en inglés; varios usan como
 kernel un ciclo for (i < 500) c = a + b, que el compilador reduce a una sola
 suma, e imprimen un ancho de banda 4 veces mayor que el real
 (3 * bufsize * sizeof(float), cuando bufsize ya está en bytes). Sirven para
@@ -683,7 +697,7 @@ medirla y verifica el resultado. -->
 ## **Costo de lanzar un *kernel***
 
 - Cada lanzamiento tiene un costo fijo (preparar el *grid*, repartir los bloques), aunque el *kernel* no haga casi nada.
-- Si el trabajo por lanzamiento es chico, ese costo domina: el **ciclo dentro del *kernel*** es el más rápido.
+- Si el trabajo por lanzamiento es chico, ese costo domina: lo esperable es que gane el **ciclo dentro del *kernel***.
 - Lanzar desde el GPU (recursión) también cuesta.
 
 <!-- NOTA — TODO: medir en la T4 y poner los tres tiempos acá. Cada lanzamiento
