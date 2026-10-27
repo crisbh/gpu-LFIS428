@@ -3451,7 +3451,7 @@ compilador no lo puede hacer por nosotros. -->
 ¿Cómo aplicamos *loop unrolling* en el *kernel* de reducción paralela?
 
 - Cada bloque toma **dos tramos** de `blockDim.x` elementos y los suma elemento a elemento **antes** del árbol.
-- El *grid* es el ciclo: con *unrolling* $\times 2$ cada bloque hace dos «iteraciones» y se lanzan **la mitad** de los bloques.
+- El *grid* es el ciclo: con *unrolling* $\times 2$ cada bloque hace dos iteraciones y se lanzan **la mitad** de los bloques.
 
 <!-- NOTA — ojo con la palabra "bloque": aquí un tramo es una porción del
 arreglo del tamaño de un bloque de threads (blockDim.x elementos), no un
@@ -3836,8 +3836,8 @@ memoria compartida; atomicAdd existe para int, unsigned, float y double (este
 
 ## **Atómicas: costo y buenas prácticas**
 
-- Serializan los accesos concurrentes → pueden ser **lentas** si hay mucha contención.
-- Buena práctica: reducir primero dentro del bloque (con memoria compartida, o con *warp primitives*, que vienen a continuación) y usar **una** atómica por bloque.
+- Serializan los accesos concurrentes → pueden ser **lentas** si hay mucha demanda por escribir al mismo tiempo (contención).
+- **Buena práctica**: reducir primero dentro del bloque (con memoria compartida, o con *warp primitives*, que vienen a continuación) y usar **una** atómica por bloque.
 
 ```cuda
 // cada bloque aporta su resultado parcial al total global
@@ -3861,10 +3861,11 @@ entre ejecuciones; el resultado puede variar en los últimos dígitos. -->
 
 ## **Warp primitives**
 
-- Hasta ahora, los *threads* se comunican por **memoria compartida**: uno escribe, `__syncthreads()`, otro lee.
+- Hasta ahora, los *threads* se comunican por **memoria compartida** (a nivel de bloque): uno escribe, `__syncthreads()`, otro lee.
 - Dentro de un *warp* hay un atajo: un *thread* puede leer **directamente un registro** de otro *thread* del mismo *warp*.
-- Las funciones que hacen eso son las *warp primitives*; la que usaremos es el *shuffle*.
-- Jerga: la posición de un *thread* dentro de su *warp* es su *lane*: `lane = threadIdx.x % 32`, de $0$ a $31$.
+- Las funciones que hacen eso son las *warp primitives*. 
+  - La que usaremos es el *warp shuffle*.
+- Jerga: la posición de un *thread* dentro de su *warp* es su *lane*: `lane = threadIdx.x % 32`: va de $0$ a $31$.
 
 <!-- NOTA — la idea central: cada thread tiene sus propias variables locales (por
 ejemplo float v), que viven en registros y que ningún otro thread puede ver.
@@ -4038,7 +4039,7 @@ cooperative groups, fuera del alcance del curso. -->
 
 ---
 
-## **Reducción completa: la idea**
+## **Reducción completa: la idea (por bloque)**
 
 <svg viewBox="0 0 1072 470" width="1000" style="display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-compl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
