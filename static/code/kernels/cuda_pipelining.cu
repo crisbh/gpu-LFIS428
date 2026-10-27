@@ -118,8 +118,10 @@ float procesar(int n_streams, float *h_c, const float *h_a, const float *h_b,
 // espere en la fila del motor de copia. El comienzo se deduce: una etapa
 // empieza cuando terminó la etapa anterior de su stream y cuando el motor
 // quedó libre, o sea cuando terminó la misma etapa del stream anterior (cada
-// motor atiende los pedazos en el orden en que se lanzaron, y cada kernel
-// ocupa todo el GPU).
+// motor atiende los pedazos en el orden en que se lanzaron, cada kernel ocupa
+// todo el GPU y cada sentido de copia tiene su propio motor: con
+// asyncEngineCount = 1 la línea podría mostrar copias solapadas que no lo
+// estuvieron).
 void imprimirLinea(int n_streams, const float *fin, float ms_col) {
   const char *nombre[ETAPAS] = {"Copia H->D", "Kernel    ", "Copia D->H"};
   for (int e = 0; e < ETAPAS; e++) {

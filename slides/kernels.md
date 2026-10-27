@@ -463,7 +463,7 @@ mientras el stream s calcula, el s+1 copia. Si asyncEngineCount >= 2, la
 copia D->H de un pedazo también coincide con la H->D de otro. (3) Con memoria
 paginable cudaMemcpyAsync deja de ser asincrónica: las copias pasan por el
 buffer pinned del driver y el pipeline se rompe, así que el tiempo vuelve a
-ser el de 1 stream o peor (las copias además son más lentas: 4.7 contra
+ser el de 1 stream o peor (las copias además son más lentas: 4.8 contra
 12.4 GB/s en el ejemplo de memoria pinned), y las filas de la línea de tiempo
 dejan de superponerse. (4) El total no puede bajar de la duración de la etapa
 más larga. Si la copia H->D dura 2 unidades, la D->H 1 y el kernel k, la
