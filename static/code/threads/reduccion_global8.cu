@@ -27,7 +27,7 @@ __global__ void reduccion_memoria_global8(float *data, float *parcial, int N) {
 
     // Reducción aplicada dentro de cada bloque
     // Ojo: ahora aplicamos warp unrolling cuando stride llega a 32
-    for (int stride = blockDim.x / 2; stride > 32; stride >>= 1) {
+    for (int stride = blockDim.x / 2; stride > 32; stride /= 2) {
       // Si estamos todavía dentro del bloque...
       if (threadIdx.x < stride) {
         idata[threadIdx.x] += idata[threadIdx.x + stride];
@@ -46,7 +46,7 @@ __global__ void reduccion_memoria_global8(float *data, float *parcial, int N) {
     if (threadIdx.x < 32) {
       volatile float *vmem = idata;
       float v = vmem[threadIdx.x];
-      for (int stride = 32; stride > 0; stride >>= 1) {
+      for (int stride = 32; stride > 0; stride /= 2) {
         v += vmem[threadIdx.x + stride];
         __syncwarp(); // todos leyeron antes de que alguien escriba
         vmem[threadIdx.x] = v;

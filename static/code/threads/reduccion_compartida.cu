@@ -17,7 +17,7 @@ __global__ void reduccion_memoria_compartida(float *salida, const float *data,
 
   // calcular la reducción con la indexación contigua de reduccion_global5:
   // el stride parte en la mitad del bloque y se divide por 2 en cada nivel
-  for (unsigned int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+  for (unsigned int stride = blockDim.x / 2; stride > 0; stride /= 2) {
     // la primera mitad de los threads activos suma el valor que está
     // a una distancia "stride"; los warps sin threads activos no trabajan
     if (threadIdx.x < stride)

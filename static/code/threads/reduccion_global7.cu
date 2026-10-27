@@ -17,7 +17,7 @@ __global__ void reduccion_memoria_global2(float *data, float *parcial, int N) {
     __syncthreads();
 
     // Reducción aplicada dentro de cada bloque
-    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+    for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
       // Si estamos todavía dentro del bloque...
       if (threadIdx.x < stride) {
         idata[threadIdx.x] += idata[threadIdx.x + stride];
@@ -57,7 +57,7 @@ __global__ void reduccion_memoria_global4(float *data, float *parcial, int N) {
     __syncthreads();
 
     // Reducción aplicada dentro de cada bloque
-    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+    for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
       // Si estamos todavía dentro del bloque...
       if (threadIdx.x < stride) {
         idata[threadIdx.x] += idata[threadIdx.x + stride];
@@ -100,7 +100,7 @@ __global__ void reduccion_memoria_global8(float *data, float *parcial, int N) {
     __syncthreads();
 
     // Reducción aplicada dentro de cada bloque
-    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+    for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
       // Si estamos todavía dentro del bloque...
       if (threadIdx.x < stride) {
         idata[threadIdx.x] += idata[threadIdx.x + stride];
