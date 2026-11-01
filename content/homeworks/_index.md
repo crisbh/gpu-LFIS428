@@ -17,17 +17,17 @@ El proyecto final consiste en tomar un código de física que corre en la CPU, *
 
 1. **Entender el código de CPU.** Compilarlo, correrlo, leerlo y entender la física y el método numérico. Identificar qué partes concentran el tiempo de cómputo.
 2. **Portar a CUDA (versión 1).** Escribir los kernels para las partes costosas. Los datos deben **quedarse en la GPU** durante toda la simulación: sólo se copian al inicio y al final (o cuando se necesita imprimir algo). Validar el resultado contra la versión de CPU.
-3. **Optimizar (versiones 2, 3, …).** Aplicar al menos una técnica vista en el curso, por ejemplo: memoria compartida, accesos coalescentes (AoS vs. SoA), reducciones paralelas, operaciones atómicas, *streams*, librerías (cuFFT, cuRAND), fusión de kernels, `float` vs. `double`. Cada versión debe seguir siendo correcta.
-4. **Analizar el rendimiento.** Para cada versión, medir el tiempo y compararlo con la CPU en función del tamaño del problema. Usar Nsight (Systems/Compute) y el modelo *roofline* para explicar **por qué** una versión es más rápida y qué tan lejos está del máximo del hardware.
+3. **Optimizar (versiones 2, 3, …).** Aplicar al menos una técnica **vista en el curso**: memoria compartida, accesos coalescentes (AoS vs. SoA), memoria constante, reducciones paralelas y *warp primitives*, operaciones atómicas, *occupancy*, *streams*, librerías (cuFFT, cuRAND), `float` vs. `double`. Cada tema sugiere además técnicas **no vistas en clases** (marcadas así abajo), como la fusión de *kernels* (motivada por el [costo de lanzar un *kernel*](../slides/kernels.html)): son bienvenidas, pero hay que estudiarlas por cuenta propia. Cada versión debe seguir siendo correcta.
+4. **Analizar el rendimiento.** Para cada versión, medir el tiempo y compararlo con la CPU en función del tamaño del problema. Usar los *profilers* disponibles en Colab, `ncu` (Nsight Compute) y `nvprof` (`nsys` normalmente no está disponible), y el modelo *roofline* para explicar **por qué** una versión es más rápida y qué tan lejos está del máximo del hardware. El ancho de banda efectivo se mide con `ncu --metrics dram__bytes.sum.per_second ./programa.x`, como en las clases.
 
-> **Sobre el *speedup*:** el código de referencia usa un solo núcleo de CPU, así que el *speedup* respecto a él exagera la ventaja de la GPU. Por eso, además del *speedup*, hay que reportar el **ancho de banda efectivo** (GB/s) o los **FLOP/s** alcanzados y compararlos con los máximos de la T4: ~320 GB/s de memoria, ~8 TFLOP/s en `float` y ~0.25 TFLOP/s en `double`.
+> **Sobre el *speedup*:** el código de referencia usa un solo núcleo de CPU, así que el *speedup* respecto a él exagera la ventaja de la GPU. Por eso, además del *speedup*, hay que reportar el **ancho de banda efectivo** (GB/s) o los **FLOP/s** alcanzados y compararlos con los máximos de la T4 usados en las clases: {{< katex >}}\approx 300{{< /katex >}} GB/s de memoria y {{< katex >}}\approx 8.1{{< /katex >}} TFLOP/s en `float`. En `double` la T4 (CC 7.5) hace 1 operación por cada 32 de `float`, o sea {{< katex >}}\approx 8.1/32 \approx 0.25{{< /katex >}} TFLOP/s: los códigos de referencia usan `double`, y el *roofline* debe usar el techo que corresponde.
 
 ## Cronograma
 
 | Cuándo | Qué |
 |:---|:---|
 | Semana 0 | Asignación de temas y parejas |
-| ~Semana 2 | **Reunión 1:1** con el profesor (avance). Mínimo esperado: versión 1 funcionando y validada contra la CPU, y un primer perfil con Nsight |
+| ~Semana 2 | **Reunión 1:1** con el profesor (avance). Mínimo esperado: versión 1 funcionando y validada contra la CPU, y un primer perfil con `ncu` o `nvprof` |
 | ~Semana 3.5 | **Entrega del código** y **presentación** de 10 minutos + preguntas |
 
 La entrega incluye los códigos (.cu) y un `README` breve: cómo compilar y ejecutar cada versión, y una tabla con los tiempos medidos.
@@ -52,7 +52,14 @@ La presentación (10 minutos) debe cubrir: el problema físico y el método, có
 
 Todos los códigos de CPU escriben su resultado con la función `escribir_salida()`: una cabecera con `(nx, ny, ncampos, bytes por real)` seguida de los campos. La versión GPU debe escribir en el **mismo formato** para poder compararla (basta con copiar la función).
 
-Los códigos de CPU se compilan con `gcc -O2 archivo.c -lm -o archivo.x` y también compilan como C++, así que el archivo se puede renombrar a `.cu` y empezar a portarlo con `nvcc` directamente. Todos usan `typedef double real;`: cambiarlo a `float` es una optimización válida, siempre que se muestre que la validación sigue siendo aceptable.
+Los códigos de CPU se compilan con `gcc -O2 archivo.c -lm -o archivo.x` y también compilan como C++, así que el archivo se puede renombrar a `.cu` y empezar a portarlo con `nvcc -arch=sm_75 archivo.cu -o archivo.x`, igual que los ejemplos del curso. Todos usan `typedef double real;`: cambiarlo a `float` es una optimización válida, siempre que se muestre que la validación sigue siendo aceptable.
+
+Como en las clases:
+
+- Revisar los errores de cada llamada a CUDA con el macro `CHECK` de [common.h](../code/memoria/common.h).
+- Medir el tiempo de los *kernels* con eventos de CUDA (`cudaEventRecord`, `cudaEventElapsedTime`). Si se usa el reloj del host, llamar antes a `cudaDeviceSynchronize()`: los lanzamientos de *kernels* son asíncronos.
+
+**Diferencias esperables entre CPU y GPU:** los kernels que sólo leen y escriben arreglos (*stencils*, colisiones) deberían reproducir la CPU hasta el redondeo ({{< katex >}}\sim 10^{-15}{{< /katex >}} en `double`). Las **reducciones** (energía, residuo, promedios) suman en otro orden, así que difieren en las últimas cifras; como se vio en la clase de reducción, la suma en árbol de la GPU suele ser incluso **más** precisa que la suma secuencial de la CPU. En sistemas caóticos (Gray-Scott en tiempos largos, Lennard-Jones) esas diferencias crecen con el tiempo: ahí se comparan observables, no campos.
 
 ## Temas
 
@@ -75,7 +82,7 @@ Difusión del calor en una placa cuadrada con borde a temperatura cero, {{< kate
 
 - **Validación:** la condición inicial {{< katex >}}\sin(\pi x)\sin(\pi y){{< /katex >}} decae exactamente como {{< katex >}}e^{-2\pi^2\alpha t}{{< /katex >}}; el código imprime el error máximo respecto a esa solución.
 - **Optimización mínima:** un kernel por paso con los datos en la GPU e intercambio de punteros (sin copias entre pasos).
-- **Optimizaciones avanzadas:** *tiles* en memoria compartida con halo; varios pasos de tiempo por kernel (*temporal blocking*); `float`; comparar el ancho de banda alcanzado con el máximo de la T4.
+- **Optimizaciones avanzadas:** *tiles* en memoria compartida, como en la transpuesta por bloques, pero cada *tile* necesita además un borde (*halo*) con los vecinos *(no visto en clases)*; varios pasos de tiempo por *kernel* (*temporal blocking*) *(no visto en clases)*; `float`; comparar el ancho de banda alcanzado con el máximo de la T4.
 - **Extensiones:** fuentes de calor, conductividad variable, 3D.
 
 ### 2. Ecuación de onda 2D
@@ -99,7 +106,7 @@ Dos especies químicas que reaccionan y difunden forman patrones (manchas, laber
 u_t = D_u \nabla^2 u - u v^2 + F(1-u), \qquad v_t = D_v \nabla^2 v + u v^2 - (F+k) v
 {{< /katex >}}
 
-- **Validación:** no hay solución exacta. Para pocos pasos, el campo de la GPU debe coincidir con `salida_cpu.bin` (usar `comparar.py`); para corridas largas, comparar los promedios {{< katex >}}\langle u\rangle, \langle v\rangle{{< /katex >}} y los patrones.
+- **Validación:** no hay solución exacta. Para pocos pasos, el campo de la GPU debe coincidir con `salida_cpu.bin` hasta el redondeo (usar `comparar.py`); para corridas largas, comparar los promedios {{< katex >}}\langle u\rangle, \langle v\rangle{{< /katex >}} y los patrones.
 - **Optimización mínima:** un kernel que actualiza ambos campos con bordes periódicos.
 - **Optimizaciones avanzadas:** memoria compartida para ambos campos; evitar el operador `%` en los bordes; `float`; generar imágenes durante la simulación sin frenar el cálculo (*streams*).
 - **Extensiones:** explorar el plano {{< katex >}}(F, k){{< /katex >}} y clasificar los patrones; animaciones.
@@ -112,7 +119,7 @@ Potencial electrostático a partir de una densidad de carga, {{< katex >}}\nabla
 
 - **Validación:** con la fuente usada, la solución exacta es {{< katex >}}\sin(\pi x)\sin(\pi y){{< /katex >}}; el error debe bajar ~4 veces al duplicar {{< katex >}}N{{< /katex >}} (orden {{< katex >}}h^2{{< /katex >}}).
 - **Optimización mínima:** Jacobi en la GPU (es trivialmente paralelo) con el residuo calculado como **reducción** en la GPU.
-- **Optimizaciones avanzadas:** rojo-negro / SOR en la GPU (¿por qué Gauss-Seidel normal no se puede paralelizar?); calcular el residuo con menos frecuencia; memoria compartida; comparar iteraciones vs. tiempo por iteración de cada método.
+- **Optimizaciones avanzadas:** rojo-negro / SOR en la GPU *(no visto en clases)*, el código de CPU lo explica: ¿por qué Gauss-Seidel normal no se puede paralelizar?; calcular el residuo con menos frecuencia; memoria compartida; comparar iteraciones vs. tiempo por iteración de cada método.
 - **Extensiones:** condensador de placas paralelas u otras geometrías con condiciones de borde no nulas; *multigrid*.
 
 ### 5. Modelo de Ising 2D
@@ -122,7 +129,7 @@ Potencial electrostático a partir de una densidad de carga, {{< katex >}}\nabla
 Transición de fase ferromagnética con Monte Carlo (algoritmo de Metropolis) en una red cuadrada, barriendo temperaturas alrededor de {{< katex >}}T_c = 2/\ln(1+\sqrt{2}) \approx 2.269{{< /katex >}}.
 
 - **Validación:** la magnetización {{< katex >}}\langle|m|\rangle{{< /katex >}} y la energía por espín se comparan con la solución exacta de Onsager (el código la imprime al lado). Como la GPU usará otros números aleatorios, se comparan los observables, no las configuraciones.
-- **Optimización mínima:** actualización en tablero de ajedrez con un generador de números aleatorios por *thread* (cuRAND); magnetización y energía como reducciones en la GPU.
+- **Optimización mínima:** actualización en tablero de ajedrez *(no visto en clases)*, el código de CPU lo explica, con un generador de números aleatorios por *thread* (cuRAND en el *device*, como en [curand_device.cu](../code/librerias-python/curand_device.cu)); magnetización y energía como reducciones en la GPU.
 - **Optimizaciones avanzadas:** espines como `char` (o bits); tabla de probabilidades en memoria constante; simular todas las temperaturas a la vez; memoria compartida.
 - **Extensiones:** escalamiento de tamaño finito (cumulante de Binder para estimar {{< katex >}}T_c{{< /katex >}}), campo magnético externo.
 
@@ -134,7 +141,7 @@ Evolución temporal de un paquete de ondas en un oscilador armónico, {{< katex 
 
 - **Validación:** la norma se conserva y el centro del paquete sigue la trayectoria clásica {{< katex >}}\langle x\rangle = x_0\cos(\omega t){{< /katex >}}; ambas se imprimen durante la simulación.
 - **Optimización mínima:** reemplazar la FFT propia del código por **cuFFT** y portar las multiplicaciones por fases a kernels.
-- **Optimizaciones avanzadas:** fusionar kernels; calcular las fases al vuelo en vez de leerlas de memoria; calcular los observables con reducciones y sólo de vez en cuando; `float` (`cufftComplex`).
+- **Optimizaciones avanzadas:** fusionar *kernels* *(no visto en clases)*; calcular las fases al vuelo en vez de leerlas de memoria; calcular los observables con reducciones y sólo de vez en cuando; `float` (`cufftComplex`).
 - **Extensiones:** efecto túnel a través de una barrera; rendija doble; potencial dependiente del tiempo.
 
 ### 7. Fluidos con Lattice Boltzmann
@@ -145,7 +152,7 @@ Simulación de un fluido con el método de Lattice Boltzmann D2Q9: cada nodo gua
 
 - **Validación:** en el modo canal, el perfil de velocidades debe ser la parábola de Poiseuille (el código imprime el error). En el modo cilindro, comparar con `salida_cpu.bin`.
 - **Optimización mínima:** kernels de colisión y propagación con los datos en la GPU.
-- **Optimizaciones avanzadas:** pasar de AoS a **SoA** (accesos coalescentes); fusionar colisión y propagación en un solo kernel; `float`. LBM está limitado por memoria: reportar MLUPS y el ancho de banda efectivo frente al máximo de la T4.
+- **Optimizaciones avanzadas:** pasar de AoS a **SoA**. Según el criterio de la clase de aplicaciones, AoS conviene cuando cada *thread* usa todos los campos de **su** elemento; en la propagación, en cambio, cada nodo lee una sola {{< katex >}}f_i{{< /katex >}} de cada uno de 9 vecinos distintos, que es el caso donde SoA gana. Fusionar colisión y propagación en un solo *kernel* *(no visto en clases)*; `float`. LBM está limitado por memoria: reportar el ancho de banda efectivo frente al máximo de la T4, y también MLUPS (millones de nodos actualizados por segundo, la métrica usual de LBM) *(no visto en clases)*.
 - **Extensiones:** número de Reynolds y frecuencia de desprendimiento de vórtices (número de Strouhal); otros obstáculos; condiciones de entrada y salida.
 
 ### 8. Dinámica molecular de Lennard-Jones
@@ -156,5 +163,5 @@ Un gas/líquido de partículas que interactúan con el potencial de Lennard-Jone
 
 - **Validación:** la energía total se conserva (el código imprime su variación). Como la dinámica es caótica, las posiciones de la GPU sólo coinciden con la CPU durante pocos pasos; para corridas largas, comparar energía y temperatura.
 - **Optimización mínima:** un *thread* por partícula para las fuerzas y la integración; construir las celdas en la GPU (las listas enlazadas necesitan **operaciones atómicas**).
-- **Optimizaciones avanzadas:** reemplazar las listas enlazadas por un ordenamiento de partículas por celda (accesos coalescentes); memoria compartida por celda; `float`.
+- **Optimizaciones avanzadas:** reemplazar las listas enlazadas por un ordenamiento de partículas por celda (accesos coalescentes) *(no visto en clases)*; memoria compartida por celda; `float`.
 - **Extensiones:** termostato, función de distribución radial {{< katex >}}g(r){{< /katex >}}, transición líquido-sólido al bajar la temperatura.
