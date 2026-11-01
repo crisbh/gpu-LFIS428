@@ -73,6 +73,7 @@ Como en las clases:
 | 6 | [Ecuación de Schrödinger 2D](#6-ecuación-de-schrödinger-2d) | ★★ |
 | 7 | [Fluidos con Lattice Boltzmann](#7-fluidos-con-lattice-boltzmann) | ★★★ |
 | 8 | [Dinámica molecular de Lennard-Jones](#8-dinámica-molecular-de-lennard-jones) | ★★★ |
+| 9 | [Ray tracing](#9-ray-tracing) | ★★ |
 
 ### 1. Ecuación del calor 2D
 
@@ -165,3 +166,14 @@ Un gas/líquido de partículas que interactúan con el potencial de Lennard-Jone
 - **Optimización mínima:** un *thread* por partícula para las fuerzas y la integración; construir las celdas en la GPU (las listas enlazadas necesitan **operaciones atómicas**).
 - **Optimizaciones avanzadas:** reemplazar las listas enlazadas por un ordenamiento de partículas por celda (accesos coalescentes) *(no visto en clases)*; memoria compartida por celda; `float`.
 - **Extensiones:** termostato, función de distribución radial {{< katex >}}g(r){{< /katex >}}, transición líquido-sólido al bajar la temperatura.
+
+### 9. Ray tracing
+
+**Dificultad:** ★★ · **Código:** [ray-tracing_cpu.c](../code/proyectos/ray-tracing/ray-tracing_cpu.c)
+
+Generación de imágenes siguiendo rayos de luz (*path tracing*), basada en la escena final de *Ray Tracing in One Weekend* (P. Shirley): ~490 esferas difusas, metálicas y de vidrio. La óptica es geométrica: reflexión especular, refracción con la ley de Snell {{< katex >}}n_1 \sin\theta_1 = n_2 \sin\theta_2{{< /katex >}}, reflexión total interna y la reflectancia de Fresnel en la aproximación de Schlick. Cada píxel promedia muchos rayos aleatorios (Monte Carlo). El código está en C con *structs* y un `switch` por material (sin clases ni funciones virtuales, que complican el paso a la GPU).
+
+- **Validación:** el modo 1 es la prueba del "horno blanco": esferas que no absorben luz bajo un cielo uniforme de intensidad 1. Por conservación de la energía todos los píxeles deben valer exactamente 1 (el código imprime el brillo mínimo y el promedio). En la escena del libro, cada píxel tiene su propio generador de números aleatorios, así que usando la misma función `aleatorio()` en la GPU la imagen debe coincidir con `salida_cpu.bin`: casi todos los píxeles quedan iguales y unos pocos difieren porque el redondeo cambia algún rebote, así que hay que mirar la diferencia **media** de `comparar.py` (con `float` en vez de `double` en la CPU, la media es {{< katex >}}\sim 10^{-3}{{< /katex >}}).
+- **Optimización mínima:** un *thread* por píxel con las esferas en la memoria de la GPU; cada *thread* inicializa su generador con el índice del píxel.
+- **Optimizaciones avanzadas:** esferas en **memoria constante** (todos los *threads* de un *warp* recorren las mismas esferas en el mismo orden, el caso ideal de la memoria constante) o en memoria compartida; `float` (la T4 hace 32 veces menos operaciones por segundo en `double`); medir la **divergencia de *warps*** (rayos vecinos rebotan en materiales distintos o terminan en distinto número de rebotes) y probar bloques 2D pequeños para que los rayos de un *warp* sean coherentes; cuRAND en vez del *hash* propio. Más allá del curso: una jerarquía de volúmenes envolventes (BVH) para no revisar todas las esferas *(no visto en clases)*.
+- **Extensiones:** escenas más grandes, otros objetos (planos, triángulos), luces de área, dispersión cromática (índice de refracción dependiente de la longitud de onda: arcoíris en una esfera de agua).

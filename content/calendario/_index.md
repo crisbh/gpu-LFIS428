@@ -30,7 +30,7 @@ Las fechas son referenciales (ajústalas desde la planilla del curso). El materi
 | 15 | — | Invocación de kernels: *streams*, ejecución asíncrona, eventos | [Kernels](../slides/kernels.html#5) | |
 | 16 | — | 🛠️ Librerías de CUDA y Python (cuBLAS/cuFFT/cuRAND, PyCUDA/Numba/CuPy) | [Librerías](../slides/librerias-python.html) | |
 | 17 | — | 🛠️ Aplicaciones: N-cuerpos y OpenGL | [Aplicaciones](../slides/aplicaciones.html#3) | |
-| 18 | — | Aplicaciones: *ray tracing* | [Aplicaciones](../slides/aplicaciones.html#37) | Tarea 2 |
+| 18 | — | 🛠️ Taller / colchón (el *ray tracing* pasó a ser un tema del [proyecto final](../homeworks/)) | | Tarea 2 |
 
 > **Nota de ritmo:** la secuencia de optimización de la reducción (clase 13) recorre 8 variantes (`reduccion_global` … `reduccion_global8`). En clase se cubren **3–4 representativas** (p. ej. memoria global → sin divergencia → *unrolling* ×2 → *warp unrolling*); el resto queda como **referencia / autoestudio** en el deck de [Threads](../slides/threads.html#27). El deck de [Kernels](../slides/kernels.html#15) también incluye *dynamic parallelism*, CUDA/OpenMP, MPS y *kernel overhead* como **referencia / autoestudio** (más allá de *streams* y eventos de la clase 15).
 

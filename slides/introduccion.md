@@ -33,7 +33,7 @@ Libros de referencia:
 5. **Quiz** (Evaluación 2)
 6. Invocación de los *kernels*
 7. Librerías de CUDA y Python
-8. Aplicaciones (N-body, ray-tracing)
+8. Aplicaciones (N-body, OpenGL)
 9. **Proyecto final** (Evaluaciones 3 y 4)
 
 ---

@@ -8,9 +8,10 @@ Es lo que escribe la función escribir_salida() de los códigos de CPU.
 
 Uso:  python3 comparar.py salida_cpu.bin salida_gpu.bin
 
-Para cada campo imprime la diferencia máxima absoluta y la relativa (respecto
-al máximo valor absoluto del primer archivo). Los archivos pueden tener
-distinta precisión (float vs. double).
+Para cada campo imprime la diferencia máxima absoluta, la relativa (respecto
+al máximo valor absoluto del primer archivo) y la diferencia media absoluta
+(útil cuando sólo unos pocos puntos difieren, p. ej. en ray tracing). Los
+archivos pueden tener distinta precisión (float vs. double).
 """
 
 import sys
@@ -43,7 +44,11 @@ def main():
         dif = np.abs(a[c] - b[c]).max()
         escala = np.abs(a[c]).max()
         rel = dif / escala if escala > 0 else dif
-        print(f"Campo {c}: diferencia máxima = {dif:.3e}, relativa = {rel:.3e}")
+        media = np.abs(a[c] - b[c]).mean()
+        print(
+            f"Campo {c}: diferencia máxima = {dif:.3e}, relativa = {rel:.3e}, "
+            f"media = {media:.3e}"
+        )
 
 
 if __name__ == "__main__":
