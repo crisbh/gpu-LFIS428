@@ -38,12 +38,12 @@ Las fechas son referenciales (ajústalas desde la planilla del curso). El materi
 
 | Clase | Fecha | Tema | Evaluación |
 |:---:|:---|:---|:---|
-| 19 | — | Introducción al proyecto final: temas, formación de grupos | |
-| 20 | — | Definición de propuestas y lineamientos | |
+| 19 | — | Inicio del [proyecto final](../homeworks/): asignación de temas y parejas | |
+| 20 | — | Desarrollo del proyecto (asesoría) | |
 | 21 | — | Desarrollo del proyecto (asesoría) | |
 | 22 | — | Desarrollo del proyecto (asesoría) | |
 | 23 | — | Desarrollo del proyecto (asesoría) | |
-| 24 | — | **Presentaciones de avance** | Avance del proyecto |
+| 24 | — | **Reuniones 1:1** de avance (~2 semanas tras la asignación) | Avance del proyecto |
 | 25 | — | Desarrollo del proyecto (asesoría) | |
 | 26 | — | Desarrollo del proyecto (asesoría) | |
 | 27 | — | Desarrollo del proyecto (asesoría) | |
@@ -59,6 +59,9 @@ Mantenimiento:
   no inventar pesos aquí.
 - Todos los módulos están migrados (introduccion, kernels, memoria, threads, librerias-python,
   aplicaciones). Los #N asumen los decks actuales; re-derívalos si se reordenan diapositivas.
+- Proyecto: ~3.5 semanas en total, con la reunión 1:1 ~2 semanas tras la asignación
+  (ver content/homeworks/_index.md). Ajustar los números de clase de las filas 1:1 y
+  presentaciones a las fechas reales.
 - Las clases 19–30 son un colchón generoso: si los contenidos se extienden, se pueden
   adelantar 2–3 sesiones de proyecto como prácticas extra.
 -->
