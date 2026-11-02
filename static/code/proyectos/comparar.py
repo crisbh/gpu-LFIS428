@@ -8,8 +8,9 @@ Es lo que escribe la función escribir_salida() de los códigos de CPU.
 
 Uso:  python3 comparar.py salida_cpu.bin salida_gpu.bin
 
-Para cada campo imprime la diferencia máxima absoluta, la relativa (respecto
-al máximo valor absoluto del primer archivo) y la diferencia media absoluta
+El primer archivo es la referencia (normalmente el de CPU). Para cada campo
+imprime la diferencia máxima absoluta, la relativa (respecto al máximo valor
+absoluto del primer archivo) y la diferencia media absoluta
 (útil cuando sólo unos pocos puntos difieren, p. ej. en ray tracing). Los
 archivos pueden tener distinta precisión (float vs. double).
 """
@@ -24,6 +25,14 @@ def leer(nombre):
     nx, ny, ncampos, bytes_real = (int(c) for c in cabecera)
     tipo = {4: np.float32, 8: np.float64}[bytes_real]
     datos = np.fromfile(nombre, dtype=tipo, offset=16)
+    esperado = ncampos * ny * nx
+    if datos.size != esperado:
+        print(
+            f"{nombre}: la cabecera dice {ncampos} campos de {nx} x {ny} "
+            f"({esperado} valores), pero el archivo tiene {datos.size}. "
+            "¿Se escribió completo, con el mismo tipo que dice la cabecera?"
+        )
+        sys.exit(1)
     return datos.reshape(ncampos, ny, nx).astype(np.float64), bytes_real
 
 

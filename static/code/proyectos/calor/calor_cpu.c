@@ -20,6 +20,10 @@
  *
  * Salida: tiempo de cómputo, error respecto a la solución exacta y el campo
  * final en salida_cpu.bin (ver comparar.py y graficar.py).
+ *
+ * Con los valores por defecto la placa apenas se enfría (t es muy pequeño),
+ * así que para validar conviene una malla menor con más pasos, p. ej.
+ * ./calor_cpu.x 256 10000, donde la amplitud baja a ~0.55.
  */
 
 #include <math.h>
@@ -117,6 +121,10 @@ int main(int argc, char **argv) {
          exp(-2.0 * PI * PI * alpha * t));
   printf("Error máximo relativo vs. solución exacta: %.3e\n",
          error_maximo(u, N, h, alpha, t));
+  // Referencia: un código que no actualiza u tendría este error
+  printf("(sin evolucionar, el error sería %.3e)\n",
+         (1.0 - exp(-2.0 * PI * PI * alpha * t)) /
+             exp(-2.0 * PI * PI * alpha * t));
 
   real *campos[1] = {u};
   escribir_salida("salida_cpu.bin", N, N, 1, campos);

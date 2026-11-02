@@ -18,19 +18,29 @@
  * espín. Se comparan con la solución exacta de Onsager (red infinita):
  *   m(T) = (1 - sinh(2/T)^-4)^(1/8) para T < Tc = 2/ln(1 + sqrt(2)) ~ 2.269
  * y la energía exacta por espín, que usa una integral elíptica.
- * Cerca de Tc los efectos de tamaño finito son grandes.
+ * Cerca de Tc los efectos de tamaño finito son grandes: en una red finita
+ * <|m|> no llega a 0 sobre Tc.
+ *
+ * Barras de error (método de bloques): las medidas se dividen en NBLOQUES
+ * bloques consecutivos; el error estándar de <|m|> y <e> es la desviación
+ * estándar de los promedios de los bloques dividida por sqrt(NBLOQUES - 1).
+ * Medidas sucesivas están correlacionadas, y cerca de Tc el tiempo de
+ * correlación crece mucho (ralentización crítica): ahí los bloques no son
+ * independientes y el error queda subestimado.
  *
  * Compilar:  gcc -O2 ising_cpu.c -lm -o ising_cpu.x
- * Ejecutar:  ./ising_cpu.x [L] [T_min] [T_max] [nT] [term] [medidas]
- *            L: lado de la red (por defecto 512)
+ * Ejecutar:  ./ising_cpu.x [L] [T_min] [T_max] [nT] [term] [medidas] [semilla]
+ *            L: lado de la red, par (por defecto 512)
  *            T_min, T_max, nT: barrido de temperaturas (por defecto 1.5, 3.5, 11)
  *            term: barridos de termalización por temperatura (por defecto 1000)
  *            medidas: barridos de medición por temperatura (por defecto 1000)
+ *            semilla: semilla del generador (por defecto 12345)
  *
- * Salida: tabla de observables vs. T, tiempo de cómputo y la configuración
- * final (de la última temperatura) en salida_cpu.bin (ver graficar.py).
- * Como la versión GPU usará otros números aleatorios, se valida comparando
- * los observables, no la configuración.
+ * Salida: tabla de observables vs. T con sus errores, tiempo de cómputo y la
+ * configuración final (de la última temperatura) en salida_cpu.bin (ver
+ * graficar.py). Como la versión GPU usará otros números aleatorios, se valida
+ * comparando los observables dentro de sus barras de error, no la
+ * configuración.
  */
 
 #include <math.h>
@@ -39,6 +49,7 @@
 #include <sys/time.h>
 
 #define PI 3.14159265358979323846
+#define NBLOQUES 20
 
 typedef double real;
 
@@ -60,7 +71,8 @@ void escribir_salida(const char *nombre, int nx, int ny, int ncampos,
   fclose(f);
 }
 
-// Generador congruencial simple con semilla fija: uniforme en [0, 1).
+// Generador congruencial simple: uniforme en [0, 1). La semilla se puede
+// cambiar desde la línea de comandos.
 // En la GPU cada thread necesita su propio generador (p. ej. cuRAND)
 unsigned long long estado_rng = 12345ULL;
 double aleatorio(void) {
@@ -131,6 +143,19 @@ int main(int argc, char **argv) {
   int nT = (argc > 4) ? atoi(argv[4]) : 11;
   int term = (argc > 5) ? atoi(argv[5]) : 1000;
   int medidas = (argc > 6) ? atoi(argv[6]) : 1000;
+  estado_rng = (argc > 7) ? strtoull(argv[7], NULL, 10) : 12345ULL;
+
+  // El tablero de ajedrez con bordes periódicos necesita L par: con L impar
+  // los sitios (0, j) y (L-1, j) son vecinos y tienen el mismo color
+  if (L % 2 != 0) {
+    printf("L debe ser par\n");
+    return 1;
+  }
+  if (medidas < NBLOQUES || medidas % NBLOQUES != 0) {
+    printf("medidas debe ser múltiplo de %d\n", NBLOQUES);
+    return 1;
+  }
+  int por_bloque = medidas / NBLOQUES;
 
   int *s = (int *)malloc((size_t)L * L * sizeof(int));
   real Nsitios = (real)L * L;
@@ -138,8 +163,8 @@ int main(int argc, char **argv) {
   printf("Ising 2D: L = %d, %d temperaturas en [%.3f, %.3f], %d + %d "
          "barridos\n",
          L, nT, T_min, T_max, term, medidas);
-  printf("%7s %10s %10s %10s %10s %10s %10s\n", "T", "<|m|>", "m exacta",
-         "<e>", "e exacta", "C", "chi");
+  printf("%7s %10s %9s %10s %10s %9s %10s %10s %10s\n", "T", "<|m|>", "error",
+         "m exacta", "<e>", "error", "e exacta", "C", "chi");
 
   double t0 = segundos();
   for (int t = 0; t < nT; t++) {
@@ -157,24 +182,40 @@ int main(int argc, char **argv) {
     }
 
     real suma_m = 0, suma_m2 = 0, suma_e = 0, suma_e2 = 0;
-    for (int n = 0; n < medidas; n++) {
-      metropolis_color(s, L, prob, 0);
-      metropolis_color(s, L, prob, 1);
-      real M, E;
-      medir(s, L, &M, &E);
-      real m = fabs(M) / Nsitios, e = E / Nsitios;
-      suma_m += m;
-      suma_m2 += m * m;
-      suma_e += e;
-      suma_e2 += e * e;
+    real bloque_m[NBLOQUES], bloque_e[NBLOQUES];
+    for (int b = 0; b < NBLOQUES; b++) {
+      bloque_m[b] = 0;
+      bloque_e[b] = 0;
+      for (int n = 0; n < por_bloque; n++) {
+        metropolis_color(s, L, prob, 0);
+        metropolis_color(s, L, prob, 1);
+        real M, E;
+        medir(s, L, &M, &E);
+        real m = fabs(M) / Nsitios, e = E / Nsitios;
+        suma_m += m;
+        suma_m2 += m * m;
+        suma_e += e;
+        suma_e2 += e * e;
+        bloque_m[b] += m / por_bloque;
+        bloque_e[b] += e / por_bloque;
+      }
     }
     real m = suma_m / medidas, m2 = suma_m2 / medidas;
     real e = suma_e / medidas, e2 = suma_e2 / medidas;
     real C = Nsitios * (e2 - e * e) / (T * T);
     real chi = Nsitios * (m2 - m * m) / T;
 
-    printf("%7.4f %10.6f %10.6f %10.6f %10.6f %10.4f %10.4f\n", T, m,
-           m_onsager(T), e, e_onsager(T), C, chi);
+    // Error estándar a partir de la dispersión de los promedios por bloque
+    real var_m = 0, var_e = 0;
+    for (int b = 0; b < NBLOQUES; b++) {
+      var_m += (bloque_m[b] - m) * (bloque_m[b] - m);
+      var_e += (bloque_e[b] - e) * (bloque_e[b] - e);
+    }
+    real err_m = sqrt(var_m / (NBLOQUES * (NBLOQUES - 1.0)));
+    real err_e = sqrt(var_e / (NBLOQUES * (NBLOQUES - 1.0)));
+
+    printf("%7.4f %10.6f %9.6f %10.6f %10.6f %9.6f %10.6f %10.4f %10.4f\n", T,
+           m, err_m, m_onsager(T), e, err_e, e_onsager(T), C, chi);
   }
   double t_total = segundos() - t0;
 

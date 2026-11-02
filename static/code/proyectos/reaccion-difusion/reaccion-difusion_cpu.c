@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
   double t_total = segundos() - t0;
 
   printf("Tiempo de cómputo: %.3f s (%.3f ms por paso)\n", t_total,
-         1e3 * t_total / pasos);
+         (pasos > 0) ? 1e3 * t_total / pasos : 0.0);
   printf("Promedios finales: <u> = %.10f, <v> = %.10f\n", promedio(u, N),
          promedio(v, N));
 

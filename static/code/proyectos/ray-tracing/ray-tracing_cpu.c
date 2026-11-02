@@ -82,10 +82,11 @@ uint32_t hash_pcg(uint32_t v) {
   return (w >> 22u) ^ w;
 }
 
-// Uniforme en [0, 1)
+// Uniforme en [0, 1). Se usan los 24 bits altos, que caben exactos en un
+// float: así el resultado nunca se redondea a 1 aunque real sea float
 real aleatorio(uint32_t *estado) {
   *estado = hash_pcg(*estado);
-  return *estado * (1.0 / 4294967296.0);
+  return (real)(*estado >> 8) * (real)(1.0 / 16777216.0);
 }
 
 // ---------------------------------------------------------------------------

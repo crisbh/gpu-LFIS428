@@ -21,7 +21,11 @@
  * Modos:
  *   0: canal (flujo de Poiseuille). El estado estacionario es
  *        u_x(y) = g / (2 nu) y' (H - y'),  y' = y - 1/2,  H = ny - 2,
- *      que se usa para validar.
+ *      que se usa para validar. Partiendo del reposo, el perfil se acerca a
+ *      la parábola como exp(-t / t_rel), con t_rel = H^2 / (pi^2 nu) pasos:
+ *      el tiempo crece como el ancho del canal al cuadrado. Por defecto se
+ *      simulan ~12 t_rel; con menos pasos la validación falla aunque el
+ *      código esté bien.
  *   1: canal con un cilindro. El fluido parte con velocidad uniforme y, con
  *      tau cercano a 1/2 (viscosidad baja), se forma una calle de vórtices
  *      de von Kármán detrás del cilindro. Es cualitativo (la estela vuelve a
@@ -32,7 +36,7 @@
  *
  * Compilar:  gcc -O2 lattice-boltzmann_cpu.c -lm -o lattice-boltzmann_cpu.x
  * Ejecutar:  ./lattice-boltzmann_cpu.x [modo] [pasos] [nx] [ny]
- *            modo 0 (por defecto): pasos = 20000, nx = 512, ny = 66
+ *            modo 0 (por defecto): pasos = 12 t_rel (~30000), nx = 512, ny = 66
  *            modo 1:               pasos = 10000, nx = 512, ny = 128
  *
  * Salida: tiempo de cómputo (y MLUPS: millones de nodos actualizados por
@@ -44,6 +48,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+
+#define PI 3.14159265358979323846
 
 typedef double real;
 
@@ -130,7 +136,6 @@ void propagacion(const real *f, real *f_new, const int *solido, int nx,
 
 int main(int argc, char **argv) {
   int modo = (argc > 1) ? atoi(argv[1]) : 0;
-  int pasos = (argc > 2) ? atoi(argv[2]) : ((modo == 0) ? 20000 : 10000);
   int nx = (argc > 3) ? atoi(argv[3]) : 512;
   int ny = (argc > 4) ? atoi(argv[4]) : ((modo == 0) ? 66 : 128);
 
@@ -139,6 +144,11 @@ int main(int argc, char **argv) {
   real tau = (modo == 0) ? 1.0 : 0.55;
   real nu = (tau - 0.5) / 3.0;
   real H = ny - 2;
+
+  // Tiempo de relajación del modo más lento del canal, en pasos
+  real t_rel = H * H / (PI * PI * nu);
+  int pasos_canal = 100 * (int)ceil(12.0 * t_rel / 100.0);
+  int pasos = (argc > 2) ? atoi(argv[2]) : ((modo == 0) ? pasos_canal : 10000);
   // Velocidad máxima de Poiseuille (modo 0) o velocidad inicial (modo 1);
   // la fuerza es la que mantendría un Poiseuille con esa velocidad máxima
   real u_max = (modo == 0) ? 0.05 : 0.08;
@@ -177,6 +187,16 @@ int main(int argc, char **argv) {
   printf("Lattice Boltzmann D2Q9, modo %d (%s): %d x %d, pasos = %d\n", modo,
          (modo == 0) ? "canal" : "cilindro", nx, ny, pasos);
   printf("tau = %.3f, nu = %.4f, g = %.3e\n", tau, nu, gx);
+  if (modo == 0) {
+    printf("Tiempo de relajación t_rel = H^2 / (pi^2 nu) = %.0f pasos; se "
+           "simulan %.1f t_rel\n",
+           t_rel, pasos / t_rel);
+    if (pasos < pasos_canal)
+      printf("Aviso: con menos de %d pasos el perfil aún no llega al estado "
+             "estacionario; el error vs. Poiseuille incluye una parte "
+             "transitoria ~exp(-pasos / t_rel) = %.1e\n",
+             pasos_canal, exp(-pasos / t_rel));
+  }
   if (modo == 1)
     printf("Reynolds estimado (u_max D / nu) = %.0f\n",
            u_max * 2.0 * radio / nu);
@@ -191,6 +211,7 @@ int main(int argc, char **argv) {
   }
   double t_total = segundos() - t0;
 
+  // MLUPS cuenta todos los nodos, también los sólidos
   printf("Tiempo de cómputo: %.3f s (%.1f MLUPS)\n", t_total,
          (double)nodos * pasos / t_total / 1e6);
 

@@ -100,7 +100,9 @@ void fft1d(real *a, int n, int signo) {
 }
 
 // FFT 2D: FFTs 1D por filas y luego por columnas (copiando cada columna a un
-// arreglo auxiliar). La inversa se normaliza por 1/N^2
+// arreglo auxiliar). La inversa se normaliza por 1/N^2. Ojo: cuFFT no
+// normaliza la inversa; hay que multiplicar por 1/N^2 en un kernel (p. ej. el
+// mismo que aplica la fase del potencial)
 void fft2d(real *psi, int N, int signo, real *col) {
   for (int j = 0; j < N; j++)
     fft1d(&psi[2 * j * N], N, signo);

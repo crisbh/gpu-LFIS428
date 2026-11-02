@@ -22,7 +22,10 @@
  * escaladas a la temperatura T0, con momento total cero.
  *
  * Validación: la energía total (cinética + potencial) debe conservarse; su
- * variación relativa debe ser pequeña y no crecer sistemáticamente. Como la
+ * variación relativa debe ser pequeña y no crecer sistemáticamente. No es
+ * cero porque la fuerza no es continua en r_c y dt es finito: con los valores
+ * por defecto es ~6e-4, casi toda en los primeros 100 pasos, mientras la red
+ * inicial se desordena. Como la
  * dinámica es caótica, las posiciones de la versión GPU sólo coincidirán con
  * las de CPU durante pocos pasos: para corridas largas se comparan la energía
  * y la temperatura.

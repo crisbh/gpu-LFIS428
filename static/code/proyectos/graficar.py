@@ -3,11 +3,14 @@ Grafica un archivo de salida de los proyectos y lo guarda como PNG.
 
 Formato del archivo: ver comparar.py.
 
-Uso:  python3 graficar.py salida_cpu.bin [--particulas]
+Uso:  python3 graficar.py salida_cpu.bin [--particulas | --rgb]
 
 - Campos 2D (ny > 1): una imagen por campo (salida_cpu_campo0.png, ...).
 - Con --particulas (proyecto lennard-jones): dispersión de los campos 0 y 1
   (x, y) en salida_cpu_particulas.png.
+- Con --rgb (proyecto ray-tracing): los campos 0, 1, 2 como los canales
+  r, g, b de una sola imagen, con la misma corrección gamma que el PPM, en
+  salida_cpu_rgb.png.
 """
 
 import sys
@@ -38,6 +41,12 @@ def main():
         plt.gca().set_aspect("equal")
         plt.savefig(f"{base}_particulas.png", dpi=150)
         print(f"Guardado {base}_particulas.png")
+        return
+
+    if "--rgb" in sys.argv:
+        imagen = np.sqrt(np.clip(np.moveaxis(datos[:3], 0, -1), 0.0, 1.0))
+        plt.imsave(f"{base}_rgb.png", imagen, origin="lower")
+        print(f"Guardado {base}_rgb.png")
         return
 
     for c in range(ncampos):
