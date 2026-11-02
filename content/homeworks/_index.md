@@ -10,7 +10,7 @@ El proyecto final consiste en tomar un código de física que corre en la CPU, *
 ## Modalidad
 
 - Se trabaja en **parejas**. Excepcionalmente se puede trabajar de forma **individual** (se recomienda elegir un tema de dificultad ★).
-- Cada grupo recibe **un tema** de la lista de abajo, asignado en la clase de inicio del proyecto: cada grupo indica tres temas en orden de preferencia y no se repiten temas entre grupos.
+- Cada grupo recibe **un tema** de la lista de abajo, asignado al inicio del proyecto: cada grupo indica tres temas distintos en orden de preferencia y no se repiten temas entre grupos. Si dos grupos piden el mismo tema, la asignación busca que ningún grupo quede fuera de sus tres preferencias y que la menor cantidad posible reciba la tercera; los empates se resuelven por sorteo.
 - Cada tema incluye un **código de referencia en C** (un solo archivo, sin dependencias) que resuelve el problema en la CPU y valida su resultado.
 
 ## Etapas
@@ -18,7 +18,7 @@ El proyecto final consiste en tomar un código de física que corre en la CPU, *
 1. **Entender el código de CPU.** Compilarlo, correrlo, leerlo y entender la física y el método numérico. Identificar qué partes concentran el tiempo de cómputo.
 2. **Portar a CUDA (versión 1).** Escribir los kernels para las partes costosas. Los datos deben **quedarse en la GPU** durante toda la simulación: sólo se copian al inicio y al final (o cuando se necesita imprimir algo). Validar el resultado contra la versión de CPU.
 3. **Optimizar (versiones 2, 3, …).** Aplicar técnicas **vistas en el curso**: memoria compartida, accesos coalescentes (AoS vs. SoA), memoria constante, reducciones paralelas y *warp primitives*, operaciones atómicas, *occupancy*, *streams*, librerías (cuFFT, cuRAND), `float` vs. `double`. Se espera al menos **dos optimizaciones medidas** además de la versión 1, y al menos una de ellas no debe ser sólo cambiar `double` por `float`. Cada tema sugiere además técnicas **no vistas en clases** (marcadas así abajo), como la fusión de *kernels* (motivada por el [costo de lanzar un *kernel*](../slides/kernels.html#30), material de autoestudio): cuentan como optimizaciones, pero hay que estudiarlas por cuenta propia. Se pueden usar librerías no vistas (p. ej. Thrust o CUB para ordenar), explicando qué hacen y midiendo su costo. Cada versión debe seguir siendo correcta.
-4. **Analizar el rendimiento.** Para cada versión, medir el tiempo y compararlo con la CPU en función del tamaño del problema. Usar los *profilers* disponibles en Colab, `ncu` (Nsight Compute) y `nvprof` (`nsys` normalmente no está disponible), y el modelo *roofline* para explicar **por qué** una versión es más rápida y qué tan lejos está del máximo del hardware. El ancho de banda efectivo se mide con `ncu --metrics dram__bytes.sum.per_second ./programa.x`, como en las clases.
+4. **Analizar el rendimiento.** Para cada versión, medir el tiempo y compararlo con la CPU en función del tamaño del problema. Usar el *profiler* disponible en Colab, `ncu` (Nsight Compute; `nvprof` y `nsys` no están disponibles), y el modelo *roofline* para explicar **por qué** una versión es más rápida y qué tan lejos está del máximo del hardware. El ancho de banda efectivo se mide con `ncu --metrics dram__bytes.sum.per_second ./programa.x`, como en las clases.
 
 > **Sobre el *speedup*:** el código de referencia usa un solo núcleo de CPU, así que el *speedup* respecto a él exagera la ventaja de la GPU. Por eso, además del *speedup*, hay que reportar el **ancho de banda efectivo** (GB/s) o los **FLOP/s** alcanzados y compararlos con los máximos de la T4 usados en las clases: {{< katex >}}\approx 300{{< /katex >}} GB/s de memoria y {{< katex >}}\approx 8.1{{< /katex >}} TFLOP/s en `float`. En `double` la T4 (CC 7.5) hace 1 operación por cada 32 de `float`, o sea {{< katex >}}\approx 8.1/32 \approx 0.25{{< /katex >}} TFLOP/s: los códigos de referencia usan `double`, y el *roofline* debe usar el techo que corresponde. El punto de quiebre del *roofline* queda en {{< katex >}}0.25\,\text{TFLOP/s} / 300\,\text{GB/s} \approx 0.8{{< /katex >}} FLOP/byte en `double` y {{< katex >}}\approx 27{{< /katex >}} FLOP/byte en `float`. Basta con contar a mano las operaciones de punto flotante de un paso (cada `+`, `-`, `*`, `/` cuenta 1, como en las clases); en los temas donde eso no tiene sentido (Ising, *ray tracing*) cada tema indica qué métrica reportar.
 
@@ -30,18 +30,18 @@ El proyecto final consiste en tomar un código de física que corre en la CPU, *
 
 ## Cronograma
 
-Las clases corresponden al [calendario](../calendario/).
+Las fechas exactas se avisan en clases.
 
 | Cuándo | Qué |
 |:---|:---|
-| Clase 19 | Asignación de temas y parejas |
-| Clase 24 (~2 semanas después) | **Reunión 1:1** con el profesor (avance) |
-| Antes de la clase 29 | **Entrega del código**, la misma fecha para todos los grupos |
-| Clases 29 y 30 | **Presentaciones** de 10 minutos + preguntas |
+| Inicio del proyecto | Asignación de temas y parejas |
+| ~2 semanas después | **Reunión 1:1** con el profesor (avance) |
+| Antes de las presentaciones | **Entrega del código**, la misma fecha para todos los grupos |
+| Últimas clases del curso | **Presentaciones** de 10 minutos + preguntas |
 
-**A la reunión 1:1** se trae: la versión 1 funcionando y validada contra la CPU (la salida de `comparar.py` o de la validación del tema), una primera tabla de tiempos CPU vs. GPU, un primer perfil con `ncu` o `nvprof`, y el plan de optimizaciones. No hace falta preparar diapositivas.
+**A la reunión 1:1** se trae: la versión 1 funcionando y validada contra la CPU (la salida de `comparar.py` o de la validación del tema), una primera tabla de tiempos CPU vs. GPU, un primer perfil con `ncu`, y el plan de optimizaciones. No hace falta preparar diapositivas.
 
-**La entrega** se hace por *(canal por definir)*, en un solo `.zip` con:
+**La entrega** se hace por **correo electrónico** al profesor, con un solo `.zip` adjunto que contiene:
 
 - un archivo por versión (`v1.cu`, `v2.cu`, …), cada uno compilable por sí solo;
 - un `README` breve: cómo compilar y ejecutar cada versión, qué cambia de una versión a la siguiente, y una tabla con los tiempos medidos (CPU y cada versión, para varios tamaños);

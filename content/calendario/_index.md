@@ -1,6 +1,7 @@
 ---
 title: "Calendario"
 description: "Calendario de clases del curso"
+draft: true
 ---
 
 # Calendario del curso
