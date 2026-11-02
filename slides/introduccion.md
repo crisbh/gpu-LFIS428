@@ -33,7 +33,7 @@ Libros de referencia:
 5. **Quiz** (Evaluación 2)
 6. Invocación de los *kernels*
 7. Librerías de CUDA y Python
-8. Aplicaciones (N-body, ray-tracing)
+8. Aplicaciones (N-body, OpenGL)
 9. **Proyecto final** (Evaluaciones 3 y 4)
 
 ---
@@ -640,8 +640,7 @@ El `.qdrep` se abre con NSight Systems (`nsys-ui`).
 
 - Dado que en Colab no disponemos de GUI para visualizar los archivos `.ncu-rep` / `.nsys-rep`, preferimos usar la terminal.
 
-- En Colab están `nvprof` (clásico) y `ncu`; `nsys` normalmente **no**.
-- `nvprof ./prog.x` → resumen de tiempos (*kernel*, copias de memoria, llamadas del API).
+- En Colab está `ncu`; `nvprof` y `nsys` **no**.
 - `ncu --set basic ./prog.x` → métricas **por kernel** (*Speed Of Light*, *occupancy*, uso de recursos, etc.).
 
 También es posible descargar el `.ncu-rep` y abrirlo con `ncu-ui` localmente con GUI.

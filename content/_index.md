@@ -6,7 +6,7 @@
 
 ## Descripción del curso
 
-Este curso ofrece una introducción práctica a la programación de unidades de procesamiento gráfico (GPUs) para cómputo de alto rendimiento. Usando CUDA/C con GPUs de NVIDIA, estudiaremos y aplicaremos el modelo de programación heterogénea (host/device), la organización de los threads, el manejo de la memoria del GPU y el uso de herramientas de profiling. Por último, revisaremos algunos casos de estudio como simulaciones de N-cuerpos y ray-tracing. El curso combina clases teóricas con sesiones prácticas de programación.
+Este curso ofrece una introducción práctica a la programación de unidades de procesamiento gráfico (GPUs) para cómputo de alto rendimiento. Usando CUDA/C con GPUs de NVIDIA, estudiaremos y aplicaremos el modelo de programación heterogénea (host/device), la organización de los threads, el manejo de la memoria del GPU y el uso de herramientas de profiling. Por último, revisaremos algunos casos de estudio como simulaciones de N-cuerpos. El curso combina clases teóricas con sesiones prácticas de programación.
 
 El lenguaje principal del curso es CUDA/C, pero también veremos cómo interactuar con CUDA a través de Python.
 
@@ -17,13 +17,13 @@ El lenguaje principal del curso es CUDA/C, pero también veremos cómo interactu
 - El uso de la memoria del GPU
 - Profiling y optimización de rendimiento
 - Librerías de CUDA y Python
-- Aplicaciones: N-cuerpos, ray-tracing
+- Aplicaciones: N-cuerpos y visualización con OpenGL
 
 
 ## Evaluaciones
 La nota final tendrá las siguientes componentes:
 - Dos quizes (25% nota final cada uno).
-- Trabajo de proyecto individual (50% nota final).
+- Proyecto final en parejas (o individual) (50% nota final).
 
 Dependiendo de la situación del/la estudiante, existen dos instancias extras:
 

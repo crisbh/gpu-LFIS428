@@ -16,3 +16,6 @@ reference/
 
 # OS cruft
 .DS_Store
+
+# Student topic preferences for scripts/asignar-temas.py (contains names)
+preferencias*.csv

@@ -74,18 +74,3 @@ Apéndice (para estudiar por cuenta propia; ver en las diapositivas cómo compil
 <!-- - N-cuerpos: [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) -->
 <!-- - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c) -->
 <!-- - OpenGL: [simpleGL.cu](../code/aplicaciones/simpleGL.cu) -->
-<!-- - Ray tracing (*Ray Tracing in One Weekend* en CUDA), por capítulo: -->
-<!--   - [Cap. 1 — salida básica](../code/aplicaciones/ray_tracing/c01_salida_basica/ch01_rt.cu) -->
-<!--   - [Cap. 2 — vectores](../code/aplicaciones/ray_tracing/c02_vectores/ch02_rt.cu) -->
-<!--   - [Cap. 3 — rayos](../code/aplicaciones/ray_tracing/c03_rayos/ch03_rt.cu) -->
-<!--   - [Cap. 4 — esferas](../code/aplicaciones/ray_tracing/c04_esferas/ch04_rt.cu) -->
-<!--   - [Cap. 5 — normales](../code/aplicaciones/ray_tracing/c05_normales/ch05_rt.cu) -->
-<!--   - [Cap. 6 — antialiasing](../code/aplicaciones/ray_tracing/c06_antialiasing/ch06_rt.cu) -->
-<!--   - [Cap. 7 — difuso](../code/aplicaciones/ray_tracing/c07_difuso/ch07_rt.cu) -->
-<!--   - [Cap. 8 — metal](../code/aplicaciones/ray_tracing/c08_metal/ch08_rt.cu) -->
-<!--   - [Cap. 9 — dieléctricos](../code/aplicaciones/ray_tracing/c09_dielectricos/ch09_rt.cu) -->
-<!--   - [Cap. 10 — cámara](../code/aplicaciones/ray_tracing/c10_camara/ch10_rt.cu) -->
-<!--   - [Cap. 11 — borroso](../code/aplicaciones/ray_tracing/c11_borroso/ch11_rt.cu) -->
-<!--   - [Cap. 12 — próximos pasos](../code/aplicaciones/ray_tracing/c12_proximos_pasos/ch12_rt.cu) -->
-<!---->
-<!-- Cada capítulo de ray tracing incluye también sus *headers* (`vec3.h`, `ray.h`, `sphere.h`, etc.) en la misma carpeta. -->
