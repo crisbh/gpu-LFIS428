@@ -33,7 +33,7 @@ samples (ver Compilar los ejemplos del apéndice). -->
 
 ---
 
-## **Hasta ahora: todo en fila**
+## **Otra capa de paralelismo: kernels**
 
 - Lanzar un *kernel* no bloquea: el *host* retoma el control del programa sin esperar a que el *kernel* termine.
 - Si el *host* lanza un segundo kernel, por *default* su ejecución tiene que esperar.
@@ -66,7 +66,7 @@ todo en fila: H->D, kernelA, kernelB y D->H, uno detrás de otro. -->
 <tr><th>stream 2</th><td class="s2">kernelB</td><td></td><td></td><td></td></tr>
 </table>
 
-- Lo que está en el mismo *stream* se ejecuta **en orden**.
+- Lo que está en un mismo *stream* se ejecuta **en orden**.
 - Lo que está en *streams* distintos **puede** ejecutarse a la vez.
 
 <!-- NOTA — es la misma idea del occupancy y de esconder la latencia, un nivel
@@ -148,9 +148,32 @@ cuánto tardó el GPU en terminarlos. -->
 
 ## **Eventos de CUDA**
 
-Ejemplo: [cuda_event.cu](../code/kernels/cuda_event.cu).
+Ejemplo: [cuda_event.cu](../code/kernels/cuda_event.cu): mide el **mismo** *kernel* con eventos y con un cronómetro del *host*.
 
-<!-- NOTA — Ejecución asincrónica mostró el problema: el host recupera el
+```bash
+nvcc -arch=sm_75 cuda_event.cu -o cuda_event.x
+./cuda_event.x
+```
+
+```text
+tiempo medido con eventos:     ... ms
+tiempo medido desde el host:   ... ms
+```
+
+- Lo esperable: el tiempo del *host* es **un poco mayor**: además del *kernel*, incluye el lanzamiento y el aviso de que el GPU llegó a `fin`.
+
+<!-- NOTA — TODO: medir en la T4 y poner los dos tiempos acá. El kernel hace
+2000 pasos dependientes sobre 2^24 elementos, así que debería durar del orden
+de 10 ms (estimación, sin medir); la diferencia entre los dos cronómetros
+debería ser de decenas de microsegundos, chica frente al kernel. Con kernels
+más cortos esa diferencia pesa más, y por eso los eventos son la forma de
+medir. El cronómetro del host varía más entre corridas: suma las pausas del
+CPU virtual de Colab. Si se borra cudaEventSynchronize(fin), el host mide
+solo el lanzamiento (microsegundos) y cudaEventElapsedTime falla, porque fin
+todavía no se cumple: es el caso 2 de streams-concurrencia.cu, que imprime
+cuánto tarda el host en lanzar.
+
+Ejecución asincrónica mostró el problema: el host recupera el
 control apenas lanza, así que un cronómetro del host sin sincronizar mide solo
 el lanzamiento, y sincronizando mide además la espera y cualquier pausa del
 CPU virtual (por eso variaban tanto los tiempos del capítulo de memoria,
