@@ -189,13 +189,15 @@ antes de que el GPU llegue a él. -->
 
 ## **El *default stream***
 
+Ejemplo: [streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu).
+
 <div class="lado-a-lado">
 <table class="timeline">
-<tr><th colspan="6" style="text-align:center">1. todo en el <em>default</em></th></tr>
+<tr><th colspan="6" style="text-align:center">caso 1: todo en el <em>default</em></th></tr>
 <tr><th>default</th><td class="s0">0</td><td class="s0">1</td><td class="s0">2</td><td class="s0">3</td><td class="s0">4</td></tr>
 </table>
 <table class="timeline">
-<tr><th colspan="6" style="text-align:center">2. un <em>stream</em> por <em>kernel</em></th></tr>
+<tr><th colspan="6" style="text-align:center">caso 2: un <em>stream</em> por <em>kernel</em></th></tr>
 <tr><th>s0</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
 <tr><th>s1</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
 <tr><th>s2</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
@@ -203,7 +205,7 @@ antes de que el GPU llegue a él. -->
 <tr><th>s4</th><td class="s5">4</td><td></td><td></td><td></td><td></td></tr>
 </table>
 <table class="timeline">
-<tr><th colspan="6" style="text-align:center">4. el <em>kernel</em> 3 en el <em>default</em></th></tr>
+<tr><th colspan="6" style="text-align:center">caso 4: el <em>kernel</em> 3 en el <em>default</em></th></tr>
 <tr><th>s0</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
 <tr><th>s1</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
 <tr><th>s2</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
@@ -214,12 +216,7 @@ antes de que el GPU llegue a él. -->
 
 - El *default stream* espera a todos los *streams* creados con `cudaStreamCreate`, y ellos lo esperan a él: es una **barrera**.
 - Para evitarlo: `cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking)`, o simplemente no usar el *default*.
-
----
-
-## **El *default stream***
-
-- Ejemplo: [streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu): cinco formas de lanzar los mismos $5$ *kernels* (ejercicio 1).
+- Los casos 3 y 5 quedan para el ejercicio 1.
 
 <!-- NOTA — cada casilla es un kernel que dura T (el kernel esperar() del
 programa solo da vueltas durante unos 20 ms, así que no compite por
@@ -228,7 +225,8 @@ independientes, T. Caso 4: los kernels 0-2 corren juntos; el 3, en el default
 stream, espera a que terminen; el 4 espera al 3. Total 3T, aunque solo UN
 kernel cambió de stream. Esto es el "legacy default stream", el
 comportamiento por omisión. Hay dos salidas: streams non-blocking (el caso 5
-del programa: no decir cuánto da, que lo predigan), o compilar con nvcc --default-stream per-thread, que
+del programa: no decir cuánto da, que lo predigan), o compilar con nvcc
+--default-stream per-thread, que
 le da a cada thread del host su propio default stream, normal. Los casos 3 y
 5 no están en la figura: son para que los predigan en el ejercicio. -->
 
@@ -269,7 +267,7 @@ En general, los programas de CUDA funcionan con 3 etapas:
 3. Copia *device* → *host*.
 
 Una aplicación de los *streams* para la optimización:
-- Las transferencias de datos en unos *streams* coinciden con cómputos en otros.
+- Podemos solapar las transferencias de datos en unos *streams* con cómputos en otros.
 - Es otra manera de "esconder" la latencia.
 
 <!-- NOTA — la idea es la de una línea de producción: si el trabajo se divide en
@@ -284,7 +282,7 @@ detrás del cómputo. -->
 
 <svg viewBox="0 0 1000 300" width="1000" style="display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-motores" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
-<text x="250" y="26" font-size="20" font-weight="bold" text-anchor="middle" fill="#0288d1">Host: las filas de los streams</text>
+<text x="250" y="26" font-size="20" font-weight="bold" text-anchor="middle" fill="#0288d1">Host</text>
 <text x="815" y="26" font-size="20" font-weight="bold" text-anchor="middle" fill="#0288d1">GPU</text>
 <text x="100" y="86" font-size="16" text-anchor="end" fill="#333">stream 1</text>
 <rect x="110" y="55" width="90" height="50" rx="3" fill="#a5d6a7" stroke="#555"/>
@@ -324,9 +322,8 @@ detrás del cómputo. -->
 <text x="815" y="246" font-size="16" text-anchor="middle" fill="#222">motor de copia D→H</text>
 </svg>
 
-- Dentro de un *stream*, en orden. Entre *streams*, cada motor puede atender a uno distinto **al mismo tiempo**.
+- Dentro de un *stream*, en secuencia. Entre *streams*, cada motor puede atender a uno distinto **al mismo tiempo**.
 - `asyncEngineCount`: cuántos motores de copia tiene el GPU
-  - `cuda_pipelining.x` lo imprime.
 
 <!-- NOTA — el GPU tiene hardware separado para copiar y para calcular: los
 motores de copia (DMA) mueven datos por el PCIe sin ocupar los SMs. Con un
@@ -357,7 +354,7 @@ Copiar $\to$ calcular $\to$ copiar de vuelta, con los datos en $4$ partes (trozo
 - Con varios *streams*, podemos solapar ("escalonar") el trabajo.
 - Mientras uno calcula otro ya está copiando.
 
-El tiempo total de ejecución baja de $12$ a $6$ tiempos.
+El tiempo total de ejecución baja de $12$ a $6$ unidades de tiempo.
 
 <!-- NOTA — cada casilla es el tiempo de procesar un pedazo en esa etapa. Con
 un solo stream las tres etapas van una detrás de otra (12 casillas). Con un
@@ -391,11 +388,11 @@ el stream llega a él, aunque la copia todavía espere al motor. -->
 ## **Streams: pipelining**
 
 Para el pipelining existen **3 requisitos:**
-- La memoria en el *host* debe ser ***pinned***: `cudaMallocHost()`.
-- La transferencia de datos debe ser asincrónica: `cudaMemcpyAsync()`.
-- Las operaciones de CUDA deben estar en *streams* diferentes (y nada en el *default stream*, porque bloquea a todos).
+1. La memoria en el *host* debe ser ***pinned***: `cudaMallocHost()`.
+2. La transferencia de datos debe ser asincrónica: `cudaMemcpyAsync()`.
+3. Las operaciones de CUDA deben estar en *streams* diferentes (y nada en el *default stream*, porque bloquea a todos).
 
-Ejemplo: [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu). Mide el mismo trabajo con $1$ *stream* y con varios (ejercicio 2).
+Ejemplo: [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu): se mide el mismo trabajo con $1$ *stream* y con varios (ejercicio 2).
 
 <!-- NOTA — acá se cierra lo de la memoria pinned del capítulo de memoria: era
 opcional para cudaMemcpy (solo más rápida), pero para solapar es obligatoria.
