@@ -3,13 +3,13 @@
  * El mismo trabajo (copiar a y b al GPU, calcular c, copiar c de vuelta) se
  * hace de dos formas:
  *   - con 1 stream: copia todo, calcula todo, copia todo de vuelta;
- *   - con varios streams: los datos se parten en pedazos, y mientras un
- *     stream calcula su pedazo, otro ya está copiando el siguiente.
+ *   - con varios streams: los datos se parten en partes, y mientras un
+ *     stream calcula su parte, otro ya está copiando el siguiente.
  *
  * Requisitos para que las copias se solapen con el cómputo:
  *   - memoria del host pinned (cudaMallocHost);
  *   - copias asincrónicas (cudaMemcpyAsync);
- *   - cada pedazo en su propio stream (nada en el default stream).
+ *   - cada parte en su propio stream (nada en el default stream).
  *
  * Compilar:  nvcc -arch=sm_75 cuda_pipelining.cu -o cuda_pipelining.x
  * Ejecutar:  ./cuda_pipelining.x [número de streams, por defecto 4]
@@ -51,7 +51,7 @@ float calcularHost(float a, float b) {
   return v;
 }
 
-// Procesa n elementos repartidos en n_streams pedazos y devuelve el tiempo
+// Procesa n elementos repartidos en n_streams partes y devuelve el tiempo
 // total en ms (desde la primera copia hasta la última). En
 // fin[e * n_streams + s] deja cuándo terminó la etapa e del stream s, en ms
 // desde el inicio.
@@ -71,20 +71,20 @@ float procesar(int n_streams, float *h_c, const float *h_a, const float *h_b,
   for (int i = 0; i < ETAPAS * n_streams; i++)
     cudaEventCreate(&ev[i]);
 
-  int pedazo = n / n_streams; // n es múltiplo de n_streams
-  size_t bytes = pedazo * sizeof(float);
+  int parte = n / n_streams; // n es múltiplo de n_streams
+  size_t bytes = parte * sizeof(float);
 
   cudaEventRecord(inicio);
   for (int s = 0; s < n_streams; s++) {
-    int off = s * pedazo;
+    int off = s * parte;
     // todo en el stream s: en orden dentro del stream, solapable entre streams
     cudaMemcpyAsync(d_a + off, h_a + off, bytes, cudaMemcpyHostToDevice,
                     streams[s]);
     cudaMemcpyAsync(d_b + off, h_b + off, bytes, cudaMemcpyHostToDevice,
                     streams[s]);
     cudaEventRecord(ev[0 * n_streams + s], streams[s]);
-    calcular<<<(pedazo + BLOQUE - 1) / BLOQUE, BLOQUE, 0, streams[s]>>>(
-        d_c + off, d_a + off, d_b + off, pedazo);
+    calcular<<<(parte + BLOQUE - 1) / BLOQUE, BLOQUE, 0, streams[s]>>>(
+        d_c + off, d_a + off, d_b + off, parte);
     cudaEventRecord(ev[1 * n_streams + s], streams[s]);
     cudaMemcpyAsync(h_c + off, d_c + off, bytes, cudaMemcpyDeviceToHost,
                     streams[s]);
@@ -110,15 +110,16 @@ float procesar(int n_streams, float *h_c, const float *h_a, const float *h_b,
   return ms;
 }
 
-// Imprime una línea por etapa; cada columna son ms_col ms y cada pedazo se
-// marca con el número de su stream.
+// Imprime una línea por etapa; cada columna son ms_col ms y cada partes se
+// marca con el número de su stream, contando desde 1 como en las
+// diapositivas (el 0 es el default stream).
 //
 // Los eventos solo dicen cuándo TERMINA cada etapa: un evento puesto antes de
 // una copia se cumple apenas el stream llega a él, aunque la copia todavía
 // espere en la fila del motor de copia. El comienzo se deduce: una etapa
 // empieza cuando terminó la etapa anterior de su stream y cuando el motor
 // quedó libre, o sea cuando terminó la misma etapa del stream anterior (cada
-// motor atiende los pedazos en el orden en que se lanzaron, cada kernel ocupa
+// motor atiende los partes en el orden en que se lanzaron, cada kernel ocupa
 // todo el GPU y cada sentido de copia tiene su propio motor: con
 // asyncEngineCount = 1 la línea podría mostrar copias solapadas que no lo
 // estuvieron).
@@ -137,9 +138,9 @@ void imprimirLinea(int n_streams, const float *fin, float ms_col) {
       int c0 = (int)(ini / ms_col + 0.5f);
       int c1 = (int)(fin[e * n_streams + s] / ms_col + 0.5f);
       if (c1 <= c0)
-        c1 = c0 + 1; // que hasta el pedazo más corto se vea
+        c1 = c0 + 1; // que hasta la parte más corta se vea
       for (int c = c0; c < c1 && c < COLUMNAS; c++)
-        linea[c] = '0' + s % 10;
+        linea[c] = '0' + (s + 1) % 10; // streams numerados desde 1
     }
     printf("  %s |%s|\n", nombre[e], linea);
   }
@@ -149,7 +150,7 @@ int main(int argc, char *argv[]) {
   int n = 1 << 24;
   size_t bytes = n * sizeof(float);
   int n_streams = (argc > 1) ? atoi(argv[1]) : 4;
-  // procesar() reparte n en pedazos iguales: n_streams debe dividir a n
+  // procesar() reparte n en partes iguales: n_streams debe dividir a n
   if (n_streams < 1 || n % n_streams != 0) {
     printf("ERROR: el número de streams debe dividir a %d (p. ej. 2, 4, 8)\n",
            n);

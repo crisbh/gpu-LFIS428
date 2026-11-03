@@ -33,7 +33,7 @@ samples (ver Compilar los ejemplos del apéndice). -->
 
 ---
 
-## **Otra capa de paralelismo: kernels**
+## **Kernels: lanzamiento secuencial**
 
 - Lanzar un *kernel* no bloquea: el *host* retoma el control del programa sin esperar a que el *kernel* termine.
 - Si el *host* lanza un segundo kernel, por *default* su ejecución tiene que esperar.
@@ -62,8 +62,8 @@ todo en fila: H->D, kernelA, kernelB y D->H, uno detrás de otro. -->
 <tr><th><em>default stream</em></th><td colspan="4" style="border:none;background:transparent !important"></td></tr>
 <tr><th>GPU</th><td class="s0">H→D</td><td class="s0">kernelA</td><td class="s0">kernelB</td><td class="s0">D→H</td></tr>
 <tr><th>con <em>streams</em></th><td colspan="4" style="border:none;background:transparent !important"></td></tr>
-<tr><th>s0</th><td class="s1">H→D</td><td class="s1">kernelA</td><td class="s1">D→H</td><td></td></tr>
-<tr><th>s1</th><td class="s2">kernelB</td><td></td><td></td><td></td></tr>
+<tr><th>s1</th><td class="s1">H→D</td><td class="s1">kernelA</td><td class="s1">D→H</td><td></td></tr>
+<tr><th>s2</th><td class="s2">kernelB</td><td></td><td></td><td></td></tr>
 </table>
 
 - Lo que está en un mismo *stream* se ejecuta **en orden**.
@@ -101,7 +101,7 @@ cudaStreamDestroy(stream);
 ```
 
 - Las copias también van a un *stream*: `cudaMemcpyAsync` recibe el *stream* como último argumento.
-- `cudaMemcpy` (sin `Async`) usa el *default stream* y bloquea al *host*.
+- Nota: `cudaMemcpy` (sin `Async`) usa el *default stream* y bloquea al *host*.
 
 <!-- NOTA — cudaStreamDestroy no corta el trabajo pendiente: el stream se destruye
 cuando termina lo que tiene en la fila. cudaMemcpyAsync necesita memoria
@@ -118,11 +118,8 @@ pinned para ser de verdad asincrónica; lo vemos con el pipelining. -->
 
 - Lanzar un *kernel* devuelve el control al *host* **de inmediato**, en cualquier *stream* (también en el *default*).
 - El *host* sigue con su trabajo mientras el GPU calcula.
-- Solo espera cuando se lo pedimos (achurado), por ejemplo:
-  - `cudaDeviceSynchronize()`
-  - `cudaStreamSynchronize()`
-  - `cudaEventSynchronize()` (eventos: a continuación)
-  - `cudaMemcpy`
+- Solo espera cuando se lo pedimos (achurado): `cudaDeviceSynchronize`, `cudaStreamSynchronize`, `cudaEventSynchronize` (eventos: a continuación) o `cudaMemcpy`.
+- Por eso un cronómetro del *host* sin sincronizar mide **solo el lanzamiento**.
 
 <!-- NOTA — esta es la primera forma de paralelismo que dan los streams, y existe
 aunque usemos uno solo: host y GPU trabajan a la vez. Lanzar un kernel tarda
@@ -159,7 +156,7 @@ tiempo medido con eventos:     ... ms
 tiempo medido desde el host:   ... ms
 ```
 
-- El tiempo del *host* es **un poco mayor**: además del *kernel*, incluye el lanzamiento y el aviso de que el GPU llegó a `fin`.
+- El tiempo del *host* es **mayor**: además del *kernel*, incluye el lanzamiento, el aviso de que el GPU llegó a `fin` y las pausas del CPU de Colab. Los eventos miden solo lo que pasó en el GPU.
 
 <!-- NOTA — TODO: medir en la T4 y poner los dos tiempos acá. El kernel hace
 2000 pasos dependientes sobre 2^24 elementos, así que debería durar del orden
@@ -197,19 +194,19 @@ antes de que el GPU llegue a él. -->
 </table>
 <table class="timeline">
 <tr><th colspan="6" style="text-align:center">caso 2: un <em>stream</em> por <em>kernel</em></th></tr>
-<tr><th>s0</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s1</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s2</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s3</th><td class="s4">3</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s4</th><td class="s5">4</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s1</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s2</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s3</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s4</th><td class="s4">3</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s5</th><td class="s5">4</td><td></td><td></td><td></td><td></td></tr>
 </table>
 <table class="timeline">
 <tr><th colspan="6" style="text-align:center">caso 4: el <em>kernel</em> 3 en el <em>default</em></th></tr>
-<tr><th>s0</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s1</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>s2</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s1</th><td class="s1">0</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s2</th><td class="s2">1</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>s3</th><td class="s3">2</td><td></td><td></td><td></td><td></td></tr>
 <tr><th>default</th><td></td><td class="s0">3</td><td></td><td></td><td></td></tr>
-<tr><th>s4</th><td></td><td></td><td class="s5">4</td><td></td><td></td></tr>
+<tr><th>s5</th><td></td><td></td><td class="s5">4</td><td></td><td></td></tr>
 </table>
 </div>
 
@@ -240,9 +237,10 @@ le da a cada thread del host su propio default stream, normal. Los casos 3 y
 | `cudaEventSynchronize(e)` | sí | el evento `e` |
 | `cudaEventQuery(e)` | no | (solo pregunta) |
 | `cudaStreamWaitEvent(s,e)` | no | `s` espera a `e` |
-| `cudaMemcpy(...)` | sí | la copia |
+| `cudaMemcpy(...)` | sí | la copia (*default*) |
 
-Regla práctica: sincronizar **lo menos posible** y **lo más local** posible.
+"Bloquea": el *host* se detiene. 
+Regla: sincronizar **lo menos** y **lo más local** posible.
 
 <!-- NOTA — de la más gruesa a la más fina: todo el device, un stream, un
 evento. "Bloquea" se refiere al host. cudaStreamSynchronize espera lo lanzado
@@ -279,19 +277,19 @@ detrás del cómputo. -->
 
 ## **Streams y motores del GPU**
 
-<svg viewBox="0 0 1000 300" width="1000" style="display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<svg viewBox="0 0 1000 300" width="820" style="display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
 <defs><marker id="fl-motores" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
 <text x="250" y="26" font-size="20" font-weight="bold" text-anchor="middle" fill="#0288d1">Host</text>
 <text x="815" y="26" font-size="20" font-weight="bold" text-anchor="middle" fill="#0288d1">GPU</text>
-<text x="100" y="86" font-size="16" text-anchor="end" fill="#333">stream 0</text>
+<text x="100" y="86" font-size="16" text-anchor="end" fill="#333">stream 1</text>
 <rect x="110" y="55" width="90" height="50" rx="3" fill="#a5d6a7" stroke="#555"/>
 <text x="155" y="86" font-size="15" text-anchor="middle" fill="#222">H→D</text>
 <rect x="205" y="55" width="90" height="50" rx="3" fill="#a5d6a7" stroke="#555"/>
 <text x="250" y="86" font-size="15" text-anchor="middle" fill="#222">kernel</text>
 <rect x="300" y="55" width="90" height="50" rx="3" fill="#a5d6a7" stroke="#555"/>
 <text x="345" y="86" font-size="15" text-anchor="middle" fill="#222">D→H</text>
-<line x1="395" y1="80" x2="466" y2="80" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
-<text x="100" y="166" font-size="16" text-anchor="end" fill="#333">stream 1</text>
+<line x1="395" y1="80" x2="466" y2="160" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
+<text x="100" y="166" font-size="16" text-anchor="end" fill="#333">stream 2</text>
 <rect x="110" y="135" width="90" height="50" rx="3" fill="#90caf9" stroke="#555"/>
 <text x="155" y="166" font-size="15" text-anchor="middle" fill="#222">H→D</text>
 <rect x="205" y="135" width="90" height="50" rx="3" fill="#90caf9" stroke="#555"/>
@@ -299,20 +297,20 @@ detrás del cómputo. -->
 <rect x="300" y="135" width="90" height="50" rx="3" fill="#90caf9" stroke="#555"/>
 <text x="345" y="166" font-size="15" text-anchor="middle" fill="#222">D→H</text>
 <line x1="395" y1="160" x2="466" y2="160" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
-<text x="100" y="246" font-size="16" text-anchor="end" fill="#333">stream 2</text>
+<text x="100" y="246" font-size="16" text-anchor="end" fill="#333">stream 3</text>
 <rect x="110" y="215" width="90" height="50" rx="3" fill="#ffcc80" stroke="#555"/>
 <text x="155" y="246" font-size="15" text-anchor="middle" fill="#222">H→D</text>
 <rect x="205" y="215" width="90" height="50" rx="3" fill="#ffcc80" stroke="#555"/>
 <text x="250" y="246" font-size="15" text-anchor="middle" fill="#222">kernel</text>
 <rect x="300" y="215" width="90" height="50" rx="3" fill="#ffcc80" stroke="#555"/>
 <text x="345" y="246" font-size="15" text-anchor="middle" fill="#222">D→H</text>
-<line x1="395" y1="240" x2="466" y2="240" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
+<line x1="395" y1="240" x2="466" y2="160" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
 <rect x="470" y="55" width="130" height="210" rx="3" fill="#ffe082" stroke="#555"/>
 <text x="535" y="156" font-size="16" text-anchor="middle" fill="#222">planificador</text>
 <text x="535" y="177" font-size="16" text-anchor="middle" fill="#222">del GPU</text>
-<line x1="602" y1="80" x2="686" y2="80" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
+<line x1="602" y1="160" x2="686" y2="80" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
 <line x1="602" y1="160" x2="686" y2="160" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
-<line x1="602" y1="240" x2="686" y2="240" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
+<line x1="602" y1="160" x2="686" y2="240" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
 <rect x="690" y="55" width="250" height="50" rx="3" fill="#eef3df" stroke="#555"/>
 <text x="815" y="86" font-size="16" text-anchor="middle" fill="#222">motor de copia H→D</text>
 <rect x="690" y="135" width="250" height="50" rx="3" fill="#eef3df" stroke="#555"/>
@@ -321,8 +319,8 @@ detrás del cómputo. -->
 <text x="815" y="246" font-size="16" text-anchor="middle" fill="#222">motor de copia D→H</text>
 </svg>
 
-- Dentro de un *stream*, en secuencia. Entre *streams*, cada motor puede atender a uno distinto **al mismo tiempo**.
-- `asyncEngineCount`: cuántos motores de copia tiene el GPU
+- Dentro de un *stream*, en secuencia. El planificador manda cada operación a su motor, venga del *stream* que venga, y cada motor puede atender a uno distinto **al mismo tiempo**.
+- `asyncEngineCount`: cuántos motores de copia tiene el GPU. Con $\ge 2$, una copia H→D y una D→H pueden ir a la vez.
 
 <!-- NOTA — el GPU tiene hardware separado para copiar y para calcular: los
 motores de copia (DMA) mueven datos por el PCIe sin ocupar los SMs. Con un
@@ -337,23 +335,22 @@ Colab: lo dice la primera línea de cuda_pipelining.x). -->
 
 ## **Streams: pipelining**
 
-Copiar $\to$ calcular $\to$ copiar de vuelta, con los datos en $4$ partes (trozos):
+Copiar $\to$ calcular $\to$ copiar de vuelta, en $4$ partes:
+
 
 <table class="timeline">
 <tr><th>1 stream</th><td colspan="12" style="border:none;background:transparent !important"></td></tr>
-<tr><th>Copia H→D</th><td class="s1">0</td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Kernel</th><td></td><td></td><td></td><td></td><td class="s1">0</td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Copia D→H</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="s1">0</td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td></tr>
+<tr><th>Copia H→D</th><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td class="s1">4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Kernel</th><td></td><td></td><td></td><td></td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td class="s1">4</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Copia D→H</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td class="s1">4</td></tr>
 <tr><th>4 streams</th><td colspan="12" style="border:none;background:transparent !important"></td></tr>
-<tr><th>Copia H→D</th><td class="s1">0</td><td class="s2">1</td><td class="s3">2</td><td class="s4">3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Kernel</th><td></td><td class="s1">0</td><td class="s2">1</td><td class="s3">2</td><td class="s4">3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Copia D→H</th><td></td><td></td><td class="s1">0</td><td class="s2">1</td><td class="s3">2</td><td class="s4">3</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Copia H→D</th><td class="s1">1</td><td class="s2">2</td><td class="s3">3</td><td class="s4">4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Kernel</th><td></td><td class="s1">1</td><td class="s2">2</td><td class="s3">3</td><td class="s4">4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Copia D→H</th><td></td><td></td><td class="s1">1</td><td class="s2">2</td><td class="s3">3</td><td class="s4">4</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 </table>
 
-- Con varios *streams*, podemos solapar ("escalonar") el trabajo.
-- Mientras uno calcula otro ya está copiando.
-
-El tiempo total de ejecución baja de $12$ a $6$ unidades de tiempo.
+- De $12$ a $6$ unidades de tiempo. Si las etapas no duran lo mismo, **manda la más lenta** (más el llenado y vaciado).
+- Un *kernel* grande llena el GPU: se solapa con **copias**, no con otros *kernels*.
 
 <!-- NOTA — cada casilla es el tiempo de procesar un pedazo en esa etapa. Con
 un solo stream las tres etapas van una detrás de otra (12 casillas). Con un
@@ -375,7 +372,7 @@ tiene más de un motor de copia. -->
 stream, y para cada pedazo las tres etapas en su stream. Los
 cudaEventRecord marcan cuándo termina cada etapa: con ellos el programa
 imprime una línea de tiempo como la de la diapositiva anterior. Las operaciones se
-lanzan en orden de stream (todo el stream 0, después todo el 1...), y el
+lanzan en orden de stream (todo el stream 1, después todo el 2...), y el
 host termina el ciclo casi de inmediato: todo es asincrónico. Los eventos
 solo marcan el FIN de cada etapa; el comienzo el programa lo deduce (una
 etapa empieza cuando terminó la anterior de su stream y la misma etapa del
@@ -409,12 +406,12 @@ justo lo que se quiere medir. -->
 `cuda_pipelining.x` imprime el tiempo con $1$ *stream* y con varios, la duración de cada etapa con $1$ *stream*, y una **línea de tiempo** por motor. Por ejemplo, con $4$ *streams*:
 
 ```text
-  Copia H->D |00112233....|
-  Kernel     |..00112233..|
-  Copia D->H |....0.1.2.3.|
+  Copia H->D |11223344....|
+  Kernel     |..11223344..|
+  Copia D->H |....1.2.3.4.|
 ```
 
-- Cada carácter es un intervalo de tiempo; el dígito es el *stream* que ocupa el motor, y `.`, el motor libre.
+- Cada carácter es un intervalo de tiempo; el dígito es el *stream* (desde $1$) que ocupa el motor, y `.`, el motor libre.
 - Las dos líneas (1 *stream* y varios) usan la misma escala, así que se comparan directo.
 
 <!-- NOTA — es un esquema, no una salida medida: las duraciones (copia H->D de 2 columnas por pedazo, kernel de 2, copia D->H de 1) están elegidas para que se vea el escalonado. La salida real tiene 60 columnas y empieza con el nombre del GPU y su asyncEngineCount. -->
@@ -495,7 +492,7 @@ tiempo, y cualquier medición del host sin sincronizar mide solo eso. -->
 Descargar [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu) y compilar con `nvcc -arch=sm_75 cuda_pipelining.cu -o cuda_pipelining.x`.
 
 1. Ejecutar con $2$, $4$ y $8$ *streams* (`./cuda_pipelining.x 8`). ¿Cuánto se gana?
-2. En la línea de tiempo que imprime el programa, ¿qué etapas se solapan? ¿Se solapan las dos copias entre sí?
+2. En la línea de tiempo que imprime el programa, ¿qué etapas se solapan? Según `asyncEngineCount` (primera línea), ¿pueden solaparse las dos copias entre sí?
 3. Cambiar `cudaMallocHost` por `malloc` (y `cudaFreeHost` por `free`). ¿Qué pasa con el tiempo y con la línea de tiempo?
 4. La copia H→D mueve `a` y `b`; la D→H, solo `c`. ¿Cuál es la mayor ganancia posible? (El programa imprime cuánto dura cada etapa.)
 
