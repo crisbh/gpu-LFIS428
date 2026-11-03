@@ -62,8 +62,8 @@ todo en fila: H->D, kernelA, kernelB y D->H, uno detrás de otro. -->
 <tr><th><em>default stream</em></th><td colspan="4" style="border:none;background:transparent !important"></td></tr>
 <tr><th>GPU</th><td class="s0">H→D</td><td class="s0">kernelA</td><td class="s0">kernelB</td><td class="s0">D→H</td></tr>
 <tr><th>con <em>streams</em></th><td colspan="4" style="border:none;background:transparent !important"></td></tr>
-<tr><th>stream 1</th><td class="s1">H→D</td><td class="s1">kernelA</td><td class="s1">D→H</td><td></td></tr>
-<tr><th>stream 2</th><td class="s2">kernelB</td><td></td><td></td><td></td></tr>
+<tr><th>s0</th><td class="s1">H→D</td><td class="s1">kernelA</td><td class="s1">D→H</td><td></td></tr>
+<tr><th>s1</th><td class="s2">kernelB</td><td></td><td></td><td></td></tr>
 </table>
 
 - Lo que está en un mismo *stream* se ejecuta **en orden**.
@@ -95,8 +95,8 @@ kernel<<< grid_size, block_size, shared_memory, stream >>>();
 ```cuda
 cudaStream_t stream;
 cudaStreamCreate(&stream);
-foo_kernel<<< grid_size, block_size, 0, stream >>>();
 cudaMemcpyAsync(d_x, h_x, bytes, cudaMemcpyHostToDevice, stream);
+foo_kernel<<< grid_size, block_size, 0, stream >>>(d_x);
 cudaStreamDestroy(stream);
 ```
 
@@ -136,9 +136,8 @@ cuánto tardó el GPU en terminarlos. -->
 
 ## **Eventos de CUDA**
 
-- Como lanzar no espera, para medir un *kernel* hace falta que **el GPU** anote la hora: un **evento** es una **marca** en la fila de un *stream*.
-
-- `cudaEventRecord(e, s)` marca el *stream* `s` (si se omite: *default stream*).
+- Como lanzar no espera, **el GPU** tiene que anotar la hora: un **evento** es una **marca** en la fila de un *stream*.
+- `cudaEventCreate(&e)` crea el evento; `cudaEventRecord(e, s)` lo pone en el *stream* `s` (si se omite: *default*).
 
 @include[cuda]{static/code/kernels/cuda_event.cu:66-72}
 
@@ -160,7 +159,7 @@ tiempo medido con eventos:     ... ms
 tiempo medido desde el host:   ... ms
 ```
 
-- Lo esperable: el tiempo del *host* es **un poco mayor**: además del *kernel*, incluye el lanzamiento y el aviso de que el GPU llegó a `fin`.
+- El tiempo del *host* es **un poco mayor**: además del *kernel*, incluye el lanzamiento y el aviso de que el GPU llegó a `fin`.
 
 <!-- NOTA — TODO: medir en la T4 y poner los dos tiempos acá. El kernel hace
 2000 pasos dependientes sobre 2^24 elementos, así que debería durar del orden
@@ -189,7 +188,7 @@ antes de que el GPU llegue a él. -->
 
 ## **El *default stream***
 
-Ejemplo: [streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu).
+[streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu): cada casilla es un *kernel* que dura $T$.
 
 <div class="lado-a-lado">
 <table class="timeline">
@@ -284,7 +283,7 @@ detrás del cómputo. -->
 <defs><marker id="fl-motores" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
 <text x="250" y="26" font-size="20" font-weight="bold" text-anchor="middle" fill="#0288d1">Host</text>
 <text x="815" y="26" font-size="20" font-weight="bold" text-anchor="middle" fill="#0288d1">GPU</text>
-<text x="100" y="86" font-size="16" text-anchor="end" fill="#333">stream 1</text>
+<text x="100" y="86" font-size="16" text-anchor="end" fill="#333">stream 0</text>
 <rect x="110" y="55" width="90" height="50" rx="3" fill="#a5d6a7" stroke="#555"/>
 <text x="155" y="86" font-size="15" text-anchor="middle" fill="#222">H→D</text>
 <rect x="205" y="55" width="90" height="50" rx="3" fill="#a5d6a7" stroke="#555"/>
@@ -292,7 +291,7 @@ detrás del cómputo. -->
 <rect x="300" y="55" width="90" height="50" rx="3" fill="#a5d6a7" stroke="#555"/>
 <text x="345" y="86" font-size="15" text-anchor="middle" fill="#222">D→H</text>
 <line x1="395" y1="80" x2="466" y2="80" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
-<text x="100" y="166" font-size="16" text-anchor="end" fill="#333">stream 2</text>
+<text x="100" y="166" font-size="16" text-anchor="end" fill="#333">stream 1</text>
 <rect x="110" y="135" width="90" height="50" rx="3" fill="#90caf9" stroke="#555"/>
 <text x="155" y="166" font-size="15" text-anchor="middle" fill="#222">H→D</text>
 <rect x="205" y="135" width="90" height="50" rx="3" fill="#90caf9" stroke="#555"/>
@@ -300,7 +299,7 @@ detrás del cómputo. -->
 <rect x="300" y="135" width="90" height="50" rx="3" fill="#90caf9" stroke="#555"/>
 <text x="345" y="166" font-size="15" text-anchor="middle" fill="#222">D→H</text>
 <line x1="395" y1="160" x2="466" y2="160" stroke="#444" stroke-width="2" marker-end="url(#fl-motores)"/>
-<text x="100" y="246" font-size="16" text-anchor="end" fill="#333">stream 3</text>
+<text x="100" y="246" font-size="16" text-anchor="end" fill="#333">stream 2</text>
 <rect x="110" y="215" width="90" height="50" rx="3" fill="#ffcc80" stroke="#555"/>
 <text x="155" y="246" font-size="15" text-anchor="middle" fill="#222">H→D</text>
 <rect x="205" y="215" width="90" height="50" rx="3" fill="#ffcc80" stroke="#555"/>
@@ -342,13 +341,13 @@ Copiar $\to$ calcular $\to$ copiar de vuelta, con los datos en $4$ partes (trozo
 
 <table class="timeline">
 <tr><th>1 stream</th><td colspan="12" style="border:none;background:transparent !important"></td></tr>
-<tr><th>Copia H→D</th><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td class="s1">4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Kernel</th><td></td><td></td><td></td><td></td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td class="s1">4</td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Copia D→H</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td class="s1">4</td></tr>
+<tr><th>Copia H→D</th><td class="s1">0</td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Kernel</th><td></td><td></td><td></td><td></td><td class="s1">0</td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Copia D→H</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="s1">0</td><td class="s1">1</td><td class="s1">2</td><td class="s1">3</td></tr>
 <tr><th>4 streams</th><td colspan="12" style="border:none;background:transparent !important"></td></tr>
-<tr><th>Copia H→D</th><td class="s1">1</td><td class="s2">2</td><td class="s3">3</td><td class="s4">4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Kernel</th><td></td><td class="s1">1</td><td class="s2">2</td><td class="s3">3</td><td class="s4">4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><th>Copia D→H</th><td></td><td></td><td class="s1">1</td><td class="s2">2</td><td class="s3">3</td><td class="s4">4</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Copia H→D</th><td class="s1">0</td><td class="s2">1</td><td class="s3">2</td><td class="s4">3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Kernel</th><td></td><td class="s1">0</td><td class="s2">1</td><td class="s3">2</td><td class="s4">3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><th>Copia D→H</th><td></td><td></td><td class="s1">0</td><td class="s2">1</td><td class="s3">2</td><td class="s4">3</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
 </table>
 
 - Con varios *streams*, podemos solapar ("escalonar") el trabajo.
@@ -405,6 +404,23 @@ justo lo que se quiere medir. -->
 
 ---
 
+## **Streams: pipelining**
+
+`cuda_pipelining.x` imprime el tiempo con $1$ *stream* y con varios, la duración de cada etapa con $1$ *stream*, y una **línea de tiempo** por motor. Por ejemplo, con $4$ *streams*:
+
+```text
+  Copia H->D |00112233....|
+  Kernel     |..00112233..|
+  Copia D->H |....0.1.2.3.|
+```
+
+- Cada carácter es un intervalo de tiempo; el dígito es el *stream* que ocupa el motor, y `.`, el motor libre.
+- Las dos líneas (1 *stream* y varios) usan la misma escala, así que se comparan directo.
+
+<!-- NOTA — es un esquema, no una salida medida: las duraciones (copia H->D de 2 columnas por pedazo, kernel de 2, copia D->H de 1) están elegidas para que se vea el escalonado. La salida real tiene 60 columnas y empieza con el nombre del GPU y su asyncEngineCount. -->
+
+---
+
 ## **Dependencias entre streams**
 
 ```cuda
@@ -451,7 +467,7 @@ kernelB, también es correcta pero deja al host parado. -->
 
 ## **Ejercicio 1: ¿qué se ejecuta a la vez?**
 
-Descargar: [streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu): $5$ *kernels* de duración $T$, lanzados de cinco formas (ver el comentario al inicio del código).
+Descargar [streams-concurrencia.cu](../code/kernels/streams-concurrencia.cu) ($5$ *kernels* de duración $T$, lanzados de cinco formas) y compilar con `nvcc -arch=sm_75 streams-concurrencia.cu -o streams-concurrencia.x`.
 
 1. **Antes de ejecutar:** predecir el tiempo de los casos 3 y 5 (en unidades de $T$); los casos 1, 2 y 4 están en la figura del *default stream*.
 2. Ejecutar y comparar con las predicciones y con la figura. ¿Qué predicción falló, y por qué?
@@ -476,12 +492,12 @@ tiempo, y cualquier medición del host sin sincronizar mide solo eso. -->
 
 ## **Ejercicio 2: solapar copias y cómputo**
 
-Descargar: [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu)
+Descargar [cuda_pipelining.cu](../code/kernels/cuda_pipelining.cu) y compilar con `nvcc -arch=sm_75 cuda_pipelining.cu -o cuda_pipelining.x`.
 
 1. Ejecutar con $2$, $4$ y $8$ *streams* (`./cuda_pipelining.x 8`). ¿Cuánto se gana?
 2. En la línea de tiempo que imprime el programa, ¿qué etapas se solapan? ¿Se solapan las dos copias entre sí?
 3. Cambiar `cudaMallocHost` por `malloc` (y `cudaFreeHost` por `free`). ¿Qué pasa con el tiempo y con la línea de tiempo?
-4. La copia H→D mueve `a` y `b`; la D→H, solo `c`. ¿Cuál es la mayor ganancia posible?
+4. La copia H→D mueve `a` y `b`; la D→H, solo `c`. ¿Cuál es la mayor ganancia posible? (El programa imprime cuánto dura cada etapa.)
 
 <!-- RESPUESTAS — TODO: medir en la T4. (1) Con más streams el tiempo baja,
 pero la ganancia se satura: el llenado y vaciado del pipeline (la primera
@@ -731,4 +747,4 @@ terminan todos sus descendientes. -->
 
 # Fin Capítulo 4
 
-## Próximo capítulo: librerías de CUDA y Python
+## Próximo capítulo: aplicaciones (N-cuerpos)

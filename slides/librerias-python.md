@@ -245,6 +245,6 @@ Ejemplos:
 
 ---
 
-# ¡Gracias!
+# Fin
 
-## Próxima clase: aplicaciones
+## Próximo: el proyecto final

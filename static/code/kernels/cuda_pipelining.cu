@@ -201,6 +201,12 @@ int main(int argc, char *argv[]) {
   printf("%7d   %11.3f\n", 1, t1);
   printf("%7d   %11.3f   (%.2fx más rápido)\n", n_streams, tn, t1 / tn);
 
+  // con 1 stream las etapas van una detrás de otra: sus duraciones salen de
+  // restar los finales consecutivos
+  printf("\nEtapas con 1 stream: copia H->D %.3f ms, kernel %.3f ms, "
+         "copia D->H %.3f ms\n",
+         fin1[0], fin1[1] - fin1[0], fin1[2] - fin1[1]);
+
   // las dos líneas con la misma escala, para que se puedan comparar
   float ms_col = t1 / COLUMNAS;
   printf("\nLínea de tiempo (cada columna = %.2f ms):\n", ms_col);
