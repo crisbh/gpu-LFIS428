@@ -244,7 +244,7 @@ En esta implementación se utiliza un *tile*: una sub-matriz de $p \times p$ ele
 
 La matriz $\mathbf{F}_{ij}$ repartida en *tiles* de $p \times p$:
 
-![w:440px](images/aplicaciones/full_calc_nbody.png)
+![w:540px](images/aplicaciones/full_calc_nbody.png)
 <p class="credit">Fuente: GPU Gems Vol. 3</p>
 
 <!-- NOTA — esta es una vista previa: no explicar todavía threads, bloques ni las cargas desde memoria global. Basta con que reconozcan la matriz de la diapositiva anterior cortada en cuadrados de p × p, cada uno un tile. Las etiquetas (p threads, N/p bloques, p pasos entre cargas) se leen cuando la figura vuelve en "Todas las partículas". -->
