@@ -9,7 +9,7 @@ The CSV has a header row and one row per group. The first column is the group
 leading columns, such as the timestamp of a Google Forms export, are skipped:
 the group is the first column whose header contains "grupo" (or "integrantes"),
 and the preferences are the next three columns. A preference cell may be a
-topic number or text that starts with it ("7. Ray tracing"), so a form can use
+topic number or text that starts with it ("6. Ray tracing"), so a form can use
 the topic list as dropdown options.
 
 Each topic goes to at most one group. The assignment minimises the total cost
@@ -28,13 +28,11 @@ import sys
 TOPICS = {
     1: "Ecuación del calor 2D",
     2: "Ecuación de onda 2D",
-    3: "Reacción-difusión de Gray-Scott",
-    4: "Ecuación de Poisson 2D",
-    5: "Modelo de Ising 2D",
-    6: "Ecuación de Schrödinger 2D",
-    7: "Ray tracing",
-    8: "Fluidos con Lattice Boltzmann",
-    9: "Dinámica molecular de Lennard-Jones",
+    3: "Ecuación de Poisson 2D",
+    4: "Modelo de Ising 2D",
+    5: "Ecuación de Schrödinger 2D",
+    6: "Ray tracing",
+    7: "Dinámica molecular de Lennard-Jones",
 }
 RANK_COST = [0, 1, 4]
 UNLISTED_COST = 100

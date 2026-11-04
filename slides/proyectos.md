@@ -18,7 +18,7 @@ Temas
 - Tomar un código de física que corre en la CPU, **portarlo a CUDA** y **optimizarlo**.
 - Cada tema trae su código de referencia en C.
 
-<!-- NOTA — los números de tema son los de la página del proyecto; los temas 3 (Gray-Scott) y 8 (Lattice Boltzmann) no se presentan en esta clase. -->
+<!-- NOTA — los números de tema son los de la página del proyecto. -->
 
 ---
 
@@ -62,7 +62,7 @@ $$u_{tt} = c^2\,\nabla^2 u$$
 
 ---
 
-## **Tema 4: Ecuación de Poisson 2D**
+## **Tema 3: Ecuación de Poisson 2D**
 
 <div class="lado-a-lado">
 <div style="flex:0 0 38%">
@@ -82,7 +82,7 @@ $$\nabla^2 u = f$$
 
 ---
 
-## **Tema 5: Modelo de Ising 2D**
+## **Tema 4: Modelo de Ising 2D**
 
 <div class="lado-a-lado">
 <div style="flex:0 0 38%">
@@ -102,7 +102,7 @@ $$E = -J \sum_{\langle i,j\rangle} s_i\, s_j, \quad s_i = \pm 1$$
 
 ---
 
-## **Tema 6: Ecuación de Schrödinger 2D**
+## **Tema 5: Ecuación de Schrödinger 2D**
 
 <div class="lado-a-lado">
 <div style="flex:0 0 38%">
@@ -122,7 +122,7 @@ $$i\,\partial_t\psi = -\tfrac{1}{2}\nabla^2\psi + V\psi$$
 
 ---
 
-## **Tema 7: Ray tracing**
+## **Tema 6: Ray tracing**
 
 <div class="lado-a-lado">
 <div style="flex:0 0 38%">
@@ -142,7 +142,7 @@ $$n_1 \sin\theta_1 = n_2 \sin\theta_2$$
 
 ---
 
-## **Tema 9: Lennard-Jones**
+## **Tema 7: Lennard-Jones**
 
 <div class="lado-a-lado">
 <div style="flex:0 0 38%">

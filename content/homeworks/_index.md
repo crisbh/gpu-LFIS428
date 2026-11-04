@@ -74,7 +74,7 @@ Como en las clases:
 - Revisar los errores de cada llamada a CUDA con el macro `CHECK` de [common.h](../code/memoria/common.h). Los lanzamientos de *kernels* no devuelven un código de error: después de cada uno, usar `CHECK(cudaGetLastError())`. `CHECK` sólo imprime el error y sigue, así que hay que mirar el **primer** error que aparece. Para cuFFT y cuRAND (*host*) están `CHECK_CUFFT` y `CHECK_CURAND`.
 - Medir el tiempo de los *kernels* con eventos de CUDA (`cudaEventRecord`, `cudaEventElapsedTime`). Si se usa el reloj del host, llamar antes a `cudaDeviceSynchronize()`: los lanzamientos de *kernels* son asíncronos.
 
-**Diferencias esperables entre CPU y GPU:** los kernels que sólo leen y escriben arreglos (*stencils*, colisiones) deberían reproducir la CPU hasta el redondeo ({{< katex >}}\sim 10^{-15}{{< /katex >}} en `double` después de pocos pasos). Las **reducciones** (energía, residuo, promedios) suman en otro orden, así que difieren en las últimas cifras. La suma en árbol de la GPU suele ser incluso **más** precisa que la suma secuencial de la CPU: cada valor pasa por {{< katex >}}\log_2 n{{< /katex >}} sumas en vez de hasta {{< katex >}}n{{< /katex >}}. Por ejemplo, en Gray-Scott con `float` los campos difieren de `double` en {{< katex >}}\sim 10^{-6}{{< /katex >}}, pero el promedio {{< katex >}}\langle u\rangle{{< /katex >}} sumado en serie en la CPU difiere en {{< katex >}}\sim 10^{-4}{{< /katex >}}: ahí el error está en la suma, no en la física. En sistemas caóticos (Lennard-Jones) las diferencias crecen con el tiempo: ahí se comparan observables, no campos.
+**Diferencias esperables entre CPU y GPU:** los kernels que sólo leen y escriben arreglos (*stencils*) deberían reproducir la CPU hasta el redondeo ({{< katex >}}\sim 10^{-15}{{< /katex >}} en `double` después de pocos pasos). Las **reducciones** (energía, residuo, promedios) suman en otro orden, así que difieren en las últimas cifras. La suma en árbol de la GPU suele ser incluso **más** precisa que la suma secuencial de la CPU: cada valor pasa por {{< katex >}}\log_2 n{{< /katex >}} sumas en vez de hasta {{< katex >}}n{{< /katex >}}. En sistemas caóticos (Lennard-Jones) las diferencias crecen con el tiempo: ahí se comparan observables, no campos.
 
 Cada tema indica abajo los **valores de referencia** de la CPU con los parámetros por defecto (medidos en un Apple M2; los tiempos en Colab serán distintos) y qué cuenta como validado.
 
@@ -99,13 +99,11 @@ Cada tema indica abajo los **valores de referencia** de la CPU con los parámetr
 |:---:|:---|:---:|
 | 1 | [Ecuación del calor 2D](#1-ecuación-del-calor-2d) | ★ |
 | 2 | [Ecuación de onda 2D](#2-ecuación-de-onda-2d) | ★ |
-| 3 | [Reacción-difusión de Gray-Scott](#3-reacción-difusión-de-gray-scott) | ★ |
-| 4 | [Ecuación de Poisson 2D](#4-ecuación-de-poisson-2d) | ★★ |
-| 5 | [Modelo de Ising 2D](#5-modelo-de-ising-2d) | ★★ |
-| 6 | [Ecuación de Schrödinger 2D](#6-ecuación-de-schrödinger-2d) | ★★ |
-| 7 | [Ray tracing](#7-ray-tracing) | ★★ |
-| 8 | [Fluidos con Lattice Boltzmann](#8-fluidos-con-lattice-boltzmann) | ★★★ |
-| 9 | [Dinámica molecular de Lennard-Jones](#9-dinámica-molecular-de-lennard-jones) | ★★★ |
+| 3 | [Ecuación de Poisson 2D](#3-ecuación-de-poisson-2d) | ★★ |
+| 4 | [Modelo de Ising 2D](#4-modelo-de-ising-2d) | ★★ |
+| 5 | [Ecuación de Schrödinger 2D](#5-ecuación-de-schrödinger-2d) | ★★ |
+| 6 | [Ray tracing](#6-ray-tracing) | ★★ |
+| 7 | [Dinámica molecular de Lennard-Jones](#7-dinámica-molecular-de-lennard-jones) | ★★★ |
 
 ### 1. Ecuación del calor 2D
 
@@ -133,24 +131,7 @@ Vibraciones de una membrana cuadrada fija en el borde, {{< katex >}}u_{tt} = c^2
 - **Optimizaciones avanzadas:** memoria compartida; cálculo de la energía como reducción en la GPU; `float` (¿se sigue conservando la energía?).
 - **Extensiones:** pulso inicial localizado, obstáculos (rendija doble), velocidad de propagación variable.
 
-### 3. Reacción-difusión de Gray-Scott
-
-**Dificultad:** ★ · **Código:** [reaccion-difusion_cpu.c](../code/proyectos/reaccion-difusion/reaccion-difusion_cpu.c)
-
-Dos especies químicas que reaccionan y difunden forman patrones (manchas, laberintos, "mitosis"):
-
-{{< katex display=true >}}
-u_t = D_u \nabla^2 u - u v^2 + F(1-u), \qquad v_t = D_v \nabla^2 v + u v^2 - (F+k) v
-{{< /katex >}}
-
-- **Validación:** no hay solución exacta. El campo de la GPU debe coincidir con `salida_cpu.bin` (usar `comparar.py`): en `double`, hasta {{< katex >}}\sim 10^{-15}{{< /katex >}} tras 100 pasos y {{< katex >}}\lesssim 10^{-9}{{< /katex >}} tras los 10000 pasos por defecto (en la CPU, sólo cambiar el redondeo de las multiplicaciones-sumas da {{< katex >}}10^{-10}{{< /katex >}}). Además, comparar los promedios {{< katex >}}\langle u\rangle, \langle v\rangle{{< /katex >}} y los patrones. En `float`, el promedio sumado en serie en la CPU es el lado impreciso (ver arriba).
-- **Valores de referencia:** por defecto ({{< katex >}}N = 1024{{< /katex >}}, 10000 pasos): {{< katex >}}\langle u\rangle = 0.7701597506{{< /katex >}}, {{< katex >}}\langle v\rangle = 0.0831220727{{< /katex >}}, 18.6 s.
-- **Métrica:** ancho de banda efectivo (GB/s).
-- **Optimización mínima:** un kernel que actualiza ambos campos con bordes periódicos.
-- **Optimizaciones avanzadas:** memoria compartida para ambos campos; evitar el operador `%` en los bordes; `float`; guardar imágenes cada cierto número de pasos (llamando a `escribir_salida()` con otro nombre de archivo) sin frenar el cálculo, copiando con *streams* mientras la GPU sigue calculando.
-- **Extensiones:** explorar el plano {{< katex >}}(F, k){{< /katex >}} y clasificar los patrones; animaciones.
-
-### 4. Ecuación de Poisson 2D
+### 3. Ecuación de Poisson 2D
 
 **Dificultad:** ★★ · **Código:** [poisson_cpu.c](../code/proyectos/poisson/poisson_cpu.c)
 
@@ -164,7 +145,7 @@ Potencial electrostático a partir de una densidad de carga, {{< katex >}}\nabla
 - **Optimizaciones avanzadas:** rojo-negro / SOR en la GPU *(no visto en clases)*, el código de CPU lo explica: ¿por qué Gauss-Seidel normal no se puede paralelizar? Para que la GPU le gane a la CPU con SOR, esta optimización es prácticamente necesaria. Revisar el residuo cada cierto número de iteraciones (la CPU lo hace cada 100; en la GPU cada revisión es una reducción más una copia al *host*: medir su costo y elegir la frecuencia); memoria compartida; comparar iteraciones vs. tiempo por iteración de cada método.
 - **Extensiones:** condensador de placas paralelas u otras geometrías con condiciones de borde no nulas; *multigrid*.
 
-### 5. Modelo de Ising 2D
+### 4. Modelo de Ising 2D
 
 **Dificultad:** ★★ · **Código:** [ising_cpu.c](../code/proyectos/ising/ising_cpu.c)
 
@@ -177,7 +158,7 @@ Transición de fase ferromagnética con Monte Carlo (algoritmo de Metropolis) en
 - **Optimizaciones avanzadas:** espines como `char` (o bits); tabla de probabilidades en memoria constante; simular todas las temperaturas a la vez; memoria compartida.
 - **Extensiones:** escalamiento de tamaño finito (cumulante de Binder para estimar {{< katex >}}T_c{{< /katex >}}), campo magnético externo.
 
-### 6. Ecuación de Schrödinger 2D
+### 5. Ecuación de Schrödinger 2D
 
 **Dificultad:** ★★ · **Código:** [schrodinger_cpu.c](../code/proyectos/schrodinger/schrodinger_cpu.c)
 
@@ -191,7 +172,7 @@ Evolución temporal de un paquete de ondas en un oscilador armónico, {{< katex 
 - **Optimizaciones avanzadas:** fusionar *kernels* *(no visto en clases)*; calcular las fases al vuelo en vez de leerlas de memoria; calcular los observables con reducciones y sólo de vez en cuando; `float` (`cufftComplex`). Como la mayor parte del tiempo se va en cuFFT, el análisis puede centrarse en qué fracción del ancho de banda máximo alcanza cuFFT y cuánto se gana al reducir los *kernels* propios.
 - **Extensiones:** efecto túnel a través de una barrera; rendija doble; potencial dependiente del tiempo.
 
-### 7. Ray tracing
+### 6. Ray tracing
 
 **Dificultad:** ★★ · **Código:** [ray-tracing_cpu.c](../code/proyectos/ray-tracing/ray-tracing_cpu.c)
 
@@ -205,20 +186,7 @@ Generación de imágenes siguiendo rayos de luz (*path tracing*), basada en la e
 - **Optimizaciones avanzadas:** esferas en **memoria constante** (todos los *threads* de un *warp* recorren las mismas esferas en el mismo orden, el caso ideal de la memoria constante; las 487 esferas ocupan ~35 KB en `double`, dentro de los 64 KB disponibles, pero escenas mucho más grandes ya no caben) o en memoria compartida; `float` (la T4 hace 32 veces menos operaciones por segundo en `double`); medir la **divergencia de *warps*** (rayos vecinos rebotan en materiales distintos o terminan en distinto número de rebotes) y probar bloques 2D pequeños para que los rayos de un *warp* sean coherentes; cuRAND en vez del *hash* propio. Más allá del curso: una jerarquía de volúmenes envolventes (BVH) para no revisar todas las esferas *(no visto en clases)*.
 - **Extensiones:** escenas más grandes, otros objetos (planos, triángulos), luces de área, dispersión cromática (índice de refracción dependiente de la longitud de onda: arcoíris en una esfera de agua).
 
-### 8. Fluidos con Lattice Boltzmann
-
-**Dificultad:** ★★★ · **Código:** [lattice-boltzmann_cpu.c](../code/proyectos/lattice-boltzmann/lattice-boltzmann_cpu.c)
-
-Simulación de un fluido con el método de Lattice Boltzmann D2Q9: cada nodo guarda 9 distribuciones que colisionan (localmente) y se propagan a los vecinos. Dos modos: flujo en un canal (Poiseuille) y flujo alrededor de un cilindro (calle de vórtices de von Kármán).
-
-- **Validación:** en el modo canal, el perfil de velocidades debe ser la parábola de Poiseuille (el código imprime el error). El fluido parte del reposo y se acerca a la parábola como {{< katex >}}e^{-t/t_\text{rel}}{{< /katex >}}, con {{< katex >}}t_\text{rel} = H^2/(\pi^2\nu){{< /katex >}} pasos: si se agranda el canal hay que correr muchos más pasos (el código los ajusta solo si no se dan, y avisa si son pocos). Por eso: **validar con el tamaño por defecto** y medir rendimiento con tamaños mayores, donde no hace falta llegar al estado estacionario. En el modo cilindro, comparar los campos con `salida_cpu.bin` usando `comparar.py`. Validado = el mismo error de Poiseuille que la CPU y diferencias {{< katex >}}\lesssim 10^{-10}{{< /katex >}} en el modo cilindro (en `double`).
-- **Valores de referencia:** modo 0 por defecto (512 × 66, 29900 pasos = 12 {{< katex >}}t_\text{rel}{{< /katex >}}): error relativo {{< katex >}}8.1\times 10^{-5}{{< /katex >}} (el error de discretización), 29.3 s, 34.5 MLUPS. Modo 1 (512 × 128, 10000 pasos): Reynolds ~123, {{< katex >}}\langle u_x\rangle = 0.051505{{< /katex >}}, 18.8 s.
-- **Métrica:** ancho de banda efectivo (GB/s) y MLUPS (millones de nodos actualizados por segundo, la métrica usual de LBM; el código de CPU ya la imprime y cuenta también los nodos sólidos).
-- **Optimización mínima:** kernels de colisión y propagación con los datos en la GPU. Las tablas de velocidades y pesos son constantes globales del *host*: en CUDA hay que pasarlas a memoria constante (`__constant__`) o copiarlas.
-- **Optimizaciones avanzadas:** pasar de AoS a **SoA**. Según el criterio de la clase de aplicaciones, AoS conviene cuando cada *thread* usa todos los campos de **su** elemento; en la propagación, en cambio, cada nodo lee una sola {{< katex >}}f_i{{< /katex >}} de cada uno de 9 vecinos distintos, que es el caso donde SoA gana. Fusionar colisión y propagación en un solo *kernel* *(no visto en clases)*; `float`. LBM está limitado por memoria: comparar el ancho de banda efectivo con el máximo de la T4.
-- **Extensiones:** número de Reynolds y frecuencia de desprendimiento de vórtices (número de Strouhal); otros obstáculos; condiciones de entrada y salida.
-
-### 9. Dinámica molecular de Lennard-Jones
+### 7. Dinámica molecular de Lennard-Jones
 
 **Dificultad:** ★★★ · **Código:** [lennard-jones_cpu.c](../code/proyectos/lennard-jones/lennard-jones_cpu.c)
 
