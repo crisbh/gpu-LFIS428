@@ -17,10 +17,8 @@ Temas
 
 - Tomar un código de física que corre en la CPU, **portarlo a CUDA** y **optimizarlo**.
 - Cada tema trae su código de referencia en C.
-
-<!-- NOTA — los números de tema son los de la página del proyecto. -->
-
 ---
+
 
 ## **Tema 1: Ecuación del calor 2D**
 

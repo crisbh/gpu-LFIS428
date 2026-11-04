@@ -16,8 +16,8 @@ El lenguaje principal del curso es CUDA/C, pero también veremos cómo interactu
 - Invocación de kernels y organización de los threads
 - El uso de la memoria del GPU
 - Profiling y optimización de rendimiento
+- Aplicaciones: N-cuerpos
 - Librerías de CUDA y Python
-- Aplicaciones: N-cuerpos y visualización con OpenGL
 
 
 ## Evaluaciones

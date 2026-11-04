@@ -59,11 +59,10 @@ Apéndice (para estudiar por cuenta propia; ver en las diapositivas cómo compil
 - Costo de lanzar un *kernel*: [cuda_kernel.cu](../code/kernels/cuda_kernel.cu)
 
 <!-- ###################################### -->
-## 5. Aplicaciones: N-cuerpos
-
-- N-cuerpos: [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h)
-- Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
-<!-- - OpenGL: [simpleGL.cu](../code/aplicaciones/simpleGL.cu) -->
+<!-- ## Aplicaciones -->
+<!---->
+<!-- - N-cuerpos: [nbody-colab.cu](../code/aplicaciones/nbody-colab.cu) (Colab) · [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) (OpenGL) -->
+<!-- - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c) -->
 
 <!-- ###################################### -->
 <!-- ## Librerías de CUDA y Python -->
