@@ -67,28 +67,6 @@ Códigos disponibles para descargar:
 
 ## **Simulaciones: N-cuerpos**
 
-- De la fuerza obtenemos la **aceleración** que actúa en cada partícula.
-- De la aceleración actualizamos la **velocidad** de cada partícula, y su **posición**.
-- Repetimos este proceso cada *timestep* para evolucionar las partículas.
-
-```text
-para cada paso de tiempo:
-    para cada partícula i:                 ← N partículas
-        F_i = 0
-        para cada partícula j ≠ i:         ← N − 1 partículas
-            F_i += fuerza de j sobre i
-        a_i = F_i / m_i
-    para cada partícula i:                 ← después de calcular todas las fuerzas
-        v_i += a_i Δt
-        x_i += v_i Δt
-```
-
-<!-- NOTA — el doble ciclo cuesta N(N−1) evaluaciones de la fuerza por paso: es el O(N^2) de la diapositiva siguiente. Las posiciones se actualizan en un segundo ciclo para que todas las fuerzas usen las posiciones del mismo tiempo t; en el GPU, por eso integrarCuerpos lee oldPos y escribe newPos (y nbody-cpu.c calcula todas las aceleraciones antes de mover nada). La actualización v += a Δt, x += v Δt es el mismo leapfrog que viene más adelante, leyendo v en los medios pasos. El ciclo sobre i es el que se paraleliza: un thread por partícula. -->
-
----
-
-## **Simulaciones: N-cuerpos**
-
 Hay varios métodos para obtener la fuerza gravitacional. El más directo es sumar todas las fuerzas entre cada par de partículas (**suma directa**):
 
 - Requiere una expresión para la fuerza entre un par de partículas (ley de gravitación Universal de Newton).
@@ -118,6 +96,28 @@ $$\mathbf{F}_i = \sum_{j \neq i}^N \mathbf{F}_{ij} = G m_i \sum_{j \neq i}^N \fr
 $$\mathbf{F}_i \approx G m_i \sum_{j}^N \frac{m_j\, \mathbf{r}_{ij}}{(r_{ij}^2 + \epsilon^2)^{3/2}}$$
 
 El factor $\epsilon$ se llama *softening length*. En la práctica necesitamos la aceleración: $\mathbf{a}_i = \mathbf{F}_i / m_i$.
+
+---
+
+## **Simulaciones: N-cuerpos**
+
+- De la fuerza obtenemos la **aceleración** que actúa en cada partícula.
+- Con la aceleración actualizamos la **velocidad** de cada partícula, y su **posición**.
+- Repetimos este proceso cada *timestep* para evolucionar las partículas.
+
+```text
+para cada paso de tiempo:
+    para cada partícula i:                 ← N partículas
+        F_i = 0
+        para cada partícula j ≠ i:         ← N − 1 partículas
+            F_i += fuerza de j sobre i
+        a_i = F_i / m_i
+    para cada partícula i:                 ← después de calcular todas las fuerzas
+        v_i += a_i Δt
+        x_i += v_i Δt
+```
+
+<!-- NOTA — el doble ciclo cuesta N(N−1) evaluaciones de la fuerza por paso: es el O(N^2) de la diapositiva siguiente. Las posiciones se actualizan en un segundo ciclo para que todas las fuerzas usen las posiciones del mismo tiempo t; en el GPU, por eso integrarCuerpos lee oldPos y escribe newPos (y nbody-cpu.c calcula todas las aceleraciones antes de mover nada). La actualización v += a Δt, x += v Δt es el mismo leapfrog que viene más adelante, leyendo v en los medios pasos. El ciclo sobre i es el que se paraleliza: un thread por partícula. -->
 
 ---
 
@@ -283,9 +283,9 @@ $$x_{i+1} = x_i + v_{i+1/2} \, \Delta t$$
 
 - El algoritmo calcula cada elemento de una matriz $\mathbf{F}_{ij}$ de $N \times N$ de fuerzas entre pares de partículas.
 - La fuerza total en la partícula $i$ es la suma de la fila $i$ de la matriz.
-- Se puede calcular cada elemento independientemente (paralelismo $\mathcal{O}(N^2)$), pero requeriría memoria $\mathcal{O}(N^2)$ y estaría muy limitado por *bandwidth*.
+- Se puede calcular cada elemento en paralelo ($\mathcal{O}(N^2)$), pero requeriría memoria $\mathcal{O}(N^2)$ y estaría muy limitado por *bandwidth*.
 
-Ahora, utilizamos *tiles*: una sub-matriz de $p \times p$ elementos:
+**Versión CUDA**: utilizamos *tiles*: una sub-matriz de $p \times p$ elementos:
   - Las $p$ partículas de cada *tile* se copian una vez a la **memoria compartida** y desde ahí se reusan (como en la transpuesta con memoria compartida).
 
 ---
@@ -303,7 +303,7 @@ La matriz $\mathbf{F}_{ij}$ repartida en *tiles* de $p \times p$:
 
 ## **Paralelización del cálculo: la estrategia**
 
-El mismo doble ciclo de antes, pero el ciclo en $j$ se corta en *tiles* de $p$ columnas:
+Similar al caso anterior: realizamos un doble ciclo, pero el ciclo en $j$ se corta en *tiles* de $p$ columnas:
 
 ```text
 para cada grupo de p filas, en paralelo:            ← N/p grupos
@@ -367,11 +367,9 @@ __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 Algunos comentarios sobre el *kernel* anterior:
 - Se usa `float4` para los datos en la memoria del *device*, para ayudar con el acceso contiguo. El valor `w` corresponde a la masa.
 - El uso de `float3` en la función es para variables locales, donde hay que reducir el espacio usado en registros.
-- Los argumentos usan un `struct` que representa un cuerpo (*body*, b).
+- `bi` y `bj` son `float4`, un *struct* de CUDA: cada uno representa un cuerpo (*body*).
 
-- Existen dos opciones para usar $N$ structs (cuerpos).
-  - AoS: arreglos de estructuras.
-  - SoA: estructuras de arreglos.
+- Para guardar $N$ cuerpos hay dos opciones: AoS (arreglo de estructuras) o SoA (estructura de arreglos).
 
 <!-- NOTA — acá se cierra el círculo con las diapositivas anteriores: float4 es un layout AoS, no SoA. Y es la elección correcta según el criterio, porque cada thread usa las tres coordenadas Y la masa del MISMO cuerpo (mira bj.x, bj.y, bj.z y bj.w en bodyBodyInteraction), y el struct está alineado a 16 bytes. Es el caso de libro para AoS. -->
 
@@ -455,19 +453,20 @@ Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c). Es C puro
 ## **Cálculo de los tiles**
 
 ```cuda
-__device__ float3 tile_calculation(float4 myPosition, float3 accel)
-{
-  int i;
+__device__ float3 tile_calculation(float4 myPosition, float3 accel) {
   extern __shared__ float4 shPosition[];
-  for (i = 0; i < blockDim.x; i++){
+  for (int i = 0; i < blockDim.x; i++){
     accel = bodyBodyInteraction(myPosition, shPosition[i], accel);
   }
   return accel;
 }
 ```
 
-- Cada *thread* del bloque ejecuta esta función con su propia partícula (`myPosition`) contra las mismas $p$ partículas de la memoria compartida.
-- El acceso a memoria compartida es de tipo *broadcast*: no hay conflictos de bancos.
+- Cada *thread* es una fila: su `myPosition` contra las $p$ compartidas.
+- Un *warp* son 32 filas: en cada iteración, 32 celdas de una **columna**.
+- Todo el *warp* lee el mismo `shPosition[i]`: *broadcast*, sin conflictos.
+
+<!-- NOTA — en la matriz F_ij, cada thread es una fila (su cuerpo i = blockIdx.x * p + threadIdx.x) y recorre en serie las p columnas del tile, acumulando en su registro accel. Un warp son 32 threads consecutivos, o sea 32 filas consecutivas; en la iteración j del ciclo los 32 calculan F_ij con la misma j: un segmento vertical de la columna j, de 32 celdas de alto, que se mueve una columna a la derecha por iteración. Por eso todo el warp lee la misma dirección de memoria compartida (broadcast, sin conflictos). Cuidado con los conteos, que se confunden fácil: un tile usa p threads (uno por fila), no N/p; N/p es el número de bloques y también el número de tiles que recorre cada bloque. En el código el índice del ciclo se llama i, pero recorre las columnas (los cuerpos j). La carga de cada tile también es coalescente: el thread t copia el cuerpo t del tile, así que el warp lee 32 float4 consecutivos. -->
 
 ---
 
@@ -483,32 +482,50 @@ __device__ float3 tile_calculation(float4 myPosition, float3 accel)
 
 ---
 
-## **Cálculo de todas las fuerzas**
+## **El kernel: cálculo de todas las fuerzas**
 
 ```cuda
-__global__ void calculate_forces(void *devX, void *devA)
-{
-  extern __shared__ float4 shPosition[];
-  float4 *globalX = (float4 *)devX;
-  float4 *globalA = (float4 *)devA;
+__global__ void calculate_forces(void *devX, void *devA) {
+  extern __shared__ float4 shPosition[];             // un tile: p cuerpos
+  float4 *globalX = (float4 *)devX;                  // posiciones y masas
+  float4 *globalA = (float4 *)devA;                  // aceleraciones
   float4 myPosition;
   int i, tile;
-  float3 acc = {0.0f, 0.0f, 0.0f};
-  int gtid = blockIdx.x * blockDim.x + threadIdx.x;
-  myPosition = globalX[gtid];
-  for (i = 0, tile = 0; i < N; i += p, tile++) {
-    int idx = tile * blockDim.x + threadIdx.x;
-    shPosition[threadIdx.x] = globalX[idx];
-    __syncthreads();
-    acc = tile_calculation(myPosition, acc);
-    __syncthreads();
+  float3 acc = {0.0f, 0.0f, 0.0f};                   // acumulador en registros
+  int gtid = blockIdx.x * blockDim.x + threadIdx.x;  // mi fila i
+  myPosition = globalX[gtid];                        // mi cuerpo i
+  for (i = 0, tile = 0; i < N; i += p, tile++) {     // N/p tiles, en serie
+    int idx = tile * blockDim.x + threadIdx.x;       // un cuerpo j del tile
+    shPosition[threadIdx.x] = globalX[idx];          // carga cooperativa
+    __syncthreads();                                 // tile completo
+    acc = tile_calculation(myPosition, acc);         // p interacciones
+    __syncthreads();                                 // nadie sobrescribe el tile
   }
-  float4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
-  globalA[gtid] = acc4;  // guardar para la integración temporal
+  float4 acc4 = {acc.x, acc.y, acc.z, 0.0f};         // w = 0: alineado a 16 bytes
+  globalA[gtid] = acc4;                              // para la integración temporal
 }
 ```
 
 <!-- NOTA — N y p son constantes de compilación, como en GPU Gems, y el código supone p == blockDim.x: si alguien pregunta por qué mezcla p y blockDim.x, es el mismo número. i y tile avanzan juntos (i = tile * p), así que i solo sirve para cortar el ciclo cuando se recorrieron las N columnas. En nbody-colab.cu este kernel está partido en computeBodyAccel (el ciclo sobre los tiles, con numTiles = N/p como argumento y solo blockDim.x adentro) e integrarCuerpos, que además hace la integración en el mismo kernel en vez de guardar la aceleración en memoria global. -->
+
+---
+
+## **El kernel: cálculo de todas las fuerzas**
+
+Un *thread* por fila $i$. El bloque recorre su franja de $p$ filas *tile* por *tile*:
+
+1. **Cargar:** cada *thread* copia **un** cuerpo $j$ del *tile* a `shPosition`.
+2. `__syncthreads()`: el *tile* completo ya está en memoria compartida.
+3. **Calcular:** `tile_calculation` suma las $p$ interacciones de su fila.
+4. `__syncthreads()`: nadie sobrescribe el *tile* mientras otro lo usa.
+
+Al final, `acc` es la suma de toda la fila: la aceleración del cuerpo $i$.
+
+```cuda
+calculate_forces<<<N/p, p, p * sizeof(float4)>>>(devX, devA);
+```
+
+<!-- NOTA — el lanzamiento: N/p bloques de p threads; el tercer argumento es el tamaño de shPosition, que hace falta porque el arreglo está declarado extern __shared__ (tamaño dinámico, como transpuestaCompDin en la clase de memoria). En el paso 1 el thread t NO carga su propio cuerpo: carga el cuerpo tile*p + t, una columna del tile; solo coinciden en el tile de la diagonal. Como threads consecutivos leen float4 consecutivos, la carga es coalescente. El segundo __syncthreads es el que se olvida: sin él, un thread rápido carga el tile siguiente mientras otros todavía leen este. La ganancia: cada tile carga p cuerpos de memoria global y usa cada uno p veces (una por fila del bloque), p^2 interacciones por p cargas en vez de 1 por carga. Al final acc se guarda como float4 con w = 0 para que la escritura quede alineada a 16 bytes; la integración (v y x) es un paso aparte. -->
 
 ---
 

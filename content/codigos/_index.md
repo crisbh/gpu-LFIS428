@@ -59,7 +59,7 @@ Apéndice (para estudiar por cuenta propia; ver en las diapositivas cómo compil
 - Costo de lanzar un *kernel*: [cuda_kernel.cu](../code/kernels/cuda_kernel.cu)
 
 <!-- ###################################### -->
-<!-- ## Aplicaciones -->
+## Aplicaciones
 <!---->
 - N-cuerpos: [nbody-colab.cu](../code/aplicaciones/nbody-colab.cu) (Colab) · [nbody-cpu.c](../code/aplicaciones/nbody-cpu.c) (CPU, para comparar)
 - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
