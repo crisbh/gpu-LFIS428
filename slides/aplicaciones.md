@@ -9,7 +9,7 @@ theme: curso
 # **Programación en GPUs**
 ## Aplicaciones
 
-N-cuerpos
+Simulación de N-cuerpos: un ejemplo del CUDA Toolkit
 
 ---
 
@@ -19,12 +19,6 @@ Códigos disponibles para descargar:
 
 - N-cuerpos: [nbody-colab.cu](../code/aplicaciones/nbody-colab.cu) (Colab) · [nbody-cpu.c](../code/aplicaciones/nbody-cpu.c) (CPU, para comparar) · [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) (OpenGL)
 - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
-
----
-
-# Simulaciones: N-cuerpos
-
-Ejemplo del CUDA Toolkit
 
 ---
 
@@ -437,17 +431,17 @@ __global__ void calculate_forces(void *devX, void *devA)
 
 ## **Todas las partículas**
 
-- Con $p$ *threads* por bloque y $N$ partículas, necesitamos $N/p$ bloques en la grilla.
+- Con $p$ *threads* por bloque y $N$ partículas, necesitamos $N/p$ bloques en el grid.
 - Esto resulta en $N$ *threads* calculando $N$ interacciones ($N^2$ en total).
 
-![w:520px](images/aplicaciones/full_calc_nbody.png)
+![w:420px](images/aplicaciones/full_calc_nbody.png)
 <p class="credit">Fuente: GPU Gems Vol. 3</p>
 
 ---
 
 ## **N-cuerpos en Colab**
 
-[nbody-colab.cu](../code/aplicaciones/nbody-colab.cu): el *kernel* de GPU Gems en un programa que corre en Colab. Genera $N$ cuerpos al azar, verifica un paso contra el *host* e imprime el tiempo por paso, las interacciones por segundo y los GFLOP/s. `computeBodyAccel` es `calculate_forces`; `integrarCuerpos` le agrega el paso de tiempo.
+[nbody-colab.cu](../code/aplicaciones/nbody-colab.cu): el *kernel* de GPU Gems en un programa que corre en Colab. Genera $N$ cuerpos al azar, verifica un paso contra el *host* e imprime el tiempo por paso, las interacciones por segundo y los GFLOP/s.  `computeBodyAccel` es `calculate_forces`.
 
 ```bash
 nvcc -arch=sm_75 nbody-colab.cu -o nbody-colab.x
@@ -460,7 +454,32 @@ nvcc -arch=sm_75 nbody-colab.cu -o nbody-colab.x
 
 <!-- NOTA — integrarCuerpos hace v += a dt y luego x += v_nueva dt: es el leapfrog del diagrama de los medios pasos si se lee v como v_{i+1/2} (sin el medio paso inicial). -->
 
-<!-- RESPUESTAS medidas en una T4 de Colab (2026-11-04), con 500 pasos (200 para el barrido en N) y una corrida de calentamiento descartada; en otra VM los números cambian unos pocos %. Ojo con las mediciones cortas: antes de que el programa calentara el GPU, con los 20 pasos por defecto se medían solo 30-60 ms y el GPU no alcanzaba a subir su reloj, así que la misma configuración (N = 16384, p = 256) dio 3.2 ms por paso en una corrida y 1.6 ms en otra. Ahora el programa corre pasos durante medio segundo antes de medir, y el comando de la diapositiva pide además 500 pasos. 1: N = 16384, ms por paso (GFLOP/s): p = 64, 256 bloques: 1.70 (3170); p = 128, 128 bloques: 1.68 (3200); p = 256, 64 bloques: 1.62 (3320); p = 512, 32 bloques: 1.57 (3420). Gana p = 512, al revés de lo que se esperaba: con 32 bloques quedan 8 de los 40 SM sin trabajo y aun así es el más rápido. Probablemente pesa más que haya menos tiles (32 contra 256), es decir, menos __syncthreads y menos vueltas del lazo externo por thread, pero esto no está medido con ncu. La diferencia entre el mejor y el peor es de solo 8 %, y el barrido en orden inverso da los mismos tiempos (±1 %). 2: p = 256: N = 16384: 1.61 ms; N = 32768: 6.40 ms (×3.97); N = 65536: 23.0 ms (×3.60). El primer salto es N^2 casi exacto (las interacciones por segundo no cambian, 167 mil millones), así que con N = 16384 el GPU ya está ocupado; el segundo crece algo menos que 4 porque con N = 65536 sube el rendimiento a 187 mil millones por segundo (256 bloques, más de 6 por SM; probablemente esconden mejor la latencia, tampoco medido). 3: 3420 GFLOP/s (p = 512, N = 16384) es el 42 % del peak, y 3730 GFLOP/s (p = 256, N = 65536) el 46 %. GPU Gems cuenta 20 FLOP por interacción, pero rsqrtf es una sola instrucción de la SFU, así que la cifra es una convención. Comparación con la CPU (nbody-cpu.c, en la misma VM de Colab, 2 vCPU, gcc -O3 -march=native -ffast-math -fopenmp): N = 16384: 142.8 ms por paso con 2 threads (37.6 GFLOP/s) y 161.9 ms con 1 (33.2 GFLOP/s); N = 32768: 564.3 ms (×3.95, también N^2). El segundo thread gana solo 13 %: probablemente las 2 vCPU son dos hyperthreads del mismo core físico (no verificado). El GPU es unas 90 veces más rápido (142.8 / 1.57 = 91 con N = 16384 y p = 512; 564.3 / 6.40 = 88 con N = 32768), y eso contra un código de CPU vectorizado y con OpenMP, no contra uno ingenuo. -->
+<!-- RESPUESTAS medidas en una T4 de Colab (2026-11-04), con 500 pasos (200 para el barrido en N) y una corrida de calentamiento descartada; en otra VM los números cambian unos pocos %. Ojo con las mediciones cortas: antes de que el programa calentara el GPU, con los 20 pasos por defecto se medían solo 30-60 ms y el GPU no alcanzaba a subir su reloj, así que la misma configuración (N = 16384, p = 256) dio 3.2 ms por paso en una corrida y 1.6 ms en otra. Ahora el programa corre pasos durante medio segundo antes de medir, pero en una prueba posterior con 20 pasos todavía dio 2.8 y 2.1 ms (sin confirmar que fuera el código nuevo), así que el comando de la diapositiva pide 500 pasos. 1: N = 16384, ms por paso (GFLOP/s): p = 64, 256 bloques: 1.70 (3170); p = 128, 128 bloques: 1.68 (3200); p = 256, 64 bloques: 1.62 (3320); p = 512, 32 bloques: 1.57 (3420). Gana p = 512, al revés de lo que se esperaba: con 32 bloques quedan 8 de los 40 SM sin trabajo y aun así es el más rápido. Probablemente pesa más que haya menos tiles (32 contra 256), es decir, menos __syncthreads y menos vueltas del lazo externo por thread, pero esto no está medido con ncu. La diferencia entre el mejor y el peor es de solo 8 %, y el barrido en orden inverso da los mismos tiempos (±1 %). 2: p = 256: N = 16384: 1.61 ms; N = 32768: 6.40 ms (×3.97); N = 65536: 23.0 ms (×3.60). El primer salto es N^2 casi exacto (las interacciones por segundo no cambian, 167 mil millones), así que con N = 16384 el GPU ya está ocupado; el segundo crece algo menos que 4 porque con N = 65536 sube el rendimiento a 187 mil millones por segundo (256 bloques, más de 6 por SM; probablemente esconden mejor la latencia, tampoco medido). 3: 3420 GFLOP/s (p = 512, N = 16384) es el 42 % del peak, y 3730 GFLOP/s (p = 256, N = 65536) el 46 %. GPU Gems cuenta 20 FLOP por interacción, pero rsqrtf es una sola instrucción de la SFU, así que la cifra es una convención. -->
+
+---
+
+## **N-cuerpos: GPU contra CPU**
+
+[nbody-cpu.c](../code/aplicaciones/nbody-cpu.c): el mismo cálculo en la CPU, con los mismos cuerpos y el mismo paso. Para que la comparación sea más justa, tiene vectorización (las coordenadas en arreglos separados, SoA) y los cuerpos se reparten entre los cores con OpenMP.
+
+```bash
+gcc -O3 -march=native -ffast-math -fopenmp nbody-cpu.c -o nbody-cpu.x -lm
+nproc                                   # cores de la VM
+./nbody-cpu.x 16384                     # N  [pasos, por defecto 5]
+OMP_NUM_THREADS=1 ./nbody-cpu.x 16384
+```
+
+4. Con el mismo $N$, ¿cuántas veces más rápido es el GPU que la CPU? ¿Cuánto gana la CPU al usar todos sus cores en vez de uno?
+
+<!-- RESPUESTA medida en la misma VM de Colab que la diapositiva anterior
+(2026-11-04), 2 vCPU: N = 16384: 142.8 ms por paso con 2 threads (37.6 GFLOP/s)
+y 161.9 ms con 1 (33.2 GFLOP/s); N = 32768: 564.3 ms (×3.95, también N^2). El
+segundo thread gana solo 13 %: probablemente las 2 vCPU son dos hyperthreads del
+mismo core físico (no verificado). El GPU es unas 90 veces más rápido (142.8 /
+1.57 = 91 con N = 16384 y p = 512; 564.3 / 6.40 = 88 con N = 32768), y eso
+contra un código de CPU vectorizado y con OpenMP, no contra uno ingenuo: vale la
+pena preguntar contra qué CPU se compara cuando un artículo dice "100 veces más
+rápido". -->
 
 ---
 
