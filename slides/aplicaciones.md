@@ -17,15 +17,56 @@ Simulación de N-cuerpos: un ejemplo del CUDA Toolkit
 
 Códigos disponibles para descargar:
 
-- N-cuerpos: [nbody-colab.cu](../code/aplicaciones/nbody-colab.cu) (Colab) · [nbody-cpu.c](../code/aplicaciones/nbody-cpu.c) (CPU, para comparar) · [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) (OpenGL)
+- N-cuerpos: [nbody-colab.cu](../code/aplicaciones/nbody-colab.cu) (Colab) · [nbody-cpu.c](../code/aplicaciones/nbody-cpu.c) (CPU, para comparar)
 - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
 
 ---
 
 ## **Simulaciones: N-cuerpos**
 
-- Una simulación de N-cuerpos trata de $N$ masas, representadas como partículas.
+<div class="lado-a-lado">
+<div style="flex:1">
+
+- Una simulación de N-cuerpos trata de $N$  objetos con masa $m_i$, representados como partículas.
 - La fuerza gravitacional entre estas masas se calcula en la simulación.
+- Cada partícula $i$ siente la fuerza $\mathbf{F}_{ij}$ de **todas** las demás. Su suma es la fuerza total $\mathbf{F}_i$.
+
+</div>
+<div style="flex:0 0 46%">
+
+<svg viewBox="0 0 560 400" style="width:100%;display:block;margin:0.2em auto 0" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<defs><marker id="fl-nc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/></marker><marker id="fl-nc-tot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e8641b"/></marker></defs>
+<line x1="347" y1="145" x2="407" y2="102" stroke="#555" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="430" cy="85" r="25" fill="#a5d6a7" stroke="#555" stroke-width="1.5"/>
+<circle cx="470" cy="330" r="22" fill="#a5d6a7" stroke="#555" stroke-width="1.5"/>
+<circle cx="330" cy="350" r="19" fill="#a5d6a7" stroke="#555" stroke-width="1.5"/>
+<circle cx="85" cy="335" r="20" fill="#a5d6a7" stroke="#555" stroke-width="1.5"/>
+<circle cx="75" cy="105" r="18" fill="#a5d6a7" stroke="#555" stroke-width="1.5"/>
+<circle cx="245" cy="55" r="17" fill="#a5d6a7" stroke="#555" stroke-width="1.5"/>
+<line x1="267" y1="203" x2="346" y2="146" stroke="#2e7d32" stroke-width="2.5" marker-end="url(#fl-nc)"/>
+<line x1="269" y1="225" x2="315" y2="249" stroke="#2e7d32" stroke-width="2.5" marker-end="url(#fl-nc)"/>
+<line x1="261" y1="233" x2="300" y2="300" stroke="#2e7d32" stroke-width="2.5" marker-end="url(#fl-nc)"/>
+<line x1="233" y1="227" x2="186" y2="261" stroke="#2e7d32" stroke-width="2.5" marker-end="url(#fl-nc)"/>
+<line x1="232" y1="204" x2="201" y2="184" stroke="#2e7d32" stroke-width="2.5" marker-end="url(#fl-nc)"/>
+<line x1="249" y1="194" x2="248" y2="144" stroke="#2e7d32" stroke-width="2.5" marker-end="url(#fl-nc)"/>
+<line x1="271" y1="215" x2="356" y2="213" stroke="#e8641b" stroke-width="5" marker-end="url(#fl-nc-tot)"/>
+<circle cx="250" cy="215" r="18" fill="#0288d1" stroke="#555" stroke-width="1.5"/>
+<text x="244" y="222" font-size="20" fill="#fff" font-weight="bold">i</text>
+<text x="425" y="92" font-size="20" fill="#222" font-weight="bold">j</text>
+<text x="291" y="161" font-size="22" text-anchor="middle" fill="#2e7d32"><tspan font-weight="bold">F</tspan><tspan font-size="15" dy="5">ij</tspan></text>
+<text x="365" y="113" font-size="22" text-anchor="middle" fill="#555"><tspan font-weight="bold">r</tspan><tspan font-size="15" dy="5">ij</tspan></text>
+<text x="362" y="234" font-size="24" text-anchor="start" fill="#e8641b"><tspan font-weight="bold">F</tspan><tspan font-size="16" dy="5">i</tspan></text>
+</svg>
+
+</div>
+</div>
+
+<!-- NOTA — en el diagrama el largo de cada flecha verde es proporcional a m_j / r_ij^2 y la flecha naranja es su suma vectorial exacta (calculada, no dibujada a ojo); el tamaño de cada círculo crece con su masa. Vale la pena notar que la fuerza total es más corta que varias de las fuerzas individuales: tiran en direcciones opuestas y se cancelan en parte. -->
+
+---
+
+## **Simulaciones: N-cuerpos**
+
 - De la fuerza obtenemos la **aceleración** que actúa en cada partícula.
 - De la aceleración actualizamos la **velocidad** de cada partícula, y su **posición**.
 - Repetimos este proceso cada *timestep* para evolucionar las partículas.
