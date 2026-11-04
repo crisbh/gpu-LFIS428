@@ -59,6 +59,13 @@ Apéndice (para estudiar por cuenta propia; ver en las diapositivas cómo compil
 - Costo de lanzar un *kernel*: [cuda_kernel.cu](../code/kernels/cuda_kernel.cu)
 
 <!-- ###################################### -->
+## 5. Aplicaciones: N-cuerpos
+
+- N-cuerpos: [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h)
+- Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
+<!-- - OpenGL: [simpleGL.cu](../code/aplicaciones/simpleGL.cu) -->
+
+<!-- ###################################### -->
 <!-- ## Librerías de CUDA y Python -->
 <!---->
 <!-- - cuBLAS: [cublasSgemm.cpp](../code/librerias-python/cublasSgemm.cpp) -->
@@ -68,9 +75,3 @@ Apéndice (para estudiar por cuenta propia; ver en las diapositivas cómo compil
 <!-- - CuPy: [cupy_op.py](../code/librerias-python/cupy_op.py) -->
 <!-- - PyCUDA: [pycuda_matmul.py](../code/librerias-python/pycuda_matmul.py) -->
 
-<!-- ###################################### -->
-<!-- ## Aplicaciones -->
-<!---->
-<!-- - N-cuerpos: [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) -->
-<!-- - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c) -->
-<!-- - OpenGL: [simpleGL.cu](../code/aplicaciones/simpleGL.cu) -->
