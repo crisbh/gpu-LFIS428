@@ -8,7 +8,7 @@
  *   - cuántas interacciones por segundo calcula el GPU (N^2 por paso);
  *   - los GFLOP/s, contando 20 operaciones por interacción (GPU Gems 3).
  * Antes de medir compara las velocidades tras un paso del GPU con el mismo
- * paso en el host.
+ * paso en el host, y calienta el GPU durante medio segundo.
  *
  * Compilar:  nvcc -arch=sm_75 nbody-colab.cu -o nbody-colab.x
  * Ejecutar:  ./nbody-colab.x [N, por defecto 16384] [p, por defecto 256]
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
   printf("N = %d cuerpos, p = %d threads por bloque, %d bloques, %d tiles\n",
          n, p, n / p, numTiles);
 
-  // un paso, para verificarlo contra el host (y de paso calentar el GPU)
+  // un paso, para verificarlo contra el host
   integrarCuerpos<<<n / p, p, compartida>>>(d_pos[1], d_pos[0], d_vel,
                                             numTiles);
   cudaError_t err = cudaDeviceSynchronize();
@@ -163,11 +163,24 @@ int main(int argc, char *argv[]) {
   printf("verificación (16 cuerpos contra el host): %s\n",
          errores ? "ERROR" : "correcta");
 
-  // medir 'pasos' pasos, alternando los dos arreglos de posiciones
+  // calentar: el GPU en reposo tiene el reloj bajo y tarda en subirlo, así
+  // que sin esto una medición corta sale hasta 2 veces más lenta
   cudaEvent_t inicio, fin;
   cudaEventCreate(&inicio);
   cudaEventCreate(&fin);
   int actual = 1;
+  float ms = 0.0f;
+  cudaEventRecord(inicio);
+  while (ms < 500.0f) {
+    integrarCuerpos<<<n / p, p, compartida>>>(d_pos[1 - actual], d_pos[actual],
+                                              d_vel, numTiles);
+    actual = 1 - actual;
+    cudaEventRecord(fin);
+    cudaEventSynchronize(fin);
+    cudaEventElapsedTime(&ms, inicio, fin);
+  }
+
+  // medir 'pasos' pasos, alternando los dos arreglos de posiciones
   cudaEventRecord(inicio);
   for (int s = 0; s < pasos; s++) {
     integrarCuerpos<<<n / p, p, compartida>>>(d_pos[1 - actual], d_pos[actual],
@@ -176,7 +189,6 @@ int main(int argc, char *argv[]) {
   }
   cudaEventRecord(fin);
   cudaEventSynchronize(fin);
-  float ms;
   cudaEventElapsedTime(&ms, inicio, fin);
 
   double ms_paso = ms / pasos;

@@ -17,7 +17,7 @@ N-cuerpos
 
 Códigos disponibles para descargar:
 
-- N-cuerpos: [nbody-colab.cu](../code/aplicaciones/nbody-colab.cu) (Colab) · [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) (OpenGL)
+- N-cuerpos: [nbody-colab.cu](../code/aplicaciones/nbody-colab.cu) (Colab) · [nbody-cpu.c](../code/aplicaciones/nbody-cpu.c) (CPU, para comparar) · [nbody.cu](../code/aplicaciones/nbody.cu) · [nbody.h](../code/aplicaciones/nbody.h) · [tipsy.h](../code/aplicaciones/tipsy.h) (OpenGL)
 - Estructuras de datos: [aos.cu](../code/memoria/aos.cu) · [soa.cu](../code/memoria/soa.cu) · [alineamiento_datos.c](../code/memoria/alineamiento_datos.c)
 
 ---
@@ -468,14 +468,14 @@ nvcc nbody.cu -o nbody.x -lGL -lGLU -lglut
 
 ```bash
 nvcc -arch=sm_75 nbody-colab.cu -o nbody-colab.x
-./nbody-colab.x 16384 256      # N  p
+./nbody-colab.x 16384 256 500  # N  p  pasos
 ```
 
 1. Con $N = 16384$, probar $p = 64, 128, 256, 512$. ¿Cuál es más rápido? ¿Cuántos bloques hay en cada caso?
 2. Duplicar $N$ dos veces. ¿Crece el tiempo por paso como $N^2$?
 3. ¿Qué fracción del *peak* de la T4 ($\approx 8.1$ TFLOP/s) se alcanza?
 
-<!-- RESPUESTAS esperadas, SIN MEDIR (el programa no se ha compilado ni corrido en la T4; TODO: correrlo y poner los números acá). 1: la T4 tiene 40 SM; con N = 16384 y p = 512 hay solo 32 bloques, así que quedan SM sin trabajo, y con p = 256 hay 64 bloques, menos de dos por SM. Bloques más chicos reparten mejor el trabajo, pero cada tile es más corto y hay más __syncthreads por interacción: lo esperable es que p = 128 o 256 gane, y que 512 pierda. 2: con N chico el GPU no está lleno (16384 threads contra 40 x 1024 = 40960 que caben), así que al duplicar N el tiempo crece menos que 4 veces; cuando el GPU se llena, crece como N^2. 3: GPU Gems cuenta 20 FLOP por interacción, pero rsqrtf es una sola instrucción de la SFU, así que la cifra es una convención; fracciones del orden de 20-50 % del peak serían razonables. -->
+<!-- RESPUESTAS medidas en una T4 de Colab (2026-11-04), con 500 pasos (200 para el barrido en N) y una corrida de calentamiento descartada; en otra VM los números cambian unos pocos %. Ojo con las mediciones cortas: antes de que el programa calentara el GPU, con los 20 pasos por defecto se medían solo 30-60 ms y el GPU no alcanzaba a subir su reloj, así que la misma configuración (N = 16384, p = 256) dio 3.2 ms por paso en una corrida y 1.6 ms en otra. Ahora el programa corre pasos durante medio segundo antes de medir, y el comando de la diapositiva pide además 500 pasos. 1: N = 16384, ms por paso (GFLOP/s): p = 64, 256 bloques: 1.70 (3170); p = 128, 128 bloques: 1.68 (3200); p = 256, 64 bloques: 1.62 (3320); p = 512, 32 bloques: 1.57 (3420). Gana p = 512, al revés de lo que se esperaba: con 32 bloques quedan 8 de los 40 SM sin trabajo y aun así es el más rápido. Probablemente pesa más que haya menos tiles (32 contra 256), es decir, menos __syncthreads y menos vueltas del lazo externo por thread, pero esto no está medido con ncu. La diferencia entre el mejor y el peor es de solo 8 %, y el barrido en orden inverso da los mismos tiempos (±1 %). 2: p = 256: N = 16384: 1.61 ms; N = 32768: 6.40 ms (×3.97); N = 65536: 23.0 ms (×3.60). El primer salto es N^2 casi exacto (las interacciones por segundo no cambian, 167 mil millones), así que con N = 16384 el GPU ya está ocupado; el segundo crece algo menos que 4 porque con N = 65536 sube el rendimiento a 187 mil millones por segundo (256 bloques, más de 6 por SM; probablemente esconden mejor la latencia, tampoco medido). 3: 3420 GFLOP/s (p = 512, N = 16384) es el 42 % del peak, y 3730 GFLOP/s (p = 256, N = 65536) el 46 %. GPU Gems cuenta 20 FLOP por interacción, pero rsqrtf es una sola instrucción de la SFU, así que la cifra es una convención. -->
 
 ---
 
