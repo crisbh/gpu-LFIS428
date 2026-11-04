@@ -71,6 +71,20 @@ Códigos disponibles para descargar:
 - De la aceleración actualizamos la **velocidad** de cada partícula, y su **posición**.
 - Repetimos este proceso cada *timestep* para evolucionar las partículas.
 
+```text
+para cada paso de tiempo:
+    para cada partícula i:                 ← N partículas
+        F_i = 0
+        para cada partícula j ≠ i:         ← N − 1 partículas
+            F_i += fuerza de j sobre i
+        a_i = F_i / m_i
+    para cada partícula i:                 ← después de calcular todas las fuerzas
+        v_i += a_i Δt
+        x_i += v_i Δt
+```
+
+<!-- NOTA — el doble ciclo cuesta N(N−1) evaluaciones de la fuerza por paso: es el O(N^2) de la diapositiva siguiente. Las posiciones se actualizan en un segundo ciclo para que todas las fuerzas usen las posiciones del mismo tiempo t; en el GPU, por eso integrarCuerpos lee oldPos y escribe newPos (y nbody-cpu.c calcula todas las aceleraciones antes de mover nada). La actualización v += a Δt, x += v Δt es el mismo leapfrog que viene más adelante, leyendo v en los medios pasos. El ciclo sobre i es el que se paraleliza: un thread por partícula. -->
+
 ---
 
 ## **Simulaciones: N-cuerpos**
@@ -271,7 +285,8 @@ $$x_{i+1} = x_i + v_{i+1/2} \, \Delta t$$
 - La fuerza total en la partícula $i$ es la suma de la fila $i$ de la matriz.
 - Se puede calcular cada elemento independientemente (paralelismo $\mathcal{O}(N^2)$), pero requeriría memoria $\mathcal{O}(N^2)$ y estaría muy limitado por *bandwidth*.
 
-En esta implementación se utiliza un *tile*: una sub-matriz de $p \times p$ elementos.
+Ahora, utilizamos *tiles*: una sub-matriz de $p \times p$ elementos:
+  - Las $p$ partículas de cada *tile* se copian una vez a la **memoria compartida** y desde ahí se reusan (como en la transpuesta con memoria compartida).
 
 ---
 
@@ -282,7 +297,28 @@ La matriz $\mathbf{F}_{ij}$ repartida en *tiles* de $p \times p$:
 ![w:540px](images/aplicaciones/full_calc_nbody.png)
 <p class="credit">Fuente: GPU Gems Vol. 3</p>
 
-<!-- NOTA — esta es una vista previa: no explicar todavía threads, bloques ni las cargas desde memoria global. Basta con que reconozcan la matriz de la diapositiva anterior cortada en cuadrados de p × p, cada uno un tile. Las etiquetas (p threads, N/p bloques, p pasos entre cargas) se leen cuando la figura vuelve en "Todas las partículas". -->
+<!-- NOTA — esta es una vista previa: no explicar todavía threads, bloques ni las cargas desde memoria global. Basta con que reconozcan la matriz F_ij cortada en cuadrados de p × p, cada uno un tile. Las etiquetas (p threads, N/p bloques, p pasos entre cargas) se leen cuando la figura vuelve en "Todas las partículas". -->
+
+---
+
+## **Paralelización del cálculo: la estrategia**
+
+El mismo doble ciclo de antes, pero el ciclo en $j$ se corta en *tiles* de $p$ columnas:
+
+```text
+para cada grupo de p filas, en paralelo:            ← N/p grupos
+    F_i = 0 para cada fila i del grupo
+    para cada tile, uno tras otro:                  ← N/p tiles
+        copiar las p partículas j del tile a memoria compartida
+        para cada fila i del grupo, en paralelo:    ← p filas
+            para cada j del tile:                   ← p interacciones
+                F_i += fuerza de j sobre i
+```
+
+- Cada *tile* usa $2p$ partículas ($p_i$ y $p_j$) para $p^2$ interacciones.
+- Cada *tile* solo carga $p$ columnas nuevas, y cada una se reusa $p$ veces.
+
+<!-- NOTA — los dos ciclos "en paralelo" se convierten más adelante en la jerarquía de CUDA: un grupo de p filas es un bloque y cada fila es un thread. Todavía no nombrarlos: las diapositivas siguientes los construyen. La memoria compartida sí se nombra desde ya, porque es el motivo de usar tiles y ya la vieron con la transpuesta: un bloque la comparte, así que las p filas de un grupo leen la misma copia. Comparado con el pseudocódigo del principio, solo cambia el orden del trabajo: son las mismas N^2 interacciones, agrupadas para que cada partícula leída se use p veces en vez de una. La actualización de velocidades y posiciones después del ciclo de fuerzas no cambia. -->
 
 ---
 
@@ -320,6 +356,10 @@ __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 }
 ```
 
+<!-- NOTA — float3 y float4 son los tipos vectoriales de CUDA: structs ya definidos (nvcc los incluye solo, no hace falta ningún #include) con campos .x, .y, .z y, en float4, .w. Hay versiones para casi todos los tipos y de 1 a 4 componentes: float2, int2, int4, double2, char4, uint3... Ya los conocen sin saberlo: threadIdx y blockIdx son uint3, y dim3 es un uint3 con un constructor que pone 1 en los campos que no se dan. Se construyen con make_float3(x, y, z) o make_float4(x, y, z, w) (nbody-colab.cu usa make_float4 para crear los cuerpos). No traen operadores: CUDA no define float3 + float3 ni escalar * float3, por eso el kernel escribe cada componente a mano (r.x = ..., ai.x += ...); el helper_math.h de los cuda-samples los agrega, pero no es parte del toolkit. Acá float4 empaqueta la posición (x, y, z) y la masa (w) de un cuerpo en 16 bytes; float3 se usa para vectores que no necesitan cuarta componente (r, la aceleración). Por qué uno en memoria y el otro en registros es la diapositiva siguiente. -->
+
+<!-- Diferencias con nbody-colab.cu, por si un estudiante compara: allá la función es bodyBodyInteraction(ai, bi, bj), con la aceleración como primer argumento (como en los cuda-samples), y calcula 1/r^3 como rsqrtf(distSqr) al cubo en vez de 1.0f/sqrtf(distSqr^3). rsqrtf es una sola instrucción de la SFU, así que esa versión hace menos operaciones que las 4 que cuenta este comentario; el programa igual cuenta 20 FLOP por interacción, la convención de GPU Gems (ver la pregunta 3 del ejercicio en Colab). El resultado es el mismo salvo redondeo. -->
+
 ---
 
 ## **Cálculo de la fuerza entre un par de partículas**
@@ -352,8 +392,8 @@ Particula p;  p.x = 1.0f;  p.y = 2.0f;
 Para $N$ partículas hay dos formas de organizar los mismos datos:
 
 ```cuda
-Particula particulas[N];                        // AoS: particulas[i].x
-struct Particulas { float x[N]; float y[N]; };  // SoA: particulas.x[i]
+Particula aos[N];                                   // AoS: aos[i].x
+struct Particulas { float x[N]; float y[N]; } soa;  // SoA: soa.x[i]
 ```
 
 - **AoS** (arreglo de estructuras) intercala `x y x y ...`.
@@ -405,7 +445,7 @@ Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c). Es C puro
 
 - Los datos de $p$ partículas se cargan de la memoria global a la memoria compartida para un bloque.
 - Cada *thread* en el bloque calcula $p$ interacciones.
-- El resultado del cálculo de un *tile* son $p$ aceleraciones parcialmente actualizadas.
+- El resultado del cálculo de un *tile* son $p$ **aceleraciones parcialmente actualizadas**.
 
 ![w:720px](images/aplicaciones/p_tile.png)
 <p class="credit">Fuente: GPU Gems Vol. 3</p>
@@ -418,7 +458,7 @@ Ejemplo: [alineamiento_datos.c](../code/memoria/alineamiento_datos.c). Es C puro
 __device__ float3 tile_calculation(float4 myPosition, float3 accel)
 {
   int i;
-  extern __shared__ float4[] shPosition;
+  extern __shared__ float4 shPosition[];
   for (i = 0; i < blockDim.x; i++){
     accel = bodyBodyInteraction(myPosition, shPosition[i], accel);
   }
@@ -426,7 +466,7 @@ __device__ float3 tile_calculation(float4 myPosition, float3 accel)
 }
 ```
 
-- Cada *thread* ejecuta esta función para las mismas $p$ partículas. 
+- Cada *thread* del bloque ejecuta esta función con su propia partícula (`myPosition`) contra las mismas $p$ partículas de la memoria compartida.
 - El acceso a memoria compartida es de tipo *broadcast*: no hay conflictos de bancos.
 
 ---
@@ -448,7 +488,7 @@ __device__ float3 tile_calculation(float4 myPosition, float3 accel)
 ```cuda
 __global__ void calculate_forces(void *devX, void *devA)
 {
-  extern __shared__ float4[] shPosition;
+  extern __shared__ float4 shPosition[];
   float4 *globalX = (float4 *)devX;
   float4 *globalA = (float4 *)devA;
   float4 myPosition;
@@ -467,6 +507,8 @@ __global__ void calculate_forces(void *devX, void *devA)
   globalA[gtid] = acc4;  // guardar para la integración temporal
 }
 ```
+
+<!-- NOTA — N y p son constantes de compilación, como en GPU Gems, y el código supone p == blockDim.x: si alguien pregunta por qué mezcla p y blockDim.x, es el mismo número. i y tile avanzan juntos (i = tile * p), así que i solo sirve para cortar el ciclo cuando se recorrieron las N columnas. En nbody-colab.cu este kernel está partido en computeBodyAccel (el ciclo sobre los tiles, con numTiles = N/p como argumento y solo blockDim.x adentro) e integrarCuerpos, que además hace la integración en el mismo kernel en vez de guardar la aceleración en memoria global. -->
 
 ---
 
@@ -495,7 +537,7 @@ nvcc -arch=sm_75 nbody-colab.cu -o nbody-colab.x
 
 <!-- NOTA — integrarCuerpos hace v += a dt y luego x += v_nueva dt: es el leapfrog del diagrama de los medios pasos si se lee v como v_{i+1/2} (sin el medio paso inicial). -->
 
-<!-- RESPUESTAS medidas en una T4 de Colab (2026-11-04), con 500 pasos (200 para el barrido en N) y una corrida de calentamiento descartada; en otra VM los números cambian unos pocos %. Ojo con las mediciones cortas: antes de que el programa calentara el GPU, con los 20 pasos por defecto se medían solo 30-60 ms y el GPU no alcanzaba a subir su reloj, así que la misma configuración (N = 16384, p = 256) dio 3.2 ms por paso en una corrida y 1.6 ms en otra. Ahora el programa corre pasos durante medio segundo antes de medir, pero en una prueba posterior con 20 pasos todavía dio 2.8 y 2.1 ms (sin confirmar que fuera el código nuevo), así que el comando de la diapositiva pide 500 pasos. 1: N = 16384, ms por paso (GFLOP/s): p = 64, 256 bloques: 1.70 (3170); p = 128, 128 bloques: 1.68 (3200); p = 256, 64 bloques: 1.62 (3320); p = 512, 32 bloques: 1.57 (3420). Gana p = 512, al revés de lo que se esperaba: con 32 bloques quedan 8 de los 40 SM sin trabajo y aun así es el más rápido. Probablemente pesa más que haya menos tiles (32 contra 256), es decir, menos __syncthreads y menos vueltas del lazo externo por thread, pero esto no está medido con ncu. La diferencia entre el mejor y el peor es de solo 8 %, y el barrido en orden inverso da los mismos tiempos (±1 %). 2: p = 256: N = 16384: 1.61 ms; N = 32768: 6.40 ms (×3.97); N = 65536: 23.0 ms (×3.60). El primer salto es N^2 casi exacto (las interacciones por segundo no cambian, 167 mil millones), así que con N = 16384 el GPU ya está ocupado; el segundo crece algo menos que 4 porque con N = 65536 sube el rendimiento a 187 mil millones por segundo (256 bloques, más de 6 por SM; probablemente esconden mejor la latencia, tampoco medido). 3: 3420 GFLOP/s (p = 512, N = 16384) es el 42 % del peak, y 3730 GFLOP/s (p = 256, N = 65536) el 46 %. GPU Gems cuenta 20 FLOP por interacción, pero rsqrtf es una sola instrucción de la SFU, así que la cifra es una convención. -->
+<!-- RESPUESTAS medidas en una T4 de Colab (2026-11-04), con 500 pasos (200 para el barrido en N) y una corrida de calentamiento descartada; en otra VM los números cambian unos pocos %. Ojo con las mediciones cortas: antes de que el programa calentara el GPU, con los 20 pasos por defecto se medían solo 30-60 ms y el GPU no alcanzaba a subir su reloj, así que la misma configuración (N = 16384, p = 256) dio 3.2 ms por paso en una corrida y 1.6 ms en otra. Ahora el programa corre pasos durante medio segundo antes de medir, pero en una prueba posterior con 20 pasos todavía dio 2.8 y 2.1 ms (sin confirmar que fuera el código nuevo), así que el comando de la diapositiva pide 500 pasos. 1: N = 16384, ms por paso (GFLOP/s): p = 64, 256 bloques: 1.70 (3170); p = 128, 128 bloques: 1.68 (3200); p = 256, 64 bloques: 1.62 (3320); p = 512, 32 bloques: 1.57 (3420). Gana p = 512, al revés de lo que se esperaba: con 32 bloques quedan 8 de los 40 SM sin trabajo y aun así es el más rápido. Probablemente pesa más que haya menos tiles (32 contra 256), es decir, menos __syncthreads y menos vueltas del ciclo externo por thread, pero esto no está medido con ncu. La diferencia entre el mejor y el peor es de solo 8 %, y el barrido en orden inverso da los mismos tiempos (±1 %). 2: p = 256: N = 16384: 1.61 ms; N = 32768: 6.40 ms (×3.97); N = 65536: 23.0 ms (×3.60). El primer salto es N^2 casi exacto (las interacciones por segundo no cambian, 167 mil millones), así que con N = 16384 el GPU ya está ocupado; el segundo crece algo menos que 4 porque con N = 65536 sube el rendimiento a 187 mil millones por segundo (256 bloques, más de 6 por SM; probablemente esconden mejor la latencia, tampoco medido). 3: 3420 GFLOP/s (p = 512, N = 16384) es el 42 % del peak, y 3730 GFLOP/s (p = 256, N = 65536) el 46 %. GPU Gems cuenta 20 FLOP por interacción, pero rsqrtf es una sola instrucción de la SFU, así que la cifra es una convención. -->
 
 ---
 
