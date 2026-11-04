@@ -11,5 +11,5 @@ Diapositivas del curso para cada tema/unidad:
 - [2. El uso de la memoria del GPU](memoria.html)
 - [3. Control de los threads](threads.html)
 - [4. Invocación de los kernels](kernels.html)
-<!-- - [5. Aplicaciones: N-cuerpos](aplicaciones.html) -->
+- [5. Aplicaciones: N-cuerpos](aplicaciones.html)
 <!-- - [6. Librerías de CUDA y Python](librerias-python.html) -->
