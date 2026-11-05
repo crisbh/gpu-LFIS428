@@ -38,9 +38,9 @@
  *
  * Salida: tabla de observables vs. T con sus errores, tiempo de cómputo de
  * todo el barrido de temperaturas (termalización y medidas) y la
- * configuración final (de la última temperatura) en salida_cpu.bin (ver
- * graficar.py). Como la versión GPU usará otros números aleatorios, se valida
- * comparando los observables dentro de sus barras de error, no la
+ * configuración final (de la última temperatura) en salida_cpu.bin (formato
+ * en escribir_salida). Como la versión GPU usará otros números aleatorios,
+ * se valida comparando los observables dentro de sus barras de error, no la
  * configuración.
  */
 

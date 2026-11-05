@@ -39,7 +39,7 @@
  *
  * Salida: tiempo de cómputo del ciclo sobre los píxeles, la imagen en
  * imagen_cpu.ppm (se abre con cualquier visor de imágenes) y los canales r,
- * g, b en salida_cpu.bin (ver comparar.py y graficar.py).
+ * g, b en salida_cpu.bin (formato en escribir_salida).
  */
 
 #include <math.h>

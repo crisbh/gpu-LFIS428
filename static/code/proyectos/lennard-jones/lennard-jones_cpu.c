@@ -39,7 +39,7 @@
  *
  * Salida: energía y temperatura durante la simulación, tiempo de cómputo del
  * ciclo principal (incluidas esas medidas) y los campos x, y, vx, vy
- * (nx = N, ny = 1) en salida_cpu.bin (ver comparar.py y graficar.py).
+ * (nx = N, ny = 1) en salida_cpu.bin (formato en escribir_salida).
  */
 
 #include <math.h>

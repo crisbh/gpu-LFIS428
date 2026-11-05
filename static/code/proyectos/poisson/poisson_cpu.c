@@ -33,7 +33,7 @@
  *
  * Salida: iteraciones, tiempo de cómputo del ciclo principal (incluido el
  * cálculo del residuo), error respecto a la solución exacta y el campo final
- * en salida_cpu.bin (ver comparar.py y graficar.py).
+ * en salida_cpu.bin (formato en escribir_salida).
  */
 
 #include <math.h>

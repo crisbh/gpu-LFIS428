@@ -19,7 +19,7 @@
  *            pasos: número de pasos de tiempo (por defecto 5000)
  *
  * Salida: tiempo de cómputo del ciclo principal, error respecto a la solución
- * exacta y el campo final en salida_cpu.bin (ver comparar.py y graficar.py).
+ * exacta y el campo final en salida_cpu.bin (formato en escribir_salida).
  *
  * Con los valores por defecto la placa apenas se enfría (t es muy pequeño),
  * así que para validar conviene una malla menor con más pasos, p. ej.

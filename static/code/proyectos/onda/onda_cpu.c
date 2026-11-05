@@ -27,8 +27,8 @@
  *                   justo y el tiempo final cambia
  *
  * Salida: tiempo de cómputo del ciclo principal, error respecto a la solución
- * exacta, variación de la energía y el campo final en salida_cpu.bin (ver
- * comparar.py y graficar.py).
+ * exacta, variación de la energía y el campo final en salida_cpu.bin
+ * (formato en escribir_salida).
  */
 
 #include <math.h>

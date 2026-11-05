@@ -33,7 +33,8 @@
  *
  * Salida: <x>, <y> y la norma a lo largo de la simulación, tiempo de cómputo
  * del ciclo principal (incluidas esas medidas) y las partes real e
- * imaginaria de psi final en salida_cpu.bin (ver comparar.py y graficar.py).
+ * imaginaria de psi final en salida_cpu.bin (formato en
+ * escribir_salida_compleja).
  */
 
 #include <math.h>
