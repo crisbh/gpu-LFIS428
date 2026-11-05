@@ -31,8 +31,9 @@
  *
  * Ojo: Jacobi necesita O(N^2) iteraciones; con N grande puede tardar mucho.
  *
- * Salida: iteraciones, tiempo de cómputo, error respecto a la solución exacta
- * y el campo final en salida_cpu.bin (ver comparar.py y graficar.py).
+ * Salida: iteraciones, tiempo de cómputo del ciclo principal (incluido el
+ * cálculo del residuo), error respecto a la solución exacta y el campo final
+ * en salida_cpu.bin (ver comparar.py y graficar.py).
  */
 
 #include <math.h>
@@ -137,6 +138,10 @@ int main(int argc, char **argv) {
                             "SOR rojo-negro"};
   if (metodo < 0 || metodo > 2) {
     fprintf(stderr, "metodo debe ser 0, 1 o 2\n");
+    return 1;
+  }
+  if (N < 3) {
+    fprintf(stderr, "Se necesita N >= 3\n");
     return 1;
   }
 

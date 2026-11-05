@@ -36,7 +36,8 @@
  *            medidas: barridos de medición por temperatura (por defecto 1000)
  *            semilla: semilla del generador (por defecto 12345)
  *
- * Salida: tabla de observables vs. T con sus errores, tiempo de cómputo y la
+ * Salida: tabla de observables vs. T con sus errores, tiempo de cómputo de
+ * todo el barrido de temperaturas (termalización y medidas) y la
  * configuración final (de la última temperatura) en salida_cpu.bin (ver
  * graficar.py). Como la versión GPU usará otros números aleatorios, se valida
  * comparando los observables dentro de sus barras de error, no la
@@ -147,12 +148,12 @@ int main(int argc, char **argv) {
 
   // El tablero de ajedrez con bordes periódicos necesita L par: con L impar
   // los sitios (0, j) y (L-1, j) son vecinos y tienen el mismo color
-  if (L % 2 != 0) {
-    printf("L debe ser par\n");
+  if (L < 2 || L % 2 != 0) {
+    fprintf(stderr, "L debe ser par\n");
     return 1;
   }
   if (medidas < NBLOQUES || medidas % NBLOQUES != 0) {
-    printf("medidas debe ser múltiplo de %d\n", NBLOQUES);
+    fprintf(stderr, "medidas debe ser múltiplo de %d\n", NBLOQUES);
     return 1;
   }
   int por_bloque = medidas / NBLOQUES;

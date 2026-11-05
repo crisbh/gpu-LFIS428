@@ -37,9 +37,9 @@
  * Ejecutar:  ./ray-tracing_cpu.x [modo] [ancho] [alto] [muestras]
  *            por defecto: modo 0, 400 x 225 píxeles, 100 muestras por píxel
  *
- * Salida: tiempo de cómputo, la imagen en imagen_cpu.ppm (se abre con
- * cualquier visor de imágenes) y los canales r, g, b en salida_cpu.bin (ver
- * comparar.py y graficar.py).
+ * Salida: tiempo de cómputo del ciclo sobre los píxeles, la imagen en
+ * imagen_cpu.ppm (se abre con cualquier visor de imágenes) y los canales r,
+ * g, b en salida_cpu.bin (ver comparar.py y graficar.py).
  */
 
 #include <math.h>
@@ -313,10 +313,10 @@ vec3 color(vec3 o, vec3 d, const esfera *e, int n, int max_rebotes,
       }
       vec3 reflejado = resta(du, escalar(2.0 * dn, normal));
       // Ley de Snell: discriminante < 0 es reflexión total interna
-      real dt = punto(du, n_fuera);
-      real disc = 1.0 - razon * razon * (1.0 - dt * dt);
+      real dnf = punto(du, n_fuera);
+      real disc = 1.0 - razon * razon * (1.0 - dnf * dnf);
       if (disc > 0 && aleatorio(estado) >= schlick(coseno, e[k].param))
-        nueva = resta(escalar(razon, resta(du, escalar(dt, n_fuera))),
+        nueva = resta(escalar(razon, resta(du, escalar(dnf, n_fuera))),
                       escalar(sqrt(disc), n_fuera));
       else
         nueva = reflejado;
@@ -334,6 +334,10 @@ int main(int argc, char **argv) {
   int ancho = (argc > 2) ? atoi(argv[2]) : 400;
   int alto = (argc > 3) ? atoi(argv[3]) : 225;
   int muestras = (argc > 4) ? atoi(argv[4]) : 100;
+  if (modo < 0 || modo > 1 || ancho < 1 || alto < 1 || muestras < 1) {
+    fprintf(stderr, "modo debe ser 0 o 1, y ancho, alto y muestras >= 1\n");
+    return 1;
+  }
   // En el horno blanco la luz puede quedar atrapada muchos rebotes (p. ej. por
   // reflexión total interna cerca del punto de contacto vidrio-suelo)
   int max_rebotes = (modo == 1) ? 1000 : 50;

@@ -12,8 +12,9 @@
  * Condición inicial: el modo normal (1,1), u(x,y,0) = sin(pi x) sin(pi y),
  * con velocidad inicial cero. La solución exacta es
  *   u(x,y,t) = cos(omega t) sin(pi x) sin(pi y),   omega = sqrt(2) pi c.
- * Por defecto se simula exactamente un período, así que u debe volver a la
- * condición inicial.
+ * Por defecto se simula un período y un cuarto: ahí la solución exacta es
+ * u = 0 y cambia lo más rápido posible, así que un error en la frecuencia se
+ * nota entero en el error (al cabo de un período justo casi no se nota).
  *
  * Además se mide la energía discreta (cinética + elástica), que el esquema
  * leapfrog conserva hasta el error de redondeo.
@@ -21,11 +22,13 @@
  * Compilar:  gcc -O2 onda_cpu.c -lm -o onda_cpu.x
  * Ejecutar:  ./onda_cpu.x [N] [pasos]
  *            N: puntos por lado, incluyendo el borde (por defecto 2048)
- *            pasos: número de pasos de tiempo (por defecto, un período)
+ *            pasos: número de pasos de tiempo (por defecto, los que cubren
+ *                   1.25 períodos con r ~ 0.5); si se da, se usa r = 0.5
+ *                   justo y el tiempo final cambia
  *
- * Salida: tiempo de cómputo, error respecto a la solución exacta, variación
- * de la energía y el campo final en salida_cpu.bin (ver comparar.py y
- * graficar.py).
+ * Salida: tiempo de cómputo del ciclo principal, error respecto a la solución
+ * exacta, variación de la energía y el campo final en salida_cpu.bin (ver
+ * comparar.py y graficar.py).
  */
 
 #include <math.h>
@@ -122,10 +125,15 @@ int main(int argc, char **argv) {
   real h = 1.0 / (N - 1);
   real omega = sqrt(2.0) * PI * c;
   real periodo = 2.0 * PI / omega;
+  real t_final = 1.25 * periodo;
 
-  // Por defecto, un número entero de pasos que cubre un período con r ~ 0.5
-  int pasos = (argc > 2) ? atoi(argv[2]) : (int)ceil(periodo / (0.5 * h / c));
-  real dt = (argc > 2) ? 0.5 * h / c : periodo / pasos;
+  // Por defecto, un número entero de pasos que llega a t_final con r ~ 0.5
+  int pasos = (argc > 2) ? atoi(argv[2]) : (int)ceil(t_final / (0.5 * h / c));
+  real dt = (argc > 2) ? 0.5 * h / c : t_final / pasos;
+  if (N < 3 || pasos < 1) {
+    fprintf(stderr, "Se necesita N >= 3 y pasos >= 1\n");
+    return 1;
+  }
   real r = c * dt / h;
   real r2 = r * r;
 
@@ -163,6 +171,9 @@ int main(int argc, char **argv) {
   printf("Tiempo físico t = %.6f (período = %.6f)\n", t, periodo);
   printf("Error máximo vs. solución exacta: %.3e\n",
          error_maximo(u, N, h, omega, t));
+  // Referencia: un código que no actualiza u tendría este error
+  printf("(sin evolucionar, el error sería %.3e)\n",
+         fabs(1.0 - cos(omega * t)));
   printf("Energía: inicial = %.12e, final = %.12e, variación relativa = %.3e\n",
          E0, E1, fabs(E1 - E0) / E0);
 

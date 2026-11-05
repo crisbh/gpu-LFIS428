@@ -18,8 +18,8 @@
  *            N: puntos por lado, incluyendo el borde (por defecto 2048)
  *            pasos: número de pasos de tiempo (por defecto 5000)
  *
- * Salida: tiempo de cómputo, error respecto a la solución exacta y el campo
- * final en salida_cpu.bin (ver comparar.py y graficar.py).
+ * Salida: tiempo de cómputo del ciclo principal, error respecto a la solución
+ * exacta y el campo final en salida_cpu.bin (ver comparar.py y graficar.py).
  *
  * Con los valores por defecto la placa apenas se enfría (t es muy pequeño),
  * así que para validar conviene una malla menor con más pasos, p. ej.
@@ -88,6 +88,10 @@ real error_maximo(const real *u, int N, real h, real alpha, real t) {
 int main(int argc, char **argv) {
   int N = (argc > 1) ? atoi(argv[1]) : 2048;
   int pasos = (argc > 2) ? atoi(argv[2]) : 5000;
+  if (N < 3 || pasos < 1) {
+    fprintf(stderr, "Se necesita N >= 3 y pasos >= 1\n");
+    return 1;
+  }
 
   real alpha = 1.0;
   real h = 1.0 / (N - 1);
