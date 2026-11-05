@@ -25,10 +25,9 @@
  * variación relativa debe ser pequeña y no crecer sistemáticamente. No es
  * cero porque la fuerza no es continua en r_c y dt es finito: con los valores
  * por defecto es ~6e-4, casi toda en los primeros 100 pasos, mientras la red
- * inicial se desordena. Como la
- * dinámica es caótica, las posiciones de la versión GPU sólo coincidirán con
- * las de CPU durante pocos pasos: para corridas largas se comparan la energía
- * y la temperatura.
+ * inicial se desordena. Como la dinámica es caótica, las posiciones de la
+ * versión GPU sólo coincidirán con las de CPU durante pocos pasos: para
+ * corridas largas se comparan la energía y la temperatura.
  *
  * Compilar:  gcc -O2 lennard-jones_cpu.c -lm -o lennard-jones_cpu.x
  * Ejecutar:  ./lennard-jones_cpu.x [n] [pasos] [rho] [T0]
@@ -38,9 +37,9 @@
  *            rho: densidad (por defecto 0.6)
  *            T0: temperatura inicial (por defecto 1.0)
  *
- * Salida: energía y temperatura durante la simulación, tiempo de cómputo y
- * los campos x, y, vx, vy (nx = N, ny = 1) en salida_cpu.bin (ver
- * comparar.py y graficar.py).
+ * Salida: energía y temperatura durante la simulación, tiempo de cómputo del
+ * ciclo principal (incluidas esas medidas) y los campos x, y, vx, vy
+ * (nx = N, ny = 1) en salida_cpu.bin (formato en escribir_salida).
  */
 
 #include <math.h>
@@ -48,6 +47,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+// Cambiar a float es una optimización posible: hay que justificarla con la
+// conservación de la energía
 typedef double real;
 
 double segundos(void) {
@@ -151,6 +152,10 @@ int main(int argc, char **argv) {
   if (ncel < 3) {
     fprintf(stderr, "La caja es muy pequeña: se necesitan al menos 3 celdas "
                     "por lado (aumentar n)\n");
+    return 1;
+  }
+  if (pasos < 1) {
+    fprintf(stderr, "Se necesita pasos >= 1\n");
     return 1;
   }
   int muestras = 10;

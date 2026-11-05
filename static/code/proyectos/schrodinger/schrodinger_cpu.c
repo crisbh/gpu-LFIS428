@@ -19,8 +19,8 @@
  * Condición inicial: el estado fundamental desplazado a (x0, 0), un estado
  * coherente. Su centro oscila como una partícula clásica:
  *   <x>(t) = x0 cos(omega t),  <y>(t) = 0,
- * sin cambiar de forma, y la norma se conserva. Ambas cosas se usan para
- * validar.
+ * sin cambiar de forma, y la norma se conserva. El código imprime <x> y la
+ * norma para validar.
  *
  * psi se guarda como reales intercalados (re, im, re, im, ...), el mismo
  * formato que cufftDoubleComplex.
@@ -32,8 +32,9 @@
  *                   período de oscilación)
  *
  * Salida: <x>, <y> y la norma a lo largo de la simulación, tiempo de cómputo
- * y las partes real e imaginaria de psi final en salida_cpu.bin (ver
- * comparar.py y graficar.py).
+ * del ciclo principal (incluidas esas medidas) y las partes real e
+ * imaginaria de psi final en salida_cpu.bin (formato en
+ * escribir_salida_compleja).
  */
 
 #include <math.h>
@@ -43,6 +44,8 @@
 
 #define PI 3.14159265358979323846
 
+// Cambiar a float (cufftComplex en vez de cufftDoubleComplex) es una
+// optimización posible: hay que justificarla con la norma y <x>
 typedef double real;
 
 double segundos(void) {
@@ -159,6 +162,10 @@ int main(int argc, char **argv) {
     fprintf(stderr, "N debe ser potencia de 2\n");
     return 1;
   }
+  if (pasos < 1) {
+    fprintf(stderr, "Se necesita pasos >= 1\n");
+    return 1;
+  }
 
   real Lc = 20.0;     // lado de la caja
   real omega = 1.0;   // frecuencia del oscilador
@@ -204,16 +211,14 @@ int main(int argc, char **argv) {
   observables(psi, N, dx, Lc, &norma0, &xm, &ym);
   printf("%9.4f %12.9f %12.8f %12.8f %12.2e\n", 0.0, norma0, xm, x0, ym);
 
-  double t_calculo = 0.0;
+  double t0 = segundos();
   int cada = (pasos >= muestras) ? pasos / muestras : 1;
   for (int p = 1; p <= pasos; p++) {
-    double t0 = segundos();
     multiplicar(psi, fase_V, (int)n);
     fft2d(psi, N, -1, col);
     multiplicar(psi, fase_K, (int)n);
     fft2d(psi, N, +1, col);
     multiplicar(psi, fase_V, (int)n);
-    t_calculo += segundos() - t0;
 
     if (p % cada == 0 || p == pasos) {
       real norma;
@@ -224,11 +229,13 @@ int main(int argc, char **argv) {
     }
   }
 
+  double t_total = segundos() - t0;
+
   real norma;
   observables(psi, N, dx, Lc, &norma, &xm, &ym);
   real t = pasos * dt;
-  printf("Tiempo de cómputo: %.3f s (%.3f ms por paso)\n", t_calculo,
-         1e3 * t_calculo / pasos);
+  printf("Tiempo de cómputo: %.3f s (%.3f ms por paso)\n", t_total,
+         1e3 * t_total / pasos);
   printf("Error final en <x>: %.3e, variación relativa de la norma: %.3e\n",
          fabs(xm - x0 * cos(omega * t)), fabs(norma - norma0) / norma0);
 
